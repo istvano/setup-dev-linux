@@ -1,0 +1,16 @@
+# Private local input and generated state
+/config/*.local.json
+/config/private/
+/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+/logs/
+/backups/
+/inventories/
+/autoinstall/generated/
+/vm/disks/
+*.qcow2
+*.iso
+.env
+.env.*
