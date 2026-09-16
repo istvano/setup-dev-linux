@@ -1,0 +1,175 @@
+#!/usr/bin/python3 -B
+"""Build manifest/desktop.json from an inventory snapshot.
+
+dconf's user database already holds only keys changed from their defaults, but
+plenty of those changes are per-machine state rather than preference: window
+geometry, last-used directories, per-application notification entries keyed by
+volume UUID, saved network-connection certificates. This selects the sections
+that express a preference and drops the rest, recording what it dropped.
+"""
+import argparse
+import json
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+
+# Sections whose values are preferences worth reproducing.
+KEEP_SECTIONS = [
+    'org/gnome/desktop/interface',
+    'org/gnome/desktop/background',
+    'org/gnome/desktop/screensaver',
+    'org/gnome/desktop/peripherals/keyboard',
+    'org/gnome/desktop/peripherals/touchpad',
+    'org/gnome/desktop/input-sources',
+    'org/gnome/desktop/privacy',
+    'org/gnome/desktop/session',
+    'org/gnome/desktop/notifications',
+    'org/gnome/desktop/search-providers',
+    'org/gnome/desktop/a11y/interface',
+    'org/gnome/desktop/a11y/magnifier',
+    'org/gnome/desktop/break-reminders',
+    'org/gnome/desktop/break-reminders/eyesight',
+    'org/gnome/desktop/break-reminders/movement',
+    'org/gnome/desktop/screen-time-limits',
+    'org/gnome/mutter',
+    'org/gnome/mutter/keybindings',
+    'org/gnome/shell',
+    'org/gnome/shell/extensions/dash-to-dock',
+    'org/gnome/shell/extensions/ding',
+    'org/gnome/shell/extensions/tiling-assistant',
+    'org/gnome/settings-daemon/plugins/power',
+    'org/gnome/settings-daemon/plugins/color',
+    'org/gnome/nautilus/preferences',
+    'org/gnome/system/location',
+    'org/gnome/calculator',
+]
+TERMINAL_PROFILE = re.compile(r'^org/gnome/terminal/legacy/profiles:/:[0-9a-f-]+$')
+
+# Identifiers that belong to this machine alone. The record of what was excluded
+# should say what kind of thing was skipped, not carry the machine's volume,
+# network-connection and application identifiers into a committed file.
+REDACT = [
+    (re.compile(r'(?<=/application/)[A-Za-z0-9_.+-]*mountable-volume-[0-9a-f-]+'), '<mounted-volume>'),
+    (re.compile(r'(?<=/eap/)[0-9a-f-]{36}'), '<network-connection>'),
+    (re.compile(r'(?<=/application/)[A-Za-z0-9_.+-]+'), '<application>'),
+    (re.compile(r'(?<=/filechooser/)[A-Za-z0-9_.+-]+'), '<application>'),
+    (re.compile(r'(?<=/global-shortcuts/)[A-Za-z0-9_.+-]+'), '<application>'),
+    (re.compile(r'(?<=/vms/)[0-9a-f]{8,}'), '<vm>'),
+]
+
+
+def redact(path):
+    for pattern, replacement in REDACT:
+        path = pattern.sub(replacement, path)
+    return path
+
+# Keys inside kept sections that are state, not preference.
+DROP_KEYS = {
+    'org/gnome/shell': {'app-picker-layout', 'welcome-dialog-last-shown-version'},
+    # This indexes the per-application notification sections excluded below, and
+    # embeds identifiers that mean nothing anywhere else: a mounted volume's
+    # UUID, a Chrome application id, and applications this manifest does not
+    # install.
+    'org/gnome/desktop/notifications': {'application-children'},
+    # tiling-assistant stores the mutter settings it overrides here while it is
+    # active and removes them when it is not, so whether this key exists depends
+    # on when the snapshot was taken. Replaying a stale copy would have the
+    # extension restore values that are no longer current.
+    'org/gnome/shell/extensions/tiling-assistant': {'overridden-settings'},
+}
+
+DROP_REASONS = [
+    (re.compile(r'window-state|/state/window|file-roller|/papers'), 'window geometry and application state'),
+    (re.compile(r'^org/gnome/portal/filechooser/'), 'last-used directory per application'),
+    (re.compile(r'^org/gnome/desktop/notifications/application/'), 'per-application entries keyed to this machine'),
+    (re.compile(r'^org/gnome/nm-applet/eap/'), 'saved network connection certificates'),
+    (re.compile(r'^org/virt-manager/'), 'per-machine VM list and connection paths'),
+    (re.compile(r'^org/gnome/desktop/app-folders/'), 'default app-folder layout'),
+    (re.compile(r'^org/gnome/deja-dup'), 'backup destinations stay manual'),
+    (re.compile(r'^org/gnome/settings-daemon/global-shortcuts/'), 'per-application shortcut registration'),
+    (re.compile(r'.*'), 'not a reproducible preference'),
+]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--inventory', type=Path, required=True)
+    parser.add_argument('--dropped-apps', action='append', default=[],
+                        help='desktop-file stems to strip from favourites')
+    args = parser.parse_args()
+
+    inventory = json.loads(args.inventory.read_text())
+    dconf = inventory['desktop']['dconf']
+
+    kept, dropped = {}, []
+    for section, values in sorted(dconf.items()):
+        if section in KEEP_SECTIONS or TERMINAL_PROFILE.match(section):
+            selected = {k: v for k, v in values.items()
+                        if k not in DROP_KEYS.get(section, set())}
+            for key in sorted(set(values) - set(selected)):
+                dropped.append({'path': redact(f'{section}/{key}'),
+                                'reason': 'application state'})
+            if selected:
+                kept[section] = selected
+        else:
+            reason = next(r for pattern, r in DROP_REASONS if pattern.search(section))
+            dropped.append({'path': redact(section), 'reason': reason})
+
+    # GNOME Terminal generates its default profile's UUID per installation, so a
+    # profile reproduced by UUID alone is an orphan on a new machine: not in the
+    # profile list, not the default, and never displayed. Register it explicitly.
+    profiles = sorted(section.rsplit(':', 1)[1] for section in kept
+                      if TERMINAL_PROFILE.match(section))
+    if profiles:
+        listed = ', '.join(f"'{uuid}'" for uuid in profiles)
+        kept['org/gnome/terminal/legacy/profiles:'] = {
+            'list': f'[{listed}]',
+            'default': f"'{profiles[0]}'",
+        }
+
+    # Favourites may name applications this manifest no longer installs.
+    favourites = kept.get('org/gnome/shell', {}).get('favorite-apps')
+    removed_favourites = []
+    if favourites and args.dropped_apps:
+        for stem in args.dropped_apps:
+            if stem in favourites:
+                favourites = re.sub(r"'[^']*" + re.escape(stem) + r"[^']*\.desktop',?\s*", '', favourites)
+                removed_favourites.append(stem)
+        kept['org/gnome/shell']['favorite-apps'] = favourites.replace(', ]', ']')
+
+    # Redaction makes many entries identical; collapse them so the record reads
+    # as "nine per-application notification sections", not nine identical lines.
+    collapsed = {}
+    for entry in dropped:
+        key = (entry['path'], entry['reason'])
+        collapsed[key] = collapsed.get(key, 0) + 1
+    dropped = [{'path': path, 'reason': reason, **({'count': n} if n > 1 else {})}
+               for (path, reason), n in sorted(collapsed.items())]
+
+    manifest = {
+        'schema_version': 1,
+        'description': 'GNOME settings reproduced on a new workstation. Values are dconf '
+                       'literals applied with dconf load. Sections listed under "excluded" '
+                       'were observed but deliberately not reproduced. Extensions are '
+                       'recorded as installed, enabled and disabled: an extension can be '
+                       'present and deliberately switched off, and only the enabled set is '
+                       'expected in org/gnome/shell/enabled-extensions.',
+        'extensions_installed': inventory['desktop']['gnome_extensions'],
+        'extensions_enabled': inventory['desktop'].get('gnome_extensions_enabled', []),
+        'extensions_disabled': inventory['desktop'].get('gnome_extensions_disabled', []),
+        'user_fonts': inventory['desktop']['user_fonts'],
+        'settings': kept,
+        'excluded': dropped,
+        'removed_favourites': removed_favourites,
+    }
+    out = ROOT / 'manifest/desktop.json'
+    out.write_text(json.dumps(manifest, indent=2) + '\n')
+    excluded_total = sum(entry.get('count', 1) for entry in dropped)
+    print(f'{out}: {len(kept)} sections kept, {excluded_total} excluded '
+          f'({len(dropped)} distinct), {sum(len(v) for v in kept.values())} keys')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

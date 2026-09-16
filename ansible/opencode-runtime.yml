@@ -1,0 +1,19 @@
+---
+- name: Deliver the reviewed OpenCode CLI
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify and place the complete versioned OpenCode payload
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-opencode-runtime"
+        stdin: "{{ {'config': workstation_config} | to_json }}"
+      register: opencode_runtime_apply
+      changed_when: >-
+        opencode_runtime_apply.rc == 0 and
+        (opencode_runtime_apply.stdout | from_json).changed
+      no_log: true

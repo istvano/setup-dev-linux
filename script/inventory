@@ -1,0 +1,346 @@
+#!/usr/bin/python3 -B
+"""Read-only workstation inventory.
+
+Observes this machine and emits a raw snapshot. The snapshot is review input:
+it is never an installation input on its own. Nothing here writes outside the
+requested output path, downloads, or uses sudo.
+"""
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+HOME = Path.home()
+
+# Snap bases and Canonical platform snaps are implementation detail of other
+# snaps, not selections a workstation makes.
+SNAP_NOISE = {'bare', 'core', 'core18', 'core20', 'core22', 'core24', 'snapd',
+              'gtk-common-themes', 'mesa-2404', 'snapd-desktop-integration',
+              'desktop-security-center', 'firmware-updater', 'prompting-client'}
+SNAP_NOISE_PREFIXES = ('gnome-',)
+
+# Files in $HOME that are caches, histories or editor droppings rather than
+# configuration a new machine should reproduce.
+DOTFILE_NOISE = re.compile(
+    r'^\.(cache|local|npm|nv|java|m2|gradle|swt|dotnet|redhat|lemminx|pki|'
+    r'vscode-shared|sudo_as_admin_successful|zcompdump.*|.*_history|viminfo|'
+    r'bash-preexec\.sh|shell\.pre-oh-my-zsh|npmrc\.(old|old2|correct|noworking))$')
+
+# Credential-bearing paths: recorded as present, never read.
+SECRET_PATHS = {'.ssh', '.gnupg', '.aws', '.azure', '.kube', '.docker', '.config/gh',
+                '.claude.json', '.codex', '.copilot', '.AviatrixVPNC', '.AviProf.conf'}
+
+
+def run(*args, **kwargs):
+    """Return stdout, or None when the command is missing or fails."""
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=120,
+                              check=True, **kwargs).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def collect_system():
+    release = {}
+    try:
+        for line in Path('/etc/os-release').read_text().splitlines():
+            if '=' in line:
+                key, _, value = line.partition('=')
+                release[key] = value.strip('"')
+    except OSError:
+        pass
+    return {
+        'distribution': release.get('ID'),
+        'release': release.get('VERSION_ID'),
+        'codename': release.get('VERSION_CODENAME'),
+        'kernel': os.uname().release,
+        'desktop': os.environ.get('XDG_CURRENT_DESKTOP'),
+        'login_shell': (run('getent', 'passwd', os.getlogin()) or '').strip().rsplit(':', 1)[-1] or None,
+        'groups': sorted((run('id', '-nG') or '').split()),
+    }
+
+
+def parse_apt_origins(packages):
+    """Map each package to the repository site serving its installed version."""
+    origins = {}
+    output = run('apt-cache', 'policy', *packages) or ''
+    current = None
+    installed = False
+    for line in output.splitlines():
+        if line and not line.startswith(' ') and line.rstrip().endswith(':'):
+            current = line.rstrip()[:-1]
+            installed = False
+            continue
+        if current is None:
+            continue
+        if line.startswith(' ***'):
+            installed = True
+            continue
+        if installed and line.startswith('        '):
+            match = re.search(r'https?://([^/\s]+)(\S*)', line)
+            if match:
+                origins.setdefault(current, match.group(1))
+                installed = False
+            elif '/var/lib/dpkg/status' in line:
+                origins.setdefault(current, 'local-dpkg-only')
+                installed = False
+        elif not line.startswith(' '):
+            installed = False
+    return origins
+
+
+def collect_apt():
+    manual = sorted(set((run('apt-mark', 'showmanual') or '').split()))
+    if not manual:
+        return {'manual': [], 'repositories': []}
+    origins = parse_apt_origins(manual)
+    versions = {}
+    for line in (run('dpkg-query', '-W', '-f=${Package}\\t${Version}\\n') or '').splitlines():
+        name, _, version = line.partition('\t')
+        versions[name] = version
+    packages = [{'name': name,
+                 'version': versions.get(name),
+                 'origin': origins.get(name, 'unknown'),
+                 'third_party': origins.get(name, 'unknown') not in
+                                ('archive.ubuntu.com', 'security.ubuntu.com',
+                                 'gb.archive.ubuntu.com', 'local-dpkg-only', 'unknown')
+                                and not origins.get(name, '').endswith('.archive.ubuntu.com')}
+                for name in manual]
+    return {'manual': packages, 'repositories': collect_apt_repositories()}
+
+
+def collect_apt_repositories():
+    """Third-party APT sources, with the keyring each one is signed by."""
+    repositories = []
+    paths = [Path('/etc/apt/sources.list')] + sorted(Path('/etc/apt/sources.list.d').glob('*'))
+    for path in paths:
+        if not path.is_file():
+            continue
+        try:
+            text = path.read_text()
+        except OSError:
+            continue
+        if path.suffix == '.sources':
+            for block in text.split('\n\n'):
+                fields = dict(
+                    (key.strip().lower(), value.strip())
+                    for key, _, value in (line.partition(':') for line in block.splitlines())
+                    if key and not key.startswith('#'))
+                if 'uris' in fields:
+                    repositories.append({'file': str(path), 'format': 'deb822',
+                                         'uri': fields['uris'], 'suites': fields.get('suites'),
+                                         'components': fields.get('components'),
+                                         'signed_by': fields.get('signed-by')})
+        else:
+            for line in text.splitlines():
+                if not line.startswith('deb '):
+                    continue
+                options = re.search(r'\[([^\]]*)\]', line)
+                uri = re.search(r'(https?://\S+)', line)
+                repositories.append({
+                    'file': str(path), 'format': 'one-line',
+                    'uri': uri.group(1) if uri else None,
+                    'signed_by': (re.search(r'signed-by=(\S+)', options.group(1)).group(1)
+                                  if options and 'signed-by=' in options.group(1) else None)})
+    ubuntu = re.compile(r'(ubuntu\.com|canonical\.com)')
+    return [r for r in repositories if r['uri'] and not ubuntu.search(r['uri'])]
+
+
+def collect_snaps():
+    output = run('snap', 'list')
+    if not output:
+        return []
+    snaps = []
+    for line in output.splitlines()[1:]:
+        fields = line.split()
+        if len(fields) < 5:
+            continue
+        name, version, revision, tracking, publisher = fields[:5]
+        notes = fields[5] if len(fields) > 5 else '-'
+        snaps.append({'name': name, 'version': version, 'revision': revision,
+                      'tracking': tracking, 'publisher': publisher.rstrip('*'),
+                      'canonical_verified': publisher.endswith('**'),
+                      'base_or_platform': name in SNAP_NOISE
+                                          or name.startswith(SNAP_NOISE_PREFIXES)
+                                          or notes in ('base', 'snapd')})
+    return snaps
+
+
+def collect_runtimes():
+    runtimes = {}
+    nvm = HOME / '.nvm/versions/node'
+    if nvm.is_dir():
+        alias = HOME / '.nvm/alias/default'
+        runtimes['nvm'] = {
+            'installed': sorted(p.name for p in nvm.iterdir() if p.is_dir()),
+            'default': alias.read_text().strip() if alias.is_file() else None}
+    candidates = HOME / '.sdkman/candidates'
+    if candidates.is_dir():
+        runtimes['sdkman'] = {
+            candidate.name: {
+                'versions': sorted(v.name for v in candidate.iterdir()
+                                   if v.is_dir() and v.name != 'current'),
+                'current': ((candidate / 'current').resolve().name
+                            if (candidate / 'current').exists() else None)}
+            for candidate in sorted(candidates.iterdir()) if candidate.is_dir()}
+    globals_root = HOME / '.nvm/versions/node'
+    npm_globals = []
+    if globals_root.is_dir():
+        for version in globals_root.iterdir():
+            modules = version / 'lib/node_modules'
+            if modules.is_dir():
+                npm_globals = sorted(p.name for p in modules.iterdir()
+                                     if p.is_dir() and not p.name.startswith('.'))
+    if npm_globals:
+        runtimes['npm_globals'] = npm_globals
+    for name, binary, args in (('uv', 'uv', ('--version',)),
+                               ('go', 'go', ('version',)),
+                               ('rustc', 'rustc', ('--version',)),
+                               ('python3', 'python3', ('--version',))):
+        if shutil.which(binary):
+            runtimes[name] = (run(binary, *args) or '').strip()
+    tools = run('uv', 'tool', 'list')
+    if tools and 'No tools installed' not in tools:
+        runtimes['uv_tools'] = [l.split()[0] for l in tools.splitlines() if l and not l.startswith(' ')]
+    return runtimes
+
+
+def collect_shell():
+    shell = {}
+    omz = HOME / '.oh-my-zsh'
+    if omz.is_dir():
+        zshrc = (HOME / '.zshrc').read_text() if (HOME / '.zshrc').is_file() else ''
+        plugins = re.search(r'^\s*plugins=\(([^)]*)\)', zshrc, re.M)
+        theme = re.search(r'^\s*ZSH_THEME="([^"]*)"', zshrc, re.M)
+        custom = omz / 'custom/plugins'
+        shell['oh_my_zsh'] = {
+            'theme': theme.group(1) if theme else None,
+            'plugins': plugins.group(1).split() if plugins else [],
+            'custom_plugins': sorted(p.name for p in custom.iterdir()
+                                     if p.is_dir() and p.name != 'example')
+                              if custom.is_dir() else []}
+    for name in ('atuin', 'starship', 'zoxide', 'direnv', 'fzf'):
+        if (HOME / ('.' + name)).exists() or shutil.which(name):
+            shell.setdefault('helpers', []).append(name)
+    return shell
+
+
+def collect_dotfiles():
+    entries = []
+    for path in sorted(HOME.iterdir()):
+        if not path.name.startswith('.'):
+            continue
+        entries.append({'name': path.name,
+                        'kind': 'directory' if path.is_dir() else 'file',
+                        'noise': bool(DOTFILE_NOISE.match(path.name)),
+                        'secret': path.name in SECRET_PATHS})
+    return entries
+
+
+def collect_desktop():
+    dconf = run('dconf', 'dump', '/') or ''
+    sections = {}
+    current = None
+    for line in dconf.splitlines():
+        if line.startswith('[') and line.endswith(']'):
+            current = line[1:-1]
+            sections[current] = {}
+        elif current and '=' in line:
+            key, _, value = line.partition('=')
+            sections[current][key.strip()] = value.strip()
+    # "gnome-extensions list" reports what is installed, which is not the same
+    # as what is switched on: an extension can be present and deliberately off.
+    extensions = (run('gnome-extensions', 'list') or '').split()
+    enabled = (run('gnome-extensions', 'list', '--enabled') or '').split()
+    disabled = (run('gnome-extensions', 'list', '--disabled') or '').split()
+    fonts = []
+    for directory in (HOME / '.fonts', HOME / '.local/share/fonts'):
+        if directory.is_dir():
+            fonts.extend(sorted({re.sub(r'[-.].*$', '', p.name)
+                                 for p in directory.iterdir() if p.is_file()}))
+    return {'dconf': sections, 'gnome_extensions': extensions,
+            'gnome_extensions_enabled': enabled, 'gnome_extensions_disabled': disabled,
+            'user_fonts': sorted(set(fonts))}
+
+
+def dpkg_owner(path):
+    """Return the package owning path, or None when nothing does."""
+    output = run('dpkg', '-S', str(path))
+    if not output:
+        return None
+    return output.split(':', 1)[0].strip() or None
+
+
+def collect_unmanaged():
+    """Binaries installed outside APT: manual downloads that APT cannot restore.
+
+    Nothing here is executed. Presence and provenance are recorded; versions are
+    resolved during curation, not by running unknown binaries during a read-only
+    inventory.
+    """
+    found = []
+    for directory in (Path('/usr/local/bin'), HOME / '.local/bin', Path('/opt')):
+        if not directory.is_dir():
+            continue
+        try:
+            entries = sorted(directory.iterdir())
+        except OSError:
+            continue
+        names = {path.name for path in entries}
+        for path in entries:
+            if path.is_symlink():
+                target = path.resolve()
+                # Collapse aliases that point at a sibling entry, or into a
+                # sibling bundle directory, into the entry they belong to.
+                if target.parent == directory or target.parent.name in names:
+                    continue
+            owner = dpkg_owner(path)
+            found.append({'path': str(path),
+                          'directory': str(directory),
+                          'kind': 'directory' if path.is_dir() else 'file',
+                          'symlink_to': str(path.readlink()) if path.is_symlink() else None,
+                          'dpkg_package': owner,
+                          'unmanaged': owner is None})
+    return found
+
+
+def collect_home():
+    trees = []
+    for path in sorted(HOME.iterdir()):
+        if path.name.startswith('.') or not path.is_dir():
+            continue
+        trees.append({'name': path.name, 'symlink': path.is_symlink()})
+    return trees
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--output', type=Path, help='write JSON here instead of stdout')
+    args = parser.parse_args()
+    snapshot = {
+        'inventory_version': 1,
+        'system': collect_system(),
+        'apt': collect_apt(),
+        'snaps': collect_snaps(),
+        'runtimes': collect_runtimes(),
+        'shell': collect_shell(),
+        'dotfiles': collect_dotfiles(),
+        'desktop': collect_desktop(),
+        'unmanaged_binaries': collect_unmanaged(),
+        'home_trees': collect_home(),
+    }
+    text = json.dumps(snapshot, indent=2, sort_keys=True)
+    if args.output:
+        args.output.write_text(text + '\n')
+        print(f'wrote {args.output}', file=sys.stderr)
+    else:
+        print(text)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

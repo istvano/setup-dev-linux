@@ -1,0 +1,12 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible JDK worker; no floating SDKMAN downloads or vendor hooks."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.java_runtime import install
+try:
+    request = json.load(sys.stdin)
+    print(json.dumps({'changed': install(request['config'], request['selected'])}))
+except Exception:
+    print('Java runtime delivery failed; inspect reviewed inputs and private candidate state.', file=sys.stderr)
+    raise SystemExit(1)

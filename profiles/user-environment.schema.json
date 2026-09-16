@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "java",
+    "shell",
+    "version_policy",
+    "compatibility_validation"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "status": {
+      "const": "confirmed-pre-build"
+    },
+    "java": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "manager",
+        "default_vendor",
+        "default_major",
+        "project_variants",
+        "mandrel_observed_version"
+      ],
+      "properties": {
+        "manager": {
+          "const": "sdkman"
+        },
+        "default_vendor": {
+          "const": "temurin"
+        },
+        "default_major": {
+          "const": 25
+        },
+        "project_variants": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "enum": [
+              "temurin-21",
+              "temurin-25",
+              "microsoft-21",
+              "microsoft-25"
+            ]
+          }
+        },
+        "mandrel_observed_version": {
+          "const": "25.0.0.1.r25"
+        }
+      }
+    },
+    "shell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "framework",
+        "plugins",
+        "helpers",
+        "proxy_settings",
+        "file_owner"
+      ],
+      "properties": {
+        "framework": {
+          "const": "oh-my-zsh"
+        },
+        "plugins": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "enum": [
+              "git",
+              "zsh-autosuggestions",
+              "zsh-syntax-highlighting"
+            ]
+          }
+        },
+        "helpers": {
+          "type": "array",
+          "uniqueItems": true,
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "enum": [
+              "proxyon",
+              "proxyoff"
+            ]
+          }
+        },
+        "proxy_settings": {
+          "const": "private-local"
+        },
+        "file_owner": {
+          "const": "chezmoi"
+        }
+      }
+    },
+    "version_policy": {
+      "const": "reviewed-current-stable-adapt-projects"
+    },
+    "compatibility_validation": {
+      "const": "synthetic-fixtures-no-existing-projects"
+    }
+  }
+}

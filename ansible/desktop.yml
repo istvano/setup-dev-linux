@@ -1,0 +1,20 @@
+---
+- name: Apply the declared GNOME settings
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    # Runs as the target user: dconf settings are per-user, and applying them as
+    # root would write them into root's database where the operator never sees
+    # them. The worker reads every declared key back before reporting success.
+    - name: Load and verify the declared settings
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-desktop-settings"
+      register: desktop_apply
+      changed_when: (desktop_apply.stdout | from_json).changed

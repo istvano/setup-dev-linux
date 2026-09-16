@@ -1,0 +1,17 @@
+---
+- name: Register reviewed JDKs through SDKMAN
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Acquire verified JDKs and retain the Temurin 25 default
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-java-runtime"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: java_runtime_apply
+      changed_when: java_runtime_apply.rc == 0 and (java_runtime_apply.stdout | from_json).changed
+      no_log: true

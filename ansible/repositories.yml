@@ -1,0 +1,127 @@
+---
+- name: Configure signed third-party APT sources
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  gather_subset: ['!all', '!min', 'distribution']
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/repositories.json') | from_json }}"
+    codename: "{{ ansible_facts['distribution_release'] }}"
+    keyring_dir: /etc/apt/keyrings
+    staging: /var/tmp/workstation-keys
+  tasks:
+    - name: Require a signing key for every source
+      ansible.builtin.assert:
+        that: item.key_url is defined or item.key_file is defined
+        fail_msg: "{{ item.id }} declares no signing key"
+        quiet: true
+      loop: "{{ manifest.repositories }}"
+      loop_control:
+        label: "{{ item.id }}"
+
+    - name: Create the keyring and staging directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: ["{{ keyring_dir }}", "{{ staging }}"]
+      become: true
+
+    - name: Fetch published signing keys
+      ansible.builtin.get_url:
+        url: "{{ item.key_url }}"
+        dest: "{{ staging }}/{{ item.id }}.key"
+        mode: "0644"
+        force: true
+      loop: "{{ manifest.repositories | selectattr('key_url', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.id }}"
+      become: true
+
+    - name: Stage vendored signing keys
+      ansible.builtin.copy:
+        src: "{{ workstation_root }}/{{ item.key_file }}"
+        dest: "{{ staging }}/{{ item.id }}.key"
+        mode: "0644"
+      loop: "{{ manifest.repositories | selectattr('key_file', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.id }}"
+      become: true
+
+    # A key is normalised to binary .gpg and checked against the recorded
+    # fingerprint before any source trusts it. See workstation/repository_keys.py.
+    - name: Place and verify every signing key
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-repository-key"
+        stdin: >-
+          {{ {'source': staging ~ '/' ~ item.id ~ '.key',
+              'destination': keyring_dir ~ '/' ~ item.id ~ '.gpg',
+              'fingerprint': item.key_fingerprint | default(None)} | to_json }}
+      register: key_placement
+      changed_when: (key_placement.stdout | from_json).changed
+      loop: "{{ manifest.repositories }}"
+      loop_control:
+        label: "{{ item.id }}"
+      become: true
+
+    # A vendor package that manages its own source for the same URI makes our
+    # declaration a conflict rather than a duplicate: APT refuses to read its
+    # whole source list when one URI carries two different Signed-By values.
+    # Detect that case and leave the URI to the vendor.
+    - name: Find sources already managed by a vendor package
+      ansible.builtin.shell:
+        cmd: >-
+          grep -rlF '{{ item.uri }}' /etc/apt/sources.list.d/ 2>/dev/null
+          | grep -v '/workstation-{{ item.id }}.sources$' || true
+        executable: /bin/bash
+      register: vendor_managed_probe
+      changed_when: false
+      loop: >-
+        {{ manifest.repositories | selectattr('self_registers_source', 'defined')
+           | selectattr('self_registers_source') | list }}
+      loop_control:
+        label: "{{ item.id }}"
+
+    - name: Record which sources the vendor already manages
+      ansible.builtin.set_fact:
+        vendor_managed: >-
+          {{ vendor_managed_probe.results
+             | selectattr('stdout', 'truthy')
+             | map(attribute='item.id') | list }}
+
+    - name: Report sources left to their vendor
+      ansible.builtin.debug:
+        msg: "left to the vendor package: {{ vendor_managed | join(', ') }}"
+      when: vendor_managed | length > 0
+
+    - name: Declare each third-party source
+      ansible.builtin.deb822_repository:
+        name: "workstation-{{ item.id }}"
+        types: [deb]
+        uris: "{{ item.uri }}"
+        suites: "{{ [item.suite | replace('{codename}', codename)] }}"
+        components: "{{ item.components }}"
+        signed_by: "{{ keyring_dir }}/{{ item.id }}.gpg"
+        enabled: true
+        state: present
+      loop: "{{ manifest.repositories }}"
+      loop_control:
+        label: "{{ item.id }}"
+      when: item.id not in vendor_managed
+      become: true
+
+    - name: Remove the key staging directory
+      ansible.builtin.file:
+        path: "{{ staging }}"
+        state: absent
+      become: true
+
+    - name: Refresh package metadata from every configured source
+      ansible.builtin.apt:
+        update_cache: true
+      become: true

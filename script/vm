@@ -1,0 +1,251 @@
+#!/usr/bin/python3 -B
+"""Disposable Ubuntu VM lifecycle. Repository-scoped test infrastructure only."""
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import signal
+import socket
+import stat
+import subprocess
+import sys
+import uuid
+
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parent.parent
+STATE = ROOT / 'vm/state'
+DISKS = ROOT / 'vm/disks'
+LOCK = json.loads((ROOT / 'vm/ubuntu-image.lock.json').read_text())
+
+
+def run(args, **kwargs):
+    return subprocess.run(args, check=True, **kwargs)
+
+
+def digest(path):
+    with path.open('rb') as f:
+        return hashlib.file_digest(f, 'sha256').hexdigest()
+
+
+def private_dir(path):
+    if path.is_symlink():
+        raise ValueError('VM state directory must not be a symlink')
+    path.mkdir(mode=0o700, parents=True, exist_ok=True)
+    path.chmod(0o700)
+
+
+def verify_image():
+    base = DISKS / LOCK['filename']
+    if not base.is_file():
+        raise ValueError('Missing image: run script/vm fetch')
+    result = subprocess.run(['gpgv', '--status-fd', '1', '--keyring', LOCK['keyring'],
+                             str(DISKS / 'SHA256SUMS.gpg'), str(DISKS / 'SHA256SUMS')],
+                            capture_output=True, text=True, check=True)
+    if 'VALIDSIG ' + LOCK['signing_fingerprint'] + ' ' not in result.stdout:
+        raise ValueError('Unexpected Ubuntu image signing key')
+    rows = [s.split() for s in (DISKS / 'SHA256SUMS').read_text().splitlines()]
+    matches = [r[0] for r in rows if len(r) == 2 and r[1].lstrip('*') == LOCK['filename']]
+    if matches != [LOCK['sha256']] or digest(base) != LOCK['sha256']:
+        raise ValueError('Ubuntu image digest mismatch')
+    info = json.loads(subprocess.check_output(['qemu-img', 'info', '--output=json', str(base)]))
+    if info['format'] != 'qcow2' or info.get('backing-filename'):
+        raise ValueError('Image must be a standalone qcow2')
+    return base
+
+
+def fetch():
+    private_dir(DISKS)
+    for name, url in [('SHA256SUMS', LOCK['sums_url']), ('SHA256SUMS.gpg', LOCK['signature_url']), (LOCK['filename'], LOCK['url'])]:
+        target = DISKS / name
+        if not target.exists():
+            partial = target.with_name(target.name + '.partial')
+            run(['curl', '--fail', '--location', '--show-error', '--output', str(partial), url])
+            partial.rename(target)
+    verify_image()
+    print('Verified Ubuntu image and signed manifest')
+
+
+def state():
+    d = json.loads((STATE / 'vm.json').read_text())
+    uuid.UUID(d['id'])
+    if d.get('purpose') != 'linux-os-setup-disposable-test':
+        raise ValueError('Invalid VM ownership marker')
+    return d
+
+
+def owned_pid(d):
+    try:
+        pid = int((STATE / 'qemu.pid').read_text())
+        cmd = Path('/proc') / str(pid) / 'cmdline'
+        args = cmd.read_bytes().split(b'\0')
+        if ('linux-setup-' + d['id']).encode() in args and str(STATE / 'qemu.pid').encode() in args:
+            return pid
+    except (FileNotFoundError, ProcessLookupError):
+        return None
+    raise ValueError('PID does not belong to this test VM; refusing lifecycle action')
+
+
+def reset():
+    """Discard the guest and its disks so the next prepare starts from the image."""
+    try:
+        d = state()
+    except (FileNotFoundError, ValueError):
+        d = None
+    if d:
+        pid = owned_pid(d)
+        if pid:
+            os.kill(pid, signal.SIGTERM)
+            print('Stopped the running test VM')
+    for name in ['system.qcow2', 'home.qcow2']:
+        path = DISKS / name
+        if path.is_symlink():
+            raise ValueError('Refusing to remove a symlinked test disk')
+        if path.exists():
+            path.unlink()
+            print('Removed ' + name)
+    for name in ['vm.json', 'qemu.pid', 'monitor.sock', 'serial.log', 'OVMF_VARS.fd',
+                 'seed.iso', 'user-data', 'meta-data', 'known_hosts', 'ssh_config']:
+        path = STATE / name
+        if path.exists() or path.is_symlink():
+            path.unlink()
+    print('Test VM reset; run prepare to build a fresh guest')
+
+
+def prepare():
+    private_dir(STATE)
+    if (STATE / 'vm.json').exists():
+        state()
+        print('VM already prepared; existing disks retained')
+        return
+    base = verify_image()
+    for name in ['system.qcow2', 'home.qcow2']:
+        if (DISKS / name).exists() or (DISKS / name).is_symlink():
+            raise ValueError('Unowned existing test disk; inspect before preparing')
+    for name in ['guest_key', 'host_key']:
+        key = STATE / name
+        if key.is_symlink() or key.with_suffix('.pub').is_symlink():
+            raise ValueError('Refusing symlinked test credentials')
+        if not key.exists():
+            run(['ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-C', 'disposable-linux-test', '-f', str(key)])
+    vm_id = str(uuid.uuid4())
+    metadata = {'instance-id': 'linux-setup-' + vm_id, 'local-hostname': 'linux-setup-test'}
+    public = (STATE / 'guest_key.pub').read_text().strip()
+    host_private = (STATE / 'host_key').read_text()
+    host_public = (STATE / 'host_key.pub').read_text().strip()
+    config = {
+        'users': [{'name': 'ws-test', 'shell': '/bin/bash', 'lock_passwd': True,
+                   'sudo': 'ALL=(ALL) NOPASSWD:ALL'}],
+        'disable_root': True, 'ssh_pwauth': False, 'ssh_deletekeys': True,
+        'ssh_genkeytypes': ['ed25519'], 'ssh_keys': {'ed25519_private': host_private, 'ed25519_public': host_public},
+        'growpart': {'mode': 'auto', 'devices': ['/']}, 'resize_rootfs': True,
+        'disk_setup': {'/dev/vdb': {'table_type': 'gpt', 'layout': True, 'overwrite': False}},
+        'fs_setup': [{'label': 'WORKSTATION_HOME', 'filesystem': 'ext4', 'device': '/dev/vdb1', 'overwrite': False}],
+        'mounts': [['LABEL=WORKSTATION_HOME', '/home', 'ext4', 'defaults', '0', '2']],
+        'write_files': [
+            {'path': '/etc/linux-os-setup-test-vm', 'permissions': '0644', 'content': vm_id + '\n'},
+            {'path': '/etc/linux-os-setup-test-key.pub', 'permissions': '0644', 'content': public + '\n'}],
+        'runcmd': [
+            ['install', '-d', '-m', '0750', '-o', 'ws-test', '-g', 'ws-test', '/home/ws-test'],
+            ['install', '-d', '-m', '0700', '-o', 'ws-test', '-g', 'ws-test', '/home/ws-test/.ssh'],
+            ['install', '-m', '0600', '-o', 'ws-test', '-g', 'ws-test', '/etc/linux-os-setup-test-key.pub', '/home/ws-test/.ssh/authorized_keys'],
+            ['systemctl', 'restart', 'ssh']],
+        'package_update': False, 'package_upgrade': False,
+    }
+    (STATE / 'user-data').write_text('#cloud-config\n' + json.dumps(config, indent=2) + '\n')
+    (STATE / 'user-data').chmod(0o600)
+    (STATE / 'meta-data').write_text(json.dumps(metadata))
+    run(['genisoimage', '-quiet', '-output', str(STATE / 'seed.iso'), '-volid', 'cidata', '-joliet', '-rock', str(STATE / 'user-data'), str(STATE / 'meta-data')])
+    (STATE / 'seed.iso').chmod(0o600)
+    run(['qemu-img', 'create', '-f', 'qcow2', '-F', 'qcow2', '-b', str(base), str(DISKS / 'system.qcow2'), '64G'])
+    run(['qemu-img', 'create', '-f', 'qcow2', str(DISKS / 'home.qcow2'), '24G'])
+    shutil.copyfile('/usr/share/OVMF/OVMF_VARS_4M.fd', STATE / 'OVMF_VARS.fd')
+    (STATE / 'known_hosts').write_text('[127.0.0.1]:22226 ' + host_public + '\n')
+    (STATE / 'ssh_config').write_text('\n'.join([
+        'Host linux-setup-test', '  HostName 127.0.0.1', '  Port 22226', '  User ws-test',
+        '  IdentityFile "' + str(STATE / 'guest_key') + '"', '  IdentitiesOnly yes',
+        '  UserKnownHostsFile "' + str(STATE / 'known_hosts') + '"', '  GlobalKnownHostsFile /dev/null',
+        '  StrictHostKeyChecking yes', '  BatchMode yes', '  ConnectTimeout 5', '  ForwardAgent no',
+        '  ClearAllForwardings yes', '  LogLevel ERROR', '']))
+    (STATE / 'vm.json').write_text(json.dumps({'id': vm_id, 'purpose': 'linux-os-setup-disposable-test', 'image_sha256': LOCK['sha256']}))
+    print('Prepared private Ubuntu test VM')
+
+
+def start():
+    d = state()
+    if owned_pid(d):
+        print('Test VM already running')
+        return
+    for name in ['qemu.pid', 'monitor.sock']:
+        stale = STATE / name
+        if stale.exists() or stale.is_symlink():
+            info = stale.lstat()
+            valid = (name == 'qemu.pid' and stat.S_ISREG(info.st_mode) or
+                     name == 'monitor.sock' and stat.S_ISSOCK(info.st_mode))
+            if not valid or info.st_uid != os.geteuid():
+                raise ValueError('Refusing unowned stale VM runtime state')
+            stale.unlink()
+    verify_image()
+    if not os.access('/dev/kvm', os.R_OK | os.W_OK):
+        raise ValueError('KVM unavailable: run with host VM permissions; no silent emulation fallback')
+    args = ['qemu-system-x86_64', '-name', 'linux-setup-' + d['id'], '-machine', 'q35,accel=kvm',
+            '-cpu', 'host', '-smp', '4', '-m', '8192', '-daemonize', '-pidfile', str(STATE / 'qemu.pid'),
+            '-drive', 'if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd',
+            '-drive', 'if=pflash,format=raw,file=' + str(STATE / 'OVMF_VARS.fd'),
+            '-drive', 'if=none,id=system,format=qcow2,file=' + str(DISKS / 'system.qcow2'),
+            '-device', 'virtio-blk-pci,drive=system,serial=linux-setup-system',
+            '-drive', 'if=none,id=home,format=qcow2,file=' + str(DISKS / 'home.qcow2'),
+            '-device', 'virtio-blk-pci,drive=home,serial=linux-setup-home',
+            '-drive', 'media=cdrom,readonly=on,format=raw,file=' + str(STATE / 'seed.iso'),
+            '-netdev', 'user,id=net0,hostfwd=tcp:127.0.0.1:22226-:22', '-device', 'virtio-net-pci,netdev=net0',
+            '-device', 'virtio-vga', '-display', 'none', '-serial', 'file:' + str(STATE / 'serial.log'),
+            '-monitor', 'unix:' + str(STATE / 'monitor.sock') + ',server=on,wait=off']
+    run(args)
+    print('Started Ubuntu test VM; SSH is restricted to 127.0.0.1:22226')
+
+
+def main():
+    os.umask(0o077)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('command', choices=['fetch', 'prepare', 'start', 'status', 'stop', 'ssh', 'screenshot', 'reset'])
+    parser.add_argument('guest_command', nargs=argparse.REMAINDER)
+    args = parser.parse_args()
+    if args.command != 'ssh' and args.guest_command:
+        parser.error('extra arguments only supported for ssh')
+    if args.command == 'fetch': fetch()
+    elif args.command == 'reset': reset()
+    elif args.command == 'prepare': prepare()
+    elif args.command == 'start': start()
+    elif args.command == 'status':
+        print(json.dumps({'prepared': (STATE / 'vm.json').exists(), 'running': bool(owned_pid(state())) if (STATE / 'vm.json').exists() else False}))
+    elif args.command == 'stop':
+        pid = owned_pid(state())
+        if pid: os.kill(pid, signal.SIGTERM)
+        print('Test VM stop requested' if pid else 'Test VM is stopped')
+    elif args.command == 'ssh':
+        if not owned_pid(state()): raise ValueError('Test VM not running')
+        return subprocess.run(['ssh', '-F', str(STATE / 'ssh_config'), 'linux-setup-test', *args.guest_command]).returncode
+    elif args.command == 'screenshot':
+        if not owned_pid(state()): raise ValueError('Test VM not running')
+        destination = STATE / 'desktop.ppm'
+        if destination.is_symlink(): raise ValueError('Refusing symlinked screenshot path')
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as monitor:
+            monitor.settimeout(5)
+            monitor.connect(str(STATE / 'monitor.sock'))
+            monitor.recv(4096)
+            monitor.sendall(('screendump ' + str(destination) + '\n').encode())
+            response = b''
+            while b'(qemu)' not in response:
+                response += monitor.recv(4096)
+        if not destination.exists(): raise ValueError('Guest screenshot unavailable')
+        print('Saved private VM screenshot to vm/state/desktop.ppm')
+    return 0
+
+
+if __name__ == '__main__':
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        print('VM ERROR: ' + str(exc), file=sys.stderr)
+        raise SystemExit(1)

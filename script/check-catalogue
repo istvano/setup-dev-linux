@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+"""Read-only P0 artifact checks; never installs or imports the Mac checkout."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import re
+import subprocess
+import sys
+
+sys.dont_write_bytecode = True
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:
+    print('ERROR: jsonschema is required in the development Python environment. See locks/qa-requirements.txt; no environment is installed automatically. No checks ran.', file=sys.stderr)
+    sys.exit(2)
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "script"))
+from catalogue_matrix import render_matrix
+from source_review import render_source_review
+from workstation.config import validate_semantics
+from workstation.packages import approved_registry
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def unique_object(pairs):
+    result = {}
+    for key, value in pairs:
+        require(key not in result, f'duplicate JSON key: {key}')
+        result[key] = value
+    return result
+
+
+def read_json(path):
+    return json.loads(path.read_text(), object_pairs_hook=unique_object)
+
+
+def check_schema(value, path):
+    schema = read_json(ROOT / path)
+    Draft202012Validator.check_schema(schema)
+    errors = sorted(Draft202012Validator(schema).iter_errors(value), key=lambda e: str(e.path))
+    require(not errors, f'{path}: ' + '; '.join(e.message for e in errors[:5]))
+
+
+def check_config(config, entries, selected):
+    """Development schema QA plus the shared standard-library semantic validator."""
+    check_schema(config, 'config/workstation.schema.json')
+    validate_semantics(config, entries, selected)
+
+
+def check_catalogue(catalogue, target, default):
+    check_schema(catalogue, 'catalogue/capabilities.schema.json')
+    for selection in (target, default):
+        check_schema(selection, 'profiles/selection.schema.json')
+    entries = {item['id']: item for item in catalogue['capabilities']}
+    require(len(entries) == len(catalogue['capabilities']), 'duplicate capability ID')
+    keep = {id for id, item in entries.items() if item['decision'] == 'keep'}
+    require(set(target['capability_ids']) == keep, 'target must contain every KEEP and no optional/pending/omit')
+    gpu = {id for id, item in entries.items() if item['profile'] == 'gpu'}
+    require(set(default['capability_ids']) == keep - gpu, 'default must differ from target only by GPU profile')
+    for id, entry in entries.items():
+        require(set(entry['conflicts']) <= entries.keys(), f'{id}: unknown conflict')
+        if id in keep:
+            require(not (set(entry['conflicts']) & keep), f'{id}: selected conflict')
+        delivery = entry['delivery']
+        if entry['kind'] in ('package', 'extension'):
+            require(delivery['status'] != 'not-applicable', f'{id}: missing delivery state')
+            if delivery['status'] == 'unverified':
+                require(delivery['blocker'], f'{id}: missing visible source blocker')
+                require(delivery['version'] is None and delivery['integrity'] is None, f'{id}: unverified pin claimed')
+            else:
+                require(delivery['candidate_url'] and delivery['identifier'], f'{id}: verified source incomplete')
+                require(entry['licence']['status'] == 'reviewed' and entry['licence']['classification'], f'{id}: licence not reviewed')
+                if entry['update_policy'] == 'reviewed-pin':
+                    require(delivery['version'] and delivery['integrity'], f'{id}: verified pin incomplete')
+        if entry['decision'] == 'pending':
+            require(entry['open_question'], f'{id}: pending decision has no question')
+        if delivery['channel'] == 'provided-by':
+            require(delivery['identifier'] in keep, f'{id}: missing selected provider')
+    for key in ('linux_review_rows', 'mac_profile_mappings', 'mac_extension_mappings', 'mac_source_mappings', 'linux_extension_families'):
+        for mapping in catalogue[key]:
+            require(set(mapping['capability_ids']) <= entries.keys(), f'{key}: unknown mapped ID')
+            require(mapping['capability_ids'] or mapping.get('note'), f'{key}: unexplained omission')
+    review = (ROOT / 'docs/software-review.md').read_bytes()
+    require(hashlib.sha256(review).hexdigest() == catalogue['provenance']['linux_review_sha256'], 'raw review changed')
+    rows = [(n, [c.strip() for c in line.split('|')[1:-1]]) for n, line in enumerate(review.decode().splitlines(), 1) if line.startswith('| ') and not line.startswith('| Software')]
+    require(len(rows) == len(catalogue['linux_review_rows']), 'Linux review row missing or duplicated')
+    for (line, cols), mapping in zip(rows, catalogue['linux_review_rows']):
+        require((line, cols[0], cols[2]) == (mapping['line'], mapping['label'], mapping['raw_decision']), 'Linux row mapping drift')
+    return entries
+
+
+def check_matrix(catalogue):
+    matrix = (ROOT / 'docs/CAPABILITY-MATRIX.md').read_text()
+    require(matrix == render_matrix(catalogue), 'matrix differs from catalogue; run python3 -B script/render-matrix --write')
+
+
+def check_source_review(catalogue, review):
+    check_schema(review, 'catalogue/source-review.schema.json')
+    expected = {e['id'] for e in catalogue['capabilities'] if e['decision'] == 'keep' and e['kind'] in ('package', 'extension')}
+    records = {r['capability_id']: r for r in review['records']}
+    require(len(records) == len(review['records']), 'duplicate source-review capability')
+    require(set(records) == expected, 'source-review coverage must equal selected package/extension IDs')
+    require(review['catalogue_revision'] == catalogue['revision'], 'stale source-review revision')
+    for id, record in records.items():
+        for artifact in record['artifacts']:
+            require((artifact['digest'] is None) == (artifact['verification'] == 'missing-digest'), f'{id}: digest/verification mismatch')
+        if id.startswith('extension-'):
+            manifest = record.get('extension_manifest', {})
+            require(('extension-' + manifest.get('publisher', '') + '.' + manifest.get('name', '')).lower() == id.lower(), f'{id}: extension manifest identity mismatch')
+            require(len(record['artifacts']) == 1 and record['artifacts'][0]['version'] == manifest.get('version'), f'{id}: extension manifest version mismatch')
+            require(record['artifacts'][0]['verification'] in ('downloaded-observed', 'downloaded-matched-published'), f'{id}: extension archive not inspected')
+        if 'apt_observation' in record:
+            origins = record['apt_observation'].get('origins', [])
+            require(origins and all(o['origin'] == 'Ubuntu' and o['trusted'] and o['suite'] in ('resolute', 'resolute-updates', 'resolute-security') for o in origins), f'{id}: unsupported Ubuntu source observation')
+
+
+def check_user_environment(catalogue, preferences):
+    check_schema(preferences, 'profiles/user-environment.schema.json')
+    keep = {e['id'] for e in catalogue['capabilities'] if e['decision'] == 'keep'}
+    require(set(preferences['shell']['plugins']) | {'oh-my-zsh', 'java', 'sdkman', 'mandrel'} <= keep, 'confirmed environment missing selected provider')
+
+
+def check_links():
+    for path in ROOT.rglob('*.md'):
+        if any(part in ('.git', '.agents', '.codex', '.venv', '.workstation') for part in path.relative_to(ROOT).parts):
+            continue
+        if path.relative_to(ROOT).parts[:2] in (('vm', 'state'), ('vm', 'disks')):
+            continue
+        for target in re.findall(r'\]\(([^)]+)\)', path.read_text()):
+            if '://' in target or target.startswith('#'):
+                continue
+            destination = target.split('#')[0]
+            require((path.parent / destination).exists(), f'{path.relative_to(ROOT)}: broken link {target}')
+
+
+def check_mac(catalogue, mac):
+    commit = catalogue['provenance']['mac_commit']
+    def git(*args):
+        return subprocess.check_output(['git', '-C', str(mac), *args], text=True)
+    require(git('rev-parse', commit).strip() == commit, 'recorded Mac commit unavailable')
+    paths = git('ls-tree', '-r', '--name-only', commit).splitlines()
+    observed = set()
+    for path in paths:
+        if not (path.startswith('profiles/') and path.endswith('.Brewfile')):
+            continue
+        for line, content in enumerate(git('show', commit + ':' + path).splitlines(), 1):
+            match = re.match(r'\s*(#\s*)?(?:brew|cask) "([^"]+)"', content)
+            if match:
+                observed.add((path, line, match[2], not bool(match[1])))
+    expected = {(m['source'], m['line'], m['token'], m['active_in_mac_profile']) for m in catalogue['mac_profile_mappings']}
+    require(observed == expected, 'Mac profile coverage mismatch')
+    extensions = set()
+    for line, content in enumerate(git('show', commit + ':vscode/extensions.list').splitlines(), 1):
+        match = re.match(r'\s*(#\s*)?([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)@', content)
+        if match:
+            extensions.add((line, match[2], not bool(match[1])))
+    require(extensions == {(m['line'], m['identifier'], m['active_in_mac_manifest']) for m in catalogue['mac_extension_mappings']}, 'Mac extension coverage mismatch')
+    mapped = {m['source'] for m in catalogue['mac_source_mappings']}
+    require(all(path in mapped for path in paths if path.startswith(('chezmoi/', 'script/'))), 'unmapped Mac helper/config')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--mac-source', type=Path, help='optional read-only provenance audit against recorded Mac checkout')
+    args = parser.parse_args()
+    catalogue = read_json(ROOT / 'catalogue/capabilities.json')
+    target = read_json(ROOT / 'profiles/target.json')
+    default = read_json(ROOT / 'profiles/default.json')
+    entries = check_catalogue(catalogue, target, default)
+    approved_registry(entries)
+    from workstation.artifacts import registry
+    registry(entries)
+    from workstation.node_runtime import node_lock
+    node_lock(entries)
+    from workstation.sdkman_runtime import manager_lock
+    manager_lock(entries)
+    from workstation.java_runtime import java_lock
+    java_lock(entries)
+    from workstation.jvm_tools import tool_lock
+    tool_lock(entries)
+    from workstation.mandrel_runtime import mandrel_lock
+    mandrel_lock(entries)
+    from workstation.go_runtime import go_lock
+    go_lock(entries)
+    from workstation.rust_runtime import rust_lock
+    rust_lock(entries)
+    from workstation.python_user import python_lock
+    python_lock(entries)
+    from workstation.opencode_runtime import opencode_lock
+    opencode_lock(entries)
+    from workstation.codex_runtime import codex_lock
+    codex_lock(entries)
+    from workstation.cline_runtime import cline_lock
+    cline_lock(entries)
+    from workstation.prerequisites import registry as prerequisite_registry
+    prerequisite_map = prerequisite_registry(entries)
+    sdkman_review = read_json(ROOT / 'locks/sdkman-review.json')
+    check_schema(sdkman_review, 'locks/user-tools.schema.json')
+    require([r['id'] for r in sdkman_review['artifacts']] == ['sdkman-cli', 'sdkman-native'],
+            'SDKMAN source review must include CLI and native helper')
+    java_review = read_json(ROOT / 'locks/java-review.json')
+    check_schema(java_review, 'locks/user-tools.schema.json')
+    require([r['id'] for r in java_review['artifacts']] ==
+            ['temurin-25', 'temurin-21', 'microsoft-25', 'microsoft-21'],
+            'Java source review must include the four selected vendor/major variants')
+    paths = sorted((ROOT / 'config').glob('*.example.json'))
+    require(len(paths) == 2, 'expected the single-disk and split storage examples')
+    for path in paths:
+        config = read_json(path)
+        require(config['example_only'], 'committed example must be non-operational')
+        selection = read_json(path.parent / config['selection_file'])
+        check_config(config, entries, selection['capability_ids'])
+    check_matrix(catalogue)
+    review = read_json(ROOT / 'catalogue/source-review.json')
+    check_source_review(catalogue, review)
+    check_user_environment(catalogue, read_json(ROOT / 'profiles/user-environment.json'))
+    require((ROOT / 'docs/SOURCE-REVIEW.md').read_text() == render_source_review(review), 'source review document differs from ledger; run python3 -B script/render-source-review --write')
+    check_links()
+    if args.mac_source:
+        check_mac(catalogue, args.mac_source)
+    print(f'PASS: {len(entries)} capabilities; {len(target["capability_ids"])} target selections; {len(paths)} storage examples; schemas, mappings, raw review and links.')
+    print(f'PASS: {len(review["records"])} selected delivery review records; user preferences and generated review document.')
+    if args.mac_source:
+        print('PASS: Mac profile, extension and configuration/helper coverage at recorded commit.')
+    print('Remaining delivery gates are explicit. This is static catalogue validation, not an installation or workstation-readiness test.')
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (ValueError, KeyError, OSError, subprocess.CalledProcessError) as exc:
+        print(f'ERROR: {exc}', file=sys.stderr)
+        sys.exit(1)

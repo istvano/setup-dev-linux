@@ -1,5 +1,7 @@
 # Private local input and generated state
 /config/*.local.json
+# Generated live machine input: contains real disk and filesystem identities.
+*.local.json
 /config/private/
 /.venv/
 __pycache__/
@@ -10,7 +12,22 @@ __pycache__/
 /inventories/
 /autoinstall/generated/
 /vm/disks/
+/vm/state/
+/.workstation/
 *.qcow2
 *.iso
 .env
 .env.*
+
+# Editor and tool state. These are not present yet; they appear the first time
+# the repository is opened in an editor or a tool caches here.
+/.idea/
+/.vscode/
+/.direnv/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+*.retry
+
+# macOS metadata: this repository is read alongside the Mac baseline.
+.DS_Store

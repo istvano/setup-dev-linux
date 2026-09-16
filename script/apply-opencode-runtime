@@ -1,0 +1,15 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker for the reviewed OpenCode CLI."""
+import json
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.opencode_runtime import install
+
+try:
+    request = json.load(sys.stdin)
+    print(json.dumps({'changed': install(request['config'])}))
+except Exception:
+    print('OpenCode delivery failed; inspect reviewed inputs and private runtime state.',
+          file=sys.stderr)
+    raise SystemExit(1)

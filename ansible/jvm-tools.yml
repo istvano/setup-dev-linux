@@ -1,0 +1,17 @@
+---
+- name: Register reviewed JVM build tools through SDKMAN
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Acquire verified tool archives and register local defaults
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-jvm-tools"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: jvm_tools_apply
+      changed_when: jvm_tools_apply.rc == 0 and (jvm_tools_apply.stdout | from_json).changed
+      no_log: true

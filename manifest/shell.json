@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "description": "Login shell, framework and prompt.",
+  "login_shell": "zsh",
+  "framework": {
+    "name": "oh-my-zsh",
+    "theme": null,
+    "plugins": [
+      "git",
+      "zsh-autosuggestions",
+      "zsh-syntax-highlighting"
+    ],
+    "custom_plugins": [
+      "zsh-autosuggestions",
+      "zsh-syntax-highlighting"
+    ]
+  },
+  "prompt": {
+    "name": "starship",
+    "source": "ubuntu-archive",
+    "replaces": "oh-my-zsh agnoster theme",
+    "config": "chezmoi: dot_config/starship.toml"
+  },
+  "history": {
+    "name": "atuin",
+    "source": "ubuntu-archive",
+    "note": "Shell history database is not migrated; atuin starts empty."
+  },
+  "helpers": {
+    "proxy": [
+      "proxyon",
+      "proxyoff"
+    ],
+    "note": "Corporate proxy values stay in private chezmoi data, never in git."
+  }
+}

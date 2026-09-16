@@ -1,0 +1,19 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker: place one verified APT signing key."""
+import json
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.repository_keys import KeyError_, install_key
+
+try:
+    request = json.load(sys.stdin)
+    changed = install_key(request['source'], request['destination'],
+                          request.get('fingerprint'))
+    print(json.dumps({'changed': changed}))
+except KeyError_ as exc:
+    print('repository key rejected: ' + str(exc), file=sys.stderr)
+    raise SystemExit(1)
+except Exception:
+    print('repository key handling failed; inspect the declared source.', file=sys.stderr)
+    raise SystemExit(1)

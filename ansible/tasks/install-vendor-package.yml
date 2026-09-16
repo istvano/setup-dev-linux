@@ -1,0 +1,36 @@
+---
+# One vendor-managed repository: install what it provides, then immediately hand
+# the URI back. The handover cannot wait until all of them are done, because the
+# source file this package drops breaks the very next apt call.
+- name: "Install {{ vendor.id }} packages"
+  ansible.builtin.command:
+    argv: [/usr/bin/apt-get, install, -y, --no-install-recommends, "{{ item }}"]
+  register: vendor_install
+  changed_when: "'0 upgraded, 0 newly installed' not in vendor_install.stdout"
+  loop: >-
+    {{ selected | selectattr('source', 'equalto', vendor.id)
+       | map(attribute='name') | list }}
+  become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: "Hand {{ vendor.id }} back to the vendor package"
+  ansible.builtin.file:
+    path: "/etc/apt/sources.list.d/workstation-{{ vendor.id }}.sources"
+    state: absent
+  become: true
+
+# The vendor's package may have registered its own source during that
+# install, which apt has no index for until the next refresh. Without it the
+# package is installed but attributed to no repository, and verification
+# rightly reports it as not coming from its declared source.
+- name: "Refresh metadata after {{ vendor.id }} registered its own source"
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+
+- name: "Confirm the source list is readable after {{ vendor.id }}"
+  ansible.builtin.command:
+    argv: [/usr/bin/apt-get, check]
+  changed_when: false
+  become: true

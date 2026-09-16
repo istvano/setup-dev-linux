@@ -1,0 +1,15 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker for the reviewed Rust toolchain."""
+import json
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.rust_runtime import install
+
+try:
+    request = json.load(sys.stdin)
+    print(json.dumps({'changed': install(request['config'], request['selected'])}))
+except Exception:
+    print('Rust delivery failed; inspect reviewed inputs and private runtime state.',
+          file=sys.stderr)
+    raise SystemExit(1)

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-13",
+  "project_sha256": "7c3bdaecf607cdadd3b9388b139a50ebf75e23d2410805f55004d9af1f55afa1",
+  "uv_lock_sha256": "22ba87dd158b660b67d75e23d0f81e9ba3c4d2178f32f5c44e900031f4549584",
+  "artifacts": {
+    "uv": {
+      "version": "0.12.13",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.12.13/uv-x86_64-unknown-linux-gnu.tar.gz",
+      "sha256": "745765a3b6e360ad76743599ae5c42e9278c7edf8bbff9fc76d05bf2623a04dd",
+      "executable": "uv-x86_64-unknown-linux-gnu/uv",
+      "executable_sha256": "b59310db262709ee92baf7954ef30820f1442ffa48b263f7001a236fe9004047",
+      "licence": {
+        "identifier": "MIT",
+        "url": "https://raw.githubusercontent.com/astral-sh/uv/0.12.13/LICENSE-MIT",
+        "sha256": "860e3d7a86b84e6a7012c7a635fc64df475cebc6cce34dfeb73a5982ec58176c"
+      }
+    },
+    "python": {
+      "version": "3.14.7",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260901/cpython-3.14.7%2B20260901-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
+      "sha256": "3959f92825141e04adf44982d3a83ee57af0877e893b0796e04c1468749d9b04",
+      "executable": "python/bin/python3.14",
+      "executable_sha256": "241bf774a81580bb760adf960b48df7e6b23b1de026c9c912d4ca6be1a08241e",
+      "licence": {
+        "identifier": "PSF-2.0 and bundled component notices",
+        "archive_member": "python/lib/python3.14/LICENSE.txt",
+        "sha256": "b0e25a78cffb43f4d92de8b61ccfa1f1f98ecbc22330b54b5251e7b6ba010231"
+      }
+    }
+  }
+}

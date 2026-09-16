@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "description": "Snap packages. Bases and Canonical platform snaps install as dependencies and are not declared.",
+  "snaps": [
+    {
+      "name": "firefox",
+      "channel": "latest/stable",
+      "group": "productivity"
+    },
+    {
+      "name": "thunderbird",
+      "channel": "latest/stable",
+      "group": "productivity"
+    },
+    {
+      "name": "bitwarden",
+      "channel": "latest/stable",
+      "group": "security"
+    },
+    {
+      "name": "remmina",
+      "channel": "latest/stable",
+      "group": "network"
+    }
+  ]
+}

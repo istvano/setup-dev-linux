@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "description": "Files chezmoi declares. Everything else in $HOME is operator data moved by migrate, not managed configuration.",
+  "managed": [
+    {
+      "path": ".zshrc",
+      "templated": true,
+      "reason": "Shell configuration; proxy values templated out."
+    },
+    {
+      "path": ".zprofile",
+      "templated": false,
+      "reason": "Login shell environment."
+    },
+    {
+      "path": ".profile",
+      "templated": false,
+      "reason": "POSIX login environment."
+    },
+    {
+      "path": ".gitconfig",
+      "templated": true,
+      "reason": "Identity and signing key are private data."
+    },
+    {
+      "path": ".config/starship.toml",
+      "templated": false,
+      "reason": "Prompt configuration."
+    },
+    {
+      "path": ".config/atuin/config.toml",
+      "templated": false,
+      "reason": "Shell history settings."
+    },
+    {
+      "path": ".vim",
+      "templated": false,
+      "reason": "Editor configuration."
+    },
+    {
+      "path": ".npmrc",
+      "templated": true,
+      "reason": "Registry settings; any token stays private."
+    },
+    {
+      "path": ".selected_editor",
+      "templated": false,
+      "reason": "Default terminal editor."
+    }
+  ],
+  "never_managed": [
+    {
+      "path": ".ssh",
+      "reason": "Credential material; moved by migrate secrets."
+    },
+    {
+      "path": ".gnupg",
+      "reason": "Credential material; moved by migrate secrets."
+    },
+    {
+      "path": ".aws",
+      "reason": "Credential material; moved by migrate secrets."
+    },
+    {
+      "path": ".kube",
+      "reason": "Cluster credentials; moved by migrate secrets."
+    },
+    {
+      "path": ".docker",
+      "reason": "Registry credentials; moved by migrate secrets."
+    },
+    {
+      "path": ".config/gh",
+      "reason": "GitHub token; moved by migrate secrets."
+    },
+    {
+      "path": ".azure",
+      "reason": "Azure tokens; moved by migrate secrets."
+    },
+    {
+      "path": ".claude.json",
+      "reason": "Agent session state; moved by migrate secrets."
+    },
+    {
+      "path": ".codex",
+      "reason": "Agent session state; moved by migrate secrets."
+    },
+    {
+      "path": ".copilot",
+      "reason": "Agent session state; moved by migrate secrets."
+    },
+    {
+      "path": ".zsh_history",
+      "reason": "History is not reproduced on a new machine."
+    },
+    {
+      "path": ".bash_history",
+      "reason": "History is not reproduced on a new machine."
+    }
+  ]
+}

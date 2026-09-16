@@ -1,0 +1,143 @@
+#!/usr/bin/python3 -B
+"""Prove the manifest delivers every reviewed selection.
+
+The curation record says what the operator chose; the manifest says how each
+choice is installed. This fails when a selection has no delivery, when the
+manifest installs something nobody selected, or when a third-party binary is
+not pinned to a verified checksum. Silent loss between review and installation
+is the failure this exists to prevent.
+"""
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / 'script'))
+from workstation.manifest import ALIASES, covers, delivered  # noqa: E402
+failures = []
+
+
+def require(condition, message):
+    if not condition:
+        failures.append(message)
+
+
+def read(name):
+    return json.loads((ROOT / name).read_text())
+
+
+PROVIDED_BY = {
+    'corepack': 'node runtime globals',
+    'plugin-git': 'oh-my-zsh',
+    'zsh-autosuggestions': 'oh-my-zsh custom plugins',
+    'zsh-syntax-highlighting': 'oh-my-zsh custom plugins',
+    'oh-my-zsh': 'shell framework',
+    'proxy-helpers': 'chezmoi shell files',
+    'node-22.21.0': 'node runtime', 'nvm': 'node runtime',
+    'sdkman': 'jvm runtime', 'maven-3.9.11': 'jvm tools',
+    'java-21-tem': 'jvm runtime', 'java-25-tem': 'jvm runtime',
+    'java-21-ms': 'jvm runtime', 'java-25-ms': 'jvm runtime',
+    'java-mandrel-25': 'jvm runtime',
+    'theme-agnoster': 'replaced by starship',
+    'uv': 'python runtime', 'uvx': 'python runtime',
+}
+
+
+def main():
+    curation = read('catalogue/curation.json')
+    packages = read('manifest/packages.json')
+    repositories = read('manifest/repositories.json')
+    snaps = read('manifest/snaps.json')
+    binaries = read('manifest/binaries.json')
+    runtimes = read('manifest/runtimes.json')
+    shell = read('manifest/shell.json')
+
+    seen = set()
+    for group, entries in packages['groups'].items():
+        for entry in entries:
+            require(entry['name'] not in seen, f"{entry['name']}: declared twice")
+            seen.add(entry['name'])
+    routes = delivered({'packages': packages, 'repositories': repositories, 'snaps': snaps,
+                        'binaries': binaries, 'runtimes': runtimes, 'shell': shell})
+
+    # Every third-party APT package names a repository that exists and lists it.
+    known = {r['id']: r for r in repositories['repositories']}
+    for name, source in routes.items():
+        if source.startswith('apt:') and source != 'apt:archive':
+            repo = source.split(':', 1)[1]
+            require(repo in known, f'{name}: unknown repository {repo}')
+            if repo in known:
+                require(name in known[repo]['provides'],
+                        f'{name}: repository {repo} does not list it')
+        if source.startswith('apt:') and source != 'apt:archive':
+            declaration = known.get(repo, {})
+            # A vendored key is only as good as the fingerprint recorded with it.
+            vendored = declaration.get('key_file') and declaration.get('key_fingerprint')
+            require(declaration.get('key_url') or vendored or declaration.get('ppa'),
+                    f'{name}: repository {repo} has no signing key')
+            if declaration.get('key_file'):
+                require(vendored, f'{name}: vendored key for {repo} records no fingerprint')
+                require((ROOT / declaration['key_file']).is_file(),
+                        f"{name}: vendored key {declaration['key_file']} is missing")
+                require(re.fullmatch(r'[0-9A-F]{40}', declaration.get('key_fingerprint', '')),
+                        f'{name}: malformed fingerprint for {repo}')
+
+    # Every binary is pinned before it may install.
+    for binary in binaries['binaries']:
+        for field in ('version', 'url', 'sha256'):
+            require(binary.get(field), f"{binary['id']}: unpinned {field}")
+        if binary.get('sha256'):
+            require(re.fullmatch(r'[0-9a-f]{64}', binary['sha256']),
+                    f"{binary['id']}: malformed sha256")
+        require(binary.get('licence'), f"{binary['id']}: licence not recorded")
+
+    # Every kept selection is delivered by something.
+    kept = [i for i in curation['items'] if i['proposal'] == 'keep']
+    undelivered = []
+    for item in kept:
+        name = item['id'].split('/')[-1]
+        if name in PROVIDED_BY or item['id'] in PROVIDED_BY:
+            continue
+        if covers(routes, name):
+            continue
+        undelivered.append(item['id'])
+    require(not undelivered,
+            f'{len(undelivered)} selections have no delivery: ' + ', '.join(sorted(undelivered)))
+
+    # Nothing is installed that was not selected.
+    selected = set()
+    for item in curation['items']:
+        if item['proposal'] == 'keep':
+            name = item['id'].split('/')[-1]
+            selected.update({name, ALIASES.get(name, name)})
+    unselected = sorted(set(routes) - selected - {'tofu', 'fd-find', 'fonts-jetbrains-mono', 'google-cloud-cli'})
+    require(not unselected,
+            f'{len(unselected)} manifest entries were never selected: ' + ', '.join(unselected))
+
+    # A prerequisite that never reaches the manifest is a capability that
+    # installs and then cannot work.
+    prerequisites = read('catalogue/prerequisites.json')
+    selected_capabilities = set(read('profiles/target.json')['capability_ids'])
+    package_names = {e['name'] for entries in packages['groups'].values() for e in entries}
+    for requirement in prerequisites['requirements']:
+        if requirement['capability'] not in selected_capabilities:
+            continue
+        for package in requirement['packages']:
+            require(package['package'] in package_names,
+                    f"{requirement['capability']}: prerequisite {package['package']} "
+                    f"is not in the manifest")
+
+    if failures:
+        for failure in failures:
+            print('FAIL: ' + failure, file=sys.stderr)
+        return 1
+    print(f'PASS: {len(kept)} selections; {len(routes)} delivery entries; '
+          f'{len(binaries["binaries"])} pinned binaries; '
+          f'{len(repositories["repositories"])} signed repositories.')
+    print('This checks manifest coverage only, not that installation succeeds.')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

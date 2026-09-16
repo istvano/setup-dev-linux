@@ -1,0 +1,41 @@
+---
+- name: Install pinned third-party release binaries
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/binaries.json') | from_json }}"
+    install_dir: "{{ (lookup('file', workstation_root ~ '/manifest/binaries.json') | from_json).install_dir }}"
+    staging: /var/tmp/workstation-binaries
+  tasks:
+    - name: Refuse to install an unpinned artifact
+      ansible.builtin.assert:
+        that:
+          - item.version is truthy
+          - item.url is truthy
+          - item.sha256 is match('^[0-9a-f]{64}$')
+        fail_msg: "{{ item.id }} is not pinned to a verified release"
+        quiet: true
+      loop: "{{ manifest.binaries }}"
+      loop_control:
+        label: "{{ item.id }}"
+
+    - name: Create the staging directory
+      ansible.builtin.file:
+        path: "{{ staging }}"
+        state: directory
+        mode: "0700"
+
+    - name: Install each pinned artifact
+      ansible.builtin.include_tasks: tasks/install-binary.yml
+      loop: "{{ manifest.binaries }}"
+      loop_control:
+        loop_var: binary
+        label: "{{ binary.id }} {{ binary.version }}"
+
+    - name: Remove the staging directory
+      ansible.builtin.file:
+        path: "{{ staging }}"
+        state: absent

@@ -1,0 +1,26 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker: inspect manifest packages before installing them.
+
+Reads {"groups": [...]} on stdin and prints one observation per package,
+including the exact candidate version to install and whether that candidate
+comes from the source the manifest declares. Writes nothing.
+"""
+import json
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.packages import expectations, inspect_packages
+
+try:
+    request = json.load(sys.stdin)
+    records = list(expectations(groups=request.get('groups') or None).values())
+    observations = inspect_packages(records)
+    by_id = {r['id']: r for r in records}
+    for observation in observations:
+        observation['source'] = by_id[observation['id']]['source']
+        observation['group'] = by_id[observation['id']]['group']
+    print(json.dumps(observations))
+except Exception:
+    print('Manifest package inspection failed; APT metadata unavailable or incomplete.',
+          file=sys.stderr)
+    raise SystemExit(2)

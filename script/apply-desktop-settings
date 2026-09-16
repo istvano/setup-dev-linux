@@ -1,0 +1,16 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker: apply the declared GNOME settings."""
+import json
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.desktop import DesktopError, apply
+
+try:
+    print(json.dumps({'changed': apply()}))
+except DesktopError as exc:
+    print('desktop settings not applied: ' + str(exc), file=sys.stderr)
+    raise SystemExit(1)
+except Exception:
+    print('desktop settings failed; inspect the declared manifest.', file=sys.stderr)
+    raise SystemExit(1)

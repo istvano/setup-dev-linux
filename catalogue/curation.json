@@ -1,0 +1,2094 @@
+{
+  "curation_version": 1,
+  "note": "Operator-reviewed selections. Items marked decided were confirmed in review; only keep items enter manifest/.",
+  "groups": [
+    {
+      "id": "core",
+      "title": "Core shell and CLI",
+      "description": "Tools used in every session regardless of project."
+    },
+    {
+      "id": "dev",
+      "title": "Editors and development",
+      "description": "Editors, IDEs, language servers and build tooling."
+    },
+    {
+      "id": "runtimes",
+      "title": "Language runtimes",
+      "description": "Version-managed runtimes and their managers."
+    },
+    {
+      "id": "cloud",
+      "title": "Cloud CLIs",
+      "description": "Provider command-line tools."
+    },
+    {
+      "id": "kubernetes",
+      "title": "Kubernetes",
+      "description": "Cluster tooling and plugins."
+    },
+    {
+      "id": "containers",
+      "title": "Containers",
+      "description": "Container engine, plugins and image tooling."
+    },
+    {
+      "id": "lab",
+      "title": "Virtualisation lab",
+      "description": "Local VM and network experimentation."
+    },
+    {
+      "id": "gpu",
+      "title": "GPU",
+      "description": "NVIDIA driver stack and monitoring."
+    },
+    {
+      "id": "desktop",
+      "title": "Desktop and GNOME",
+      "description": "Session, extensions, appearance and utilities."
+    },
+    {
+      "id": "media",
+      "title": "Media and capture",
+      "description": "Screen capture, recording and conversion."
+    },
+    {
+      "id": "productivity",
+      "title": "Applications",
+      "description": "Browsers, communications, notes and office."
+    },
+    {
+      "id": "ai",
+      "title": "AI assistants",
+      "description": "Agent CLIs, desktop clients and editor integrations."
+    },
+    {
+      "id": "network",
+      "title": "Network and VPN",
+      "description": "Connectivity and remote access."
+    },
+    {
+      "id": "security",
+      "title": "Security",
+      "description": "Scanning, secrets and hardening tooling."
+    },
+    {
+      "id": "work",
+      "title": "Employer-specific",
+      "description": "Tools tied to current employment, not the machine itself."
+    },
+    {
+      "id": "baseline",
+      "title": "Ubuntu baseline",
+      "description": "Supplied by the Ubuntu desktop installation itself."
+    },
+    {
+      "id": "locale",
+      "title": "Locale and input",
+      "description": "Language packs, dictionaries and input methods."
+    },
+    {
+      "id": "stale",
+      "title": "Stale or superseded",
+      "description": "Leftovers that should not be reproduced."
+    }
+  ],
+  "items": [
+    {
+      "id": "btop",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Process monitor in daily use.",
+      "decided": false
+    },
+    {
+      "id": "htop",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Process monitor; both are installed and both are used.",
+      "decided": false
+    },
+    {
+      "id": "curl",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Required by most install paths.",
+      "decided": false
+    },
+    {
+      "id": "wget",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Required by several install paths.",
+      "decided": false
+    },
+    {
+      "id": "git",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Version control.",
+      "decided": false
+    },
+    {
+      "id": "gh",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "GitHub CLI; third-party repo cli.github.com.",
+      "decided": false
+    },
+    {
+      "id": "jq",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "JSON processing; used by this repository.",
+      "decided": false
+    },
+    {
+      "id": "mc",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Midnight Commander file manager.",
+      "decided": false
+    },
+    {
+      "id": "vim",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Terminal editor.",
+      "decided": false
+    },
+    {
+      "id": "zsh",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Login shell on this machine.",
+      "decided": false
+    },
+    {
+      "id": "fastfetch",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "System summary on shell start.",
+      "decided": false
+    },
+    {
+      "id": "httpie",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "HTTP client.",
+      "decided": false
+    },
+    {
+      "id": "net-tools",
+      "kind": "apt",
+      "group": "network",
+      "proposal": "keep",
+      "reason": "ifconfig/netstat; still used in scripts.",
+      "decided": false
+    },
+    {
+      "id": "build-essential",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Compiler toolchain; needed to build native modules.",
+      "decided": false
+    },
+    {
+      "id": "libxml2-utils",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "xmllint for XML validation.",
+      "decided": false
+    },
+    {
+      "id": "meld",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Graphical diff.",
+      "decided": false
+    },
+    {
+      "id": "gnupg",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Commit signing and keyring operations.",
+      "decided": false
+    },
+    {
+      "id": "gpg",
+      "kind": "apt",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "GnuPG binary; pulled with gnupg.",
+      "decided": false
+    },
+    {
+      "id": "diffutils",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "findutils",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "grep",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "gzip",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "hostname",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "dash",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "bsdutils",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "init",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "ncurses-base",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "ncurses-bin",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "lsb-release",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "ca-certificates",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "apt-transport-https",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Provided by modern apt.",
+      "decided": false
+    },
+    {
+      "id": "software-properties-common",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Needed to add the third-party repositories below.",
+      "decided": false
+    },
+    {
+      "id": "code",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "VS Code; third-party repo packages.microsoft.com.",
+      "decided": false
+    },
+    {
+      "id": "kiro",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "drop",
+      "reason": "Not retained; VS Code covers this role.",
+      "decided": true
+    },
+    {
+      "id": "dbeaver-ce",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Database client; third-party repo dbeaver.io.",
+      "decided": false
+    },
+    {
+      "id": "gedit",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Text editor; kept alongside GNOME Text Editor.",
+      "decided": true
+    },
+    {
+      "id": "awscli",
+      "kind": "apt",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "AWS CLI from the Ubuntu archive.",
+      "decided": false
+    },
+    {
+      "id": "azure-cli",
+      "kind": "apt",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "Azure CLI from packages.microsoft.com; replaces the stale Jammy .deb installed here.",
+      "decided": true
+    },
+    {
+      "id": "kubectl",
+      "kind": "apt",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Kubernetes CLI from the configured pkgs.k8s.io v1.34 repository; the loose /usr/local/bin copy is dropped.",
+      "decided": true
+    },
+    {
+      "id": "kubectx",
+      "kind": "apt",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Context and namespace switching.",
+      "decided": false
+    },
+    {
+      "id": "docker-ce",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Docker Engine; third-party repo download.docker.com.",
+      "decided": false
+    },
+    {
+      "id": "docker-ce-cli",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Docker client.",
+      "decided": false
+    },
+    {
+      "id": "containerd.io",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Container runtime.",
+      "decided": false
+    },
+    {
+      "id": "docker-buildx-plugin",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Buildx builder.",
+      "decided": false
+    },
+    {
+      "id": "docker-compose-plugin",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Compose v2.",
+      "decided": false
+    },
+    {
+      "id": "skopeo",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Registry and image inspection.",
+      "decided": false
+    },
+    {
+      "id": "dive",
+      "kind": "apt",
+      "group": "containers",
+      "proposal": "keep",
+      "reason": "Docker image layer explorer; pinned release download, no repository available.",
+      "decided": true
+    },
+    {
+      "id": "libvirt-clients",
+      "kind": "apt",
+      "group": "lab",
+      "proposal": "keep",
+      "reason": "virsh and client tooling.",
+      "decided": false
+    },
+    {
+      "id": "libvirt-daemon-system",
+      "kind": "apt",
+      "group": "lab",
+      "proposal": "keep",
+      "reason": "libvirtd system integration.",
+      "decided": false
+    },
+    {
+      "id": "virt-manager",
+      "kind": "apt",
+      "group": "lab",
+      "proposal": "keep",
+      "reason": "VM management UI.",
+      "decided": false
+    },
+    {
+      "id": "quickemu",
+      "kind": "apt",
+      "group": "lab",
+      "proposal": "keep",
+      "reason": "Quick disposable VMs; PPA flexiondotorg/quickemu.",
+      "decided": false
+    },
+    {
+      "id": "bridge-utils",
+      "kind": "apt",
+      "group": "lab",
+      "proposal": "keep",
+      "reason": "Bridged VM networking.",
+      "decided": false
+    },
+    {
+      "id": "nvidia-driver-595-open",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "Open NVIDIA driver for the RTX 4090.",
+      "decided": false
+    },
+    {
+      "id": "linux-modules-nvidia-595-open-generic-hwe-26.04",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "Matching kernel modules.",
+      "decided": false
+    },
+    {
+      "id": "nvtop",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "GPU monitor.",
+      "decided": false
+    },
+    {
+      "id": "dkms",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "Rebuilds out-of-tree modules across kernel updates.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-drivers-common",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "Driver detection used to select the NVIDIA stack.",
+      "decided": false
+    },
+    {
+      "id": "gnome-shell-extension-manager",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Manages the GNOME extensions listed below.",
+      "decided": false
+    },
+    {
+      "id": "dconf-cli",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Required to apply the GNOME settings in this repository.",
+      "decided": false
+    },
+    {
+      "id": "dconf-editor",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Inspect GNOME settings.",
+      "decided": false
+    },
+    {
+      "id": "gparted",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Partition editor.",
+      "decided": false
+    },
+    {
+      "id": "fonts-inconsolata",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Terminal font.",
+      "decided": false
+    },
+    {
+      "id": "fonts-powerline",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Powerline glyphs for the shell prompt.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-wallpapers",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Ships with the desktop install.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-restricted-addons",
+      "kind": "apt",
+      "group": "media",
+      "proposal": "keep",
+      "reason": "Codecs for common media formats.",
+      "decided": false
+    },
+    {
+      "id": "evtest",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "One-off input diagnostic; reinstall on demand.",
+      "decided": true
+    },
+    {
+      "id": "libinput-tools",
+      "kind": "apt",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "One-off touchpad diagnostic; reinstall on demand.",
+      "decided": true
+    },
+    {
+      "id": "ffmpeg",
+      "kind": "apt",
+      "group": "media",
+      "proposal": "keep",
+      "reason": "Media conversion.",
+      "decided": false
+    },
+    {
+      "id": "flameshot",
+      "kind": "apt",
+      "group": "media",
+      "proposal": "keep",
+      "reason": "Screenshot tool.",
+      "decided": false
+    },
+    {
+      "id": "kazam",
+      "kind": "apt",
+      "group": "media",
+      "proposal": "keep",
+      "reason": "Screen recorder; in active use alongside OBS.",
+      "decided": true
+    },
+    {
+      "id": "obs-studio",
+      "kind": "apt",
+      "group": "media",
+      "proposal": "keep",
+      "reason": "Screen recording and streaming; PPA obsproject/obs-studio.",
+      "decided": false
+    },
+    {
+      "id": "google-chrome-stable",
+      "kind": "apt",
+      "group": "productivity",
+      "proposal": "keep",
+      "reason": "Browser; third-party repo dl.google.com.",
+      "decided": false
+    },
+    {
+      "id": "slack-desktop",
+      "kind": "apt",
+      "group": "productivity",
+      "proposal": "keep",
+      "reason": "Chat; third-party repo packagecloud.io.",
+      "decided": false
+    },
+    {
+      "id": "obsidian",
+      "kind": "apt",
+      "group": "productivity",
+      "proposal": "keep",
+      "reason": "Notes; installed from a downloaded .deb with no repository.",
+      "decided": false
+    },
+    {
+      "id": "claude-desktop",
+      "kind": "apt",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "Claude desktop client; third-party repo downloads.claude.ai.",
+      "decided": false
+    },
+    {
+      "id": "chatgpt",
+      "kind": "apt",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "ChatGPT desktop client; third-party repo persistent.oaistatic.com.",
+      "decided": false
+    },
+    {
+      "id": "openvpn",
+      "kind": "apt",
+      "group": "network",
+      "proposal": "keep",
+      "reason": "VPN client.",
+      "decided": false
+    },
+    {
+      "id": "network-manager-openvpn-gnome",
+      "kind": "apt",
+      "group": "network",
+      "proposal": "keep",
+      "reason": "OpenVPN integration in the GNOME network UI.",
+      "decided": false
+    },
+    {
+      "id": "wpasupplicant",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Part of the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-desktop",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "The desktop install itself.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-desktop-minimal",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "The desktop install itself.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-minimal",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "The base install itself.",
+      "decided": false
+    },
+    {
+      "id": "ubuntu-standard",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "The base install itself.",
+      "decided": false
+    },
+    {
+      "id": "linux-generic",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Kernel metapackage from the installer.",
+      "decided": false
+    },
+    {
+      "id": "linux-headers-generic",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "Required by DKMS for the NVIDIA modules.",
+      "decided": false
+    },
+    {
+      "id": "grub-efi-amd64",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Installed by the Ubuntu installer.",
+      "decided": false
+    },
+    {
+      "id": "grub-efi-amd64-signed",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Installed by the Ubuntu installer.",
+      "decided": false
+    },
+    {
+      "id": "shim-signed",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Installed by the Ubuntu installer.",
+      "decided": false
+    },
+    {
+      "id": "efibootmgr",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "drop",
+      "reason": "Installed by the Ubuntu installer.",
+      "decided": false
+    },
+    {
+      "id": "linux-generic-hwe-24.04",
+      "kind": "apt",
+      "group": "stale",
+      "proposal": "drop",
+      "reason": "A 24.04 HWE kernel metapackage on a 26.04 system; leftover from the upgrade.",
+      "decided": false
+    },
+    {
+      "id": "linux-headers-7.0.0-30-generic",
+      "kind": "apt",
+      "group": "stale",
+      "proposal": "drop",
+      "reason": "Headers pinned to a kernel older than the running 7.0.0-31.",
+      "decided": false
+    },
+    {
+      "id": "libnsl2",
+      "kind": "apt",
+      "group": "stale",
+      "proposal": "drop",
+      "reason": "Orphaned build dependency.",
+      "decided": true
+    },
+    {
+      "id": "python3-netifaces",
+      "kind": "apt",
+      "group": "stale",
+      "proposal": "drop",
+      "reason": "Orphaned dependency.",
+      "decided": true
+    },
+    {
+      "id": "language-pack-en",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed by Ubuntu language support.",
+      "decided": false
+    },
+    {
+      "id": "language-pack-en-base",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed by Ubuntu language support.",
+      "decided": false
+    },
+    {
+      "id": "language-pack-gnome-en",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed by Ubuntu language support.",
+      "decided": false
+    },
+    {
+      "id": "language-pack-gnome-en-base",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed by Ubuntu language support.",
+      "decided": false
+    },
+    {
+      "id": "hyphen-en-ca",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "LibreOffice hyphenation, installed with language support.",
+      "decided": false
+    },
+    {
+      "id": "hyphen-en-gb",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "LibreOffice hyphenation, installed with language support.",
+      "decided": false
+    },
+    {
+      "id": "hyphen-en-us",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "LibreOffice hyphenation, installed with language support.",
+      "decided": false
+    },
+    {
+      "id": "mythes-en-au",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "LibreOffice thesaurus, installed with language support.",
+      "decided": false
+    },
+    {
+      "id": "mythes-en-us",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "LibreOffice thesaurus, installed with language support.",
+      "decided": false
+    },
+    {
+      "id": "libreoffice-help-common",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with LibreOffice language support.",
+      "decided": false
+    },
+    {
+      "id": "libreoffice-help-en-gb",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with LibreOffice language support.",
+      "decided": false
+    },
+    {
+      "id": "libreoffice-help-en-us",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with LibreOffice language support.",
+      "decided": false
+    },
+    {
+      "id": "libreoffice-l10n-en-gb",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with LibreOffice language support.",
+      "decided": false
+    },
+    {
+      "id": "libreoffice-l10n-en-za",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with LibreOffice language support.",
+      "decided": false
+    },
+    {
+      "id": "thunderbird-locale-en",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with Thunderbird language support.",
+      "decided": false
+    },
+    {
+      "id": "thunderbird-locale-en-gb",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with Thunderbird language support.",
+      "decided": false
+    },
+    {
+      "id": "thunderbird-locale-en-us",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Installed with Thunderbird language support.",
+      "decided": false
+    },
+    {
+      "id": "ibus-table-cangjie3",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input table pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "ibus-table-cangjie5",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input table pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "ibus-table-cangjie-big",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input table pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libchewing3",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input engine pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libchewing3-data",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input data pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libopencc1.1",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese conversion library pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libopencc-data",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese conversion data pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libpinyin15",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input engine pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libpinyin-data",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Chinese input data pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libm17n-0",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Multilingual text library pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "m17n-db",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "Multilingual text data pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "libotf1",
+      "kind": "apt",
+      "group": "locale",
+      "proposal": "drop",
+      "reason": "OpenType layout library pulled in by language support.",
+      "decided": false
+    },
+    {
+      "id": "firefox",
+      "kind": "snap",
+      "group": "productivity",
+      "proposal": "keep",
+      "reason": "Browser, Canonical-published snap.",
+      "decided": false
+    },
+    {
+      "id": "thunderbird",
+      "kind": "snap",
+      "group": "productivity",
+      "proposal": "keep",
+      "reason": "Mail client, Canonical-published snap.",
+      "decided": false
+    },
+    {
+      "id": "bitwarden",
+      "kind": "snap",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Password manager; matches the Mac password-bitwarden profile.",
+      "decided": false
+    },
+    {
+      "id": "remmina",
+      "kind": "snap",
+      "group": "network",
+      "proposal": "keep",
+      "reason": "Remote desktop client.",
+      "decided": false
+    },
+    {
+      "id": "snap-store",
+      "kind": "snap",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "Ships with the Ubuntu desktop install.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/helm",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Helm; also in the Mac kubernetes profile.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/k9s",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Cluster TUI; also in the Mac kubernetes profile.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/k3d",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Local clusters; also in the Mac kubernetes profile.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/stern",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Multi-pod log tailing; also in the Mac kubernetes profile.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/kubectl",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "drop",
+      "reason": "Duplicate of the packaged kubectl; the repository installs the APT package only.",
+      "decided": true
+    },
+    {
+      "id": "/usr/local/bin/kubelogin",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Azure AD authentication for kubectl.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/cilium",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Cilium CLI for cluster networking work.",
+      "decided": true
+    },
+    {
+      "id": "/usr/local/bin/hubble",
+      "kind": "binary",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Cilium observability CLI; reinstalled from its release rather than copied.",
+      "decided": true
+    },
+    {
+      "id": "/usr/local/bin/yq",
+      "kind": "binary",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "YAML processor; also in the Mac core profile.",
+      "decided": false
+    },
+    {
+      "id": "/usr/local/bin/starship",
+      "kind": "binary",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Adopted as the prompt, replacing the oh-my-zsh agnoster theme. Configuration comes from the Mac baseline.",
+      "decided": true
+    },
+    {
+      "id": "/usr/local/bin/eph-cli",
+      "kind": "binary",
+      "group": "work",
+      "proposal": "drop",
+      "reason": "Employer tooling; installed manually per engagement, not reproduced by this repository.",
+      "decided": true
+    },
+    {
+      "id": "~/.local/bin/uv",
+      "kind": "binary",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Python package and project manager.",
+      "decided": false
+    },
+    {
+      "id": "~/.local/bin/uvx",
+      "kind": "binary",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Installed with uv.",
+      "decided": false
+    },
+    {
+      "id": "~/.local/bin/claude",
+      "kind": "binary",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "Claude Code CLI.",
+      "decided": false
+    },
+    {
+      "id": "~/.local/bin/codex",
+      "kind": "binary",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "Codex CLI.",
+      "decided": false
+    },
+    {
+      "id": "~/.local/bin/copilot",
+      "kind": "binary",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "GitHub Copilot CLI; in active use.",
+      "decided": true
+    },
+    {
+      "id": "/opt/containerd",
+      "kind": "binary",
+      "group": "containers",
+      "proposal": "drop",
+      "reason": "Installed by the containerd.io package; not a separate selection.",
+      "decided": false
+    },
+    {
+      "id": "nvm",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Node version manager; Node 22.21.0 installed and default.",
+      "decided": false
+    },
+    {
+      "id": "node-22.21.0",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Current Node version on this machine.",
+      "decided": false
+    },
+    {
+      "id": "corepack",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "npm global; provides pnpm and yarn shims.",
+      "decided": false
+    },
+    {
+      "id": "sdkman",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "JVM toolchain manager.",
+      "decided": false
+    },
+    {
+      "id": "java-21-tem",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Temurin 21.",
+      "decided": false
+    },
+    {
+      "id": "java-25-tem",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Temurin 25, the SDKMAN default.",
+      "decided": false
+    },
+    {
+      "id": "java-21-ms",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Microsoft OpenJDK 21.",
+      "decided": false
+    },
+    {
+      "id": "java-25-ms",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Microsoft OpenJDK 25.",
+      "decided": false
+    },
+    {
+      "id": "java-mandrel-25",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Mandrel 25.0.0.1.r25 for native image builds.",
+      "decided": false
+    },
+    {
+      "id": "maven-3.9.11",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Maven, SDKMAN-managed.",
+      "decided": false
+    },
+    {
+      "id": "uv",
+      "kind": "runtime",
+      "group": "runtimes",
+      "proposal": "keep",
+      "reason": "Python toolchain; see unmanaged binaries.",
+      "decided": false
+    },
+    {
+      "id": "oh-my-zsh",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "zsh framework.",
+      "decided": false
+    },
+    {
+      "id": "theme-agnoster",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "drop",
+      "reason": "Replaced by the starship prompt.",
+      "decided": true
+    },
+    {
+      "id": "plugin-git",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "oh-my-zsh git plugin.",
+      "decided": false
+    },
+    {
+      "id": "zsh-autosuggestions",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Custom oh-my-zsh plugin.",
+      "decided": false
+    },
+    {
+      "id": "zsh-syntax-highlighting",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Custom oh-my-zsh plugin.",
+      "decided": false
+    },
+    {
+      "id": "atuin",
+      "kind": "shell",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Shell history; installed in ~/.atuin.",
+      "decided": false
+    },
+    {
+      "id": "proxy-helpers",
+      "kind": "shell",
+      "group": "work",
+      "proposal": "keep",
+      "reason": "proxyon/proxyoff helpers and the corporate proxy variables in .zshrc; employer-specific, kept private.",
+      "decided": false
+    },
+    {
+      "id": "bat",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Better cat with syntax highlighting.",
+      "decided": true
+    },
+    {
+      "id": "eza",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Better ls.",
+      "decided": true
+    },
+    {
+      "id": "fd",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Better find.",
+      "decided": true
+    },
+    {
+      "id": "ripgrep",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Fast recursive grep.",
+      "decided": true
+    },
+    {
+      "id": "fzf",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Fuzzy finder.",
+      "decided": true
+    },
+    {
+      "id": "zoxide",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Frecency-based directory jumping.",
+      "decided": true
+    },
+    {
+      "id": "direnv",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Per-directory environment loading.",
+      "decided": true
+    },
+    {
+      "id": "just",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Command runner; this repository gains a justfile.",
+      "decided": true
+    },
+    {
+      "id": "git-delta",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Syntax-highlighted git diffs.",
+      "decided": true
+    },
+    {
+      "id": "git-lfs",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Git large file support.",
+      "decided": true
+    },
+    {
+      "id": "age",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "File encryption.",
+      "decided": true
+    },
+    {
+      "id": "sops",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Encrypted values inside YAML and JSON.",
+      "decided": true
+    },
+    {
+      "id": "gitleaks",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Repository credential scanning.",
+      "decided": true
+    },
+    {
+      "id": "trivy",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Container image vulnerability scanning.",
+      "decided": true
+    },
+    {
+      "id": "chezmoi",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Mac core profile. This repository already depends on it for dotfiles.",
+      "decided": false
+    },
+    {
+      "id": "tmux",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Terminal multiplexer.",
+      "decided": true
+    },
+    {
+      "id": "neovim",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Modern vim fork with language-server support.",
+      "decided": true
+    },
+    {
+      "id": "shellcheck",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Shell script linting.",
+      "decided": true
+    },
+    {
+      "id": "shfmt",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Shell script formatting.",
+      "decided": true
+    },
+    {
+      "id": "yamllint",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "YAML linting for Ansible playbooks and Kubernetes manifests.",
+      "decided": true
+    },
+    {
+      "id": "actionlint",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "GitHub Actions workflow linting.",
+      "decided": true
+    },
+    {
+      "id": "hadolint",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Dockerfile linting.",
+      "decided": true
+    },
+    {
+      "id": "krew",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "kubectl plugin manager, with the neat/sniff/tree/view-secret/whoami plugins.",
+      "decided": true
+    },
+    {
+      "id": "kustomize",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Overlay-based manifest building.",
+      "decided": true
+    },
+    {
+      "id": "kubeconform",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Manifest schema validation.",
+      "decided": true
+    },
+    {
+      "id": "kubeseal",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Sealed-secrets CLI.",
+      "decided": true
+    },
+    {
+      "id": "helmfile",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Declarative Helm release management.",
+      "decided": true
+    },
+    {
+      "id": "argocd",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Argo CD CLI.",
+      "decided": true
+    },
+    {
+      "id": "kind",
+      "kind": "mac-only",
+      "group": "kubernetes",
+      "proposal": "keep",
+      "reason": "Kubernetes in Docker, alongside the installed k3d.",
+      "decided": true
+    },
+    {
+      "id": "opentofu",
+      "kind": "mac-only",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "Open-source Terraform fork.",
+      "decided": true
+    },
+    {
+      "id": "terragrunt",
+      "kind": "mac-only",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "OpenTofu/Terraform wrapper.",
+      "decided": true
+    },
+    {
+      "id": "terraform-docs",
+      "kind": "mac-only",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "Infrastructure documentation generation.",
+      "decided": true
+    },
+    {
+      "id": "gcloud-cli",
+      "kind": "mac-only",
+      "group": "cloud",
+      "proposal": "keep",
+      "reason": "Google Cloud CLI.",
+      "decided": true
+    },
+    {
+      "id": "rclone",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Cloud storage sync.",
+      "decided": true
+    },
+    {
+      "id": "restic",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Encrypted deduplicated backups.",
+      "decided": true
+    },
+    {
+      "id": "ghostty",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "GPU-accelerated terminal; pairs with the starship prompt.",
+      "decided": true
+    },
+    {
+      "id": "zed",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Collaborative editor.",
+      "decided": true
+    },
+    {
+      "id": "opencode",
+      "kind": "mac-only",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "Agent CLI; already implemented and locked in this repository.",
+      "decided": true
+    },
+    {
+      "id": "cline",
+      "kind": "mac-only",
+      "group": "ai",
+      "proposal": "keep",
+      "reason": "Agent CLI and the matching VS Code extension.",
+      "decided": true
+    },
+    {
+      "id": "aider",
+      "kind": "mac-only",
+      "group": "ai",
+      "proposal": "drop",
+      "reason": "Not retained; its source and licence review stays an open gate rather than a selection.",
+      "decided": true
+    },
+    {
+      "id": "font-jetbrains-mono-nerd",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "keep",
+      "reason": "Nerd Font from the Mac baseline, alongside the installed FiraCode and SauceCodePro.",
+      "decided": true
+    },
+    {
+      "id": "pandoc",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Document conversion.",
+      "decided": true
+    },
+    {
+      "id": "d2",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "keep",
+      "reason": "Text-to-diagram language.",
+      "decided": true
+    },
+    {
+      "id": "duckdb",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "drop",
+      "reason": "Not retained.",
+      "decided": true
+    },
+    {
+      "id": "nmap",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Network scanning.",
+      "decided": true
+    },
+    {
+      "id": "cosign",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Container image signature verification.",
+      "decided": true
+    },
+    {
+      "id": "syft",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "SBOM generation.",
+      "decided": true
+    },
+    {
+      "id": "grype",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Vulnerability scanning.",
+      "decided": true
+    },
+    {
+      "id": "trufflehog",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Credential scanning across history.",
+      "decided": true
+    },
+    {
+      "id": "osv-scanner",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "keep",
+      "reason": "Dependency scanning against the OSV database.",
+      "decided": true
+    },
+    {
+      "id": "mise",
+      "kind": "mac-only",
+      "group": "runtimes",
+      "proposal": "drop",
+      "reason": "Mac core profile, but D009 selected SDKMAN and NVM. Do not reintroduce.",
+      "decided": false
+    },
+    {
+      "id": "lima",
+      "kind": "mac-only",
+      "group": "lab",
+      "proposal": "drop",
+      "reason": "macOS Linux VM host; libvirt and quickemu fill this role here.",
+      "decided": false
+    },
+    {
+      "id": "colima",
+      "kind": "mac-only",
+      "group": "containers",
+      "proposal": "drop",
+      "reason": "macOS container runtime; Docker Engine runs natively here.",
+      "decided": false
+    },
+    {
+      "id": "1password",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "Alternative to the Bitwarden profile already in use.",
+      "decided": false
+    },
+    {
+      "id": "little-snitch",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "macOS-only firewall.",
+      "decided": false
+    },
+    {
+      "id": "lulu",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "macOS-only firewall.",
+      "decided": false
+    },
+    {
+      "id": "pinentry-mac",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "macOS-only pinentry.",
+      "decided": false
+    },
+    {
+      "id": "trash",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "drop",
+      "reason": "macOS-only utility.",
+      "decided": false
+    },
+    {
+      "id": "utm",
+      "kind": "mac-only",
+      "group": "lab",
+      "proposal": "drop",
+      "reason": "macOS-only virtualisation.",
+      "decided": false
+    },
+    {
+      "id": "betterdisplay",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "macOS-only display utility.",
+      "decided": false
+    },
+    {
+      "id": "iterm2",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "macOS-only terminal.",
+      "decided": false
+    },
+    {
+      "id": "iina",
+      "kind": "mac-only",
+      "group": "media",
+      "proposal": "drop",
+      "reason": "macOS-only media player.",
+      "decided": false
+    },
+    {
+      "id": "cleanshot",
+      "kind": "mac-only",
+      "group": "media",
+      "proposal": "drop",
+      "reason": "macOS-only capture tool; flameshot fills this role here.",
+      "decided": false
+    },
+    {
+      "id": "pearcleaner",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "macOS-only uninstaller.",
+      "decided": false
+    },
+    {
+      "id": "oversight",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "macOS-only monitoring.",
+      "decided": false
+    },
+    {
+      "id": "netiquette",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "macOS-only network monitor.",
+      "decided": false
+    },
+    {
+      "id": "burp-suite",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "Not used on this machine.",
+      "decided": false
+    },
+    {
+      "id": "mitmproxy",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "Not used on this machine.",
+      "decided": false
+    },
+    {
+      "id": "step",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "Not used on this machine.",
+      "decided": false
+    },
+    {
+      "id": "lm-studio",
+      "kind": "mac-only",
+      "group": "ai",
+      "proposal": "drop",
+      "reason": "Mac local-llm profile; this machine uses the RTX 4090 differently.",
+      "decided": false
+    },
+    {
+      "id": "fish",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "drop",
+      "reason": "Alternative shell; zsh is the login shell here.",
+      "decided": false
+    },
+    {
+      "id": "granted",
+      "kind": "mac-only",
+      "group": "cloud",
+      "proposal": "drop",
+      "reason": "AWS role switching; not used on this machine.",
+      "decided": false
+    },
+    {
+      "id": "drawio",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "drop",
+      "reason": "Not used on this machine.",
+      "decided": false
+    },
+    {
+      "id": "mcp-inspector",
+      "kind": "mac-only",
+      "group": "ai",
+      "proposal": "drop",
+      "reason": "Mac MCP tooling; no MCP policy exists in this repository yet.",
+      "decided": false
+    },
+    {
+      "id": "tailscale-app",
+      "kind": "mac-only",
+      "group": "network",
+      "proposal": "drop",
+      "reason": "Not used on this machine; OpenVPN is.",
+      "decided": false
+    },
+    {
+      "id": "sqlite",
+      "kind": "mac-only",
+      "group": "dev",
+      "proposal": "drop",
+      "reason": "Provided by the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "openssl@3",
+      "kind": "mac-only",
+      "group": "security",
+      "proposal": "drop",
+      "reason": "Provided by the Ubuntu base system.",
+      "decided": false
+    },
+    {
+      "id": "xh",
+      "kind": "mac-only",
+      "group": "core",
+      "proposal": "drop",
+      "reason": "httpie is already installed here and fills the same role.",
+      "decided": false
+    },
+    {
+      "id": "latest",
+      "kind": "mac-only",
+      "group": "desktop",
+      "proposal": "drop",
+      "reason": "macOS update checker.",
+      "decided": false
+    },
+    {
+      "id": "firefox@developer-edition",
+      "kind": "mac-only",
+      "group": "productivity",
+      "proposal": "drop",
+      "reason": "The Firefox snap is already installed here.",
+      "decided": false
+    },
+    {
+      "id": "nvidia-container-toolkit",
+      "kind": "apt",
+      "group": "gpu",
+      "proposal": "keep",
+      "reason": "GPU access from Docker containers. Its repository is configured on this machine but the package was never installed.",
+      "decided": true
+    },
+    {
+      "id": "g++",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "C++ compiler; prerequisite of Mandrel native-image builds.",
+      "decided": true
+    },
+    {
+      "id": "zlib1g-dev",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Compression headers; prerequisite of Mandrel native-image builds.",
+      "decided": true
+    },
+    {
+      "id": "libfreetype-dev",
+      "kind": "apt",
+      "group": "dev",
+      "proposal": "keep",
+      "reason": "Font rendering headers; prerequisite of Mandrel native-image builds.",
+      "decided": true
+    }
+  ],
+  "migration": {
+    "copy_trees": [
+      "workspace",
+      "bin",
+      "cpdb",
+      "Documents",
+      "Knowledge",
+      "Sync",
+      "Desktop",
+      "Templates",
+      "Public",
+      "Pictures",
+      "Music",
+      "Videos",
+      "Downloads",
+      "ISOs",
+      "Apps"
+    ],
+    "secrets_trees": [
+      "secure"
+    ],
+    "excluded_trees": [
+      "snap"
+    ],
+    "excluded_note": "snap regenerates from the installed snaps; Apps/idea-IU is copied but IntelliJ is reinstalled fresh."
+  },
+  "desktop_policy": "curated-subset",
+  "dotfile_policy": "chezmoi-shell-git-editor-tools"
+}

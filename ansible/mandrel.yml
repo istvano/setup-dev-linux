@@ -1,0 +1,17 @@
+---
+- name: Register reviewed Mandrel through SDKMAN
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify native prerequisites and register the local Mandrel candidate
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-mandrel"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: mandrel_apply
+      changed_when: mandrel_apply.rc == 0 and (mandrel_apply.stdout | from_json).changed
+      no_log: true

@@ -1,0 +1,350 @@
+{
+  "schema_version": 1,
+  "description": "GNOME settings reproduced on a new workstation. Values are dconf literals applied with dconf load. Sections listed under \"excluded\" were observed but deliberately not reproduced. Extensions are recorded as installed, enabled and disabled: an extension can be present and deliberately switched off, and only the enabled set is expected in org/gnome/shell/enabled-extensions.",
+  "extensions_installed": [
+    "ding@rastersoft.com",
+    "snapd-prompting@canonical.com",
+    "snapd-search-provider@canonical.com",
+    "tiling-assistant@ubuntu.com",
+    "ubuntu-appindicators@ubuntu.com",
+    "ubuntu-dock@ubuntu.com",
+    "web-search-provider@ubuntu.com"
+  ],
+  "extensions_enabled": [
+    "ding@rastersoft.com",
+    "snapd-search-provider@canonical.com",
+    "tiling-assistant@ubuntu.com",
+    "ubuntu-dock@ubuntu.com",
+    "web-search-provider@ubuntu.com"
+  ],
+  "extensions_disabled": [
+    "snapd-prompting@canonical.com",
+    "ubuntu-appindicators@ubuntu.com"
+  ],
+  "user_fonts": [
+    "FiraCodeNerdFont",
+    "FiraCodeNerdFontMono",
+    "FiraCodeNerdFontPropo",
+    "SauceCodeProNerdFont",
+    "SauceCodeProNerdFontMono",
+    "SauceCodeProNerdFontPropo",
+    "TerminessNerdFont",
+    "TerminessNerdFontMono",
+    "TerminessNerdFontPropo"
+  ],
+  "settings": {
+    "org/gnome/calculator": {
+      "base": "10",
+      "button-mode": "'advanced'",
+      "source-currency": "''",
+      "source-units": "['degree']",
+      "target-currency": "''",
+      "target-units": "['radian']",
+      "unit-category": "'angle'",
+      "window-maximized": "false",
+      "window-size": "(700, 616)"
+    },
+    "org/gnome/desktop/a11y/interface": {
+      "high-contrast": "false"
+    },
+    "org/gnome/desktop/a11y/magnifier": {
+      "cross-hairs-length": "58"
+    },
+    "org/gnome/desktop/background": {
+      "color-shading-type": "'solid'",
+      "picture-options": "'zoom'",
+      "picture-uri": "'file:///usr/share/backgrounds/ubuntu-default-greyscale-wallpaper.png'",
+      "picture-uri-dark": "'file:///usr/share/backgrounds/ubuntu-default-greyscale-wallpaper.png'",
+      "primary-color": "'#333333'",
+      "secondary-color": "'#333333'"
+    },
+    "org/gnome/desktop/break-reminders": {
+      "selected-breaks": "['eyesight', 'movement']"
+    },
+    "org/gnome/desktop/break-reminders/eyesight": {
+      "play-sound": "true"
+    },
+    "org/gnome/desktop/break-reminders/movement": {
+      "duration-seconds": "uint32 300",
+      "interval-seconds": "uint32 1800",
+      "play-sound": "true"
+    },
+    "org/gnome/desktop/input-sources": {
+      "sources": "[('xkb', 'gb')]"
+    },
+    "org/gnome/desktop/interface": {
+      "accent-color": "'green'",
+      "color-scheme": "'default'",
+      "enable-hot-corners": "true",
+      "font-name": "'Ubuntu Sans 11'",
+      "gtk-enable-primary-paste": "true",
+      "gtk-theme": "'Yaru-olive'",
+      "icon-theme": "'Yaru-olive'",
+      "show-battery-percentage": "true"
+    },
+    "org/gnome/desktop/peripherals/keyboard": {
+      "numlock-state": "true"
+    },
+    "org/gnome/desktop/peripherals/touchpad": {
+      "two-finger-scrolling-enabled": "true"
+    },
+    "org/gnome/desktop/privacy": {
+      "report-technical-problems": "false"
+    },
+    "org/gnome/desktop/screen-time-limits": {
+      "daily-limit-enabled": "false",
+      "daily-limit-seconds": "uint32 28800"
+    },
+    "org/gnome/desktop/screensaver": {
+      "color-shading-type": "'solid'",
+      "picture-options": "'zoom'",
+      "picture-uri": "'file:///usr/share/backgrounds/ubuntu-default-greyscale-wallpaper.png'",
+      "primary-color": "'#333333'",
+      "secondary-color": "'#333333'"
+    },
+    "org/gnome/desktop/search-providers": {
+      "sort-order": "['org.gnome.Settings.desktop', 'org.gnome.Contacts.desktop', 'org.gnome.Nautilus.desktop']"
+    },
+    "org/gnome/desktop/session": {
+      "idle-delay": "uint32 900"
+    },
+    "org/gnome/mutter": {
+      "experimental-features": "['scale-monitor-framebuffer', 'xwayland-native-scaling']",
+      "workspaces-only-on-primary": "false"
+    },
+    "org/gnome/nautilus/preferences": {
+      "default-folder-viewer": "'list-view'",
+      "migrated-gtk-settings": "true",
+      "search-filter-time-type": "'last_modified'"
+    },
+    "org/gnome/settings-daemon/plugins/color": {
+      "night-light-enabled": "false",
+      "night-light-schedule-automatic": "false"
+    },
+    "org/gnome/settings-daemon/plugins/power": {
+      "power-button-action": "'interactive'",
+      "sleep-inactive-ac-timeout": "3600",
+      "sleep-inactive-ac-type": "'suspend'",
+      "sleep-inactive-battery-timeout": "1800",
+      "sleep-inactive-battery-type": "'suspend'"
+    },
+    "org/gnome/shell": {
+      "enabled-extensions": "['ding@rastersoft.com', 'ubuntu-dock@ubuntu.com', 'tiling-assistant@ubuntu.com', 'snapd-search-provider@canonical.com', 'web-search-provider@ubuntu.com']",
+      "favorite-apps": "['firefox_firefox.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Terminal.desktop', 'google-chrome.desktop', 'bitwarden_bitwarden.desktop', 'org.remmina.Remmina.desktop', 'obsidian.desktop', 'code.desktop', 'chrome-fmpnliohjhemenmnlpbfagaolkdacoja-Default.desktop']",
+      "last-selected-power-profile": "'power-saver'",
+      "remember-mount-password": "false"
+    },
+    "org/gnome/shell/extensions/dash-to-dock": {
+      "show-mounts-only-mounted": "true"
+    },
+    "org/gnome/shell/extensions/ding": {
+      "check-x11wayland": "true"
+    },
+    "org/gnome/shell/extensions/tiling-assistant": {
+      "focus-hint-color": "'rgb(203,67,20)'",
+      "last-version-installed": "54",
+      "tiling-popup-all-workspace": "true"
+    },
+    "org/gnome/system/location": {
+      "enabled": "false"
+    },
+    "org/gnome/terminal/legacy/profiles:/:b1dcc9dd-5262-4d8d-a863-c897e6d979b9": {
+      "background-color": "'rgb(253,246,227)'",
+      "foreground-color": "'rgb(101,123,131)'",
+      "palette": "['rgb(7,54,66)', 'rgb(220,50,47)', 'rgb(133,153,0)', 'rgb(181,137,0)', 'rgb(38,139,210)', 'rgb(211,54,130)', 'rgb(42,161,152)', 'rgb(238,232,213)', 'rgb(0,43,54)', 'rgb(203,75,22)', 'rgb(88,110,117)', 'rgb(101,123,131)', 'rgb(131,148,150)', 'rgb(108,113,196)', 'rgb(147,161,161)', 'rgb(253,246,227)']",
+      "use-theme-colors": "false",
+      "visible-name": "'light'"
+    },
+    "org/gnome/terminal/legacy/profiles:": {
+      "list": "['b1dcc9dd-5262-4d8d-a863-c897e6d979b9']",
+      "default": "'b1dcc9dd-5262-4d8d-a863-c897e6d979b9'"
+    }
+  },
+  "excluded": [
+    {
+      "path": "apps/update-manager",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "ca/desrt/dconf-editor",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "com/ubuntu/update-notifier",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/calendar",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/control-center",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/deja-dup",
+      "reason": "backup destinations stay manual"
+    },
+    {
+      "path": "org/gnome/desktop/app-folders",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/desktop/app-folders/folders/Pardus",
+      "reason": "default app-folder layout"
+    },
+    {
+      "path": "org/gnome/desktop/app-folders/folders/System",
+      "reason": "default app-folder layout"
+    },
+    {
+      "path": "org/gnome/desktop/app-folders/folders/Utilities",
+      "reason": "default app-folder layout"
+    },
+    {
+      "path": "org/gnome/desktop/app-folders/folders/YaST",
+      "reason": "default app-folder layout"
+    },
+    {
+      "path": "org/gnome/desktop/notifications/application-children",
+      "reason": "application state"
+    },
+    {
+      "path": "org/gnome/desktop/notifications/application/<application>",
+      "reason": "per-application entries keyed to this machine",
+      "count": 16
+    },
+    {
+      "path": "org/gnome/desktop/notifications/application/<mounted-volume>",
+      "reason": "per-application entries keyed to this machine"
+    },
+    {
+      "path": "org/gnome/evolution-data-server",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/file-roller/dialogs/extract",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/file-roller/file-selector",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/file-roller/listing",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/file-roller/ui",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/gedit/state/window",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/gnome-system-monitor",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/gnome-system-monitor/proctree",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/meld",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/meld/window-state",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/nautilus/window-state",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/nm-applet/eap/<network-connection>",
+      "reason": "saved network connection certificates",
+      "count": 2
+    },
+    {
+      "path": "org/gnome/papers",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/papers/default",
+      "reason": "window geometry and application state"
+    },
+    {
+      "path": "org/gnome/portal/filechooser/<application>",
+      "reason": "last-used directory per application",
+      "count": 7
+    },
+    {
+      "path": "org/gnome/settings-daemon/global-shortcuts",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gnome/settings-daemon/global-shortcuts/<application>",
+      "reason": "per-application shortcut registration"
+    },
+    {
+      "path": "org/gnome/shell/app-picker-layout",
+      "reason": "application state"
+    },
+    {
+      "path": "org/gnome/shell/welcome-dialog-last-shown-version",
+      "reason": "application state"
+    },
+    {
+      "path": "org/gnome/shell/world-clocks",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gtk/gtk4/settings/file-chooser",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gtk/settings/color-chooser",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/gtk/settings/file-chooser",
+      "reason": "not a reproducible preference"
+    },
+    {
+      "path": "org/virt-manager/virt-manager",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/confirm",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/connections",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/details",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/paths",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/urls",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/vmlist-fields",
+      "reason": "per-machine VM list and connection paths"
+    },
+    {
+      "path": "org/virt-manager/virt-manager/vms/<vm>",
+      "reason": "per-machine VM list and connection paths",
+      "count": 3
+    }
+  ],
+  "removed_favourites": []
+}

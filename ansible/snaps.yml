@@ -1,0 +1,22 @@
+---
+- name: Install selected snaps
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/snaps.json') | from_json }}"
+  tasks:
+    - name: Install each snap on its declared channel
+      ansible.builtin.command:
+        argv: [/usr/bin/snap, install, "{{ item.name }}", --channel, "{{ item.channel }}"]
+      register: snap_install
+      changed_when: "'already installed' not in snap_install.stderr"
+      failed_when:
+        - snap_install.rc != 0
+        - "'already installed' not in snap_install.stderr"
+      loop: "{{ manifest.snaps }}"
+      loop_control:
+        label: "{{ item.name }}"
+      become: true

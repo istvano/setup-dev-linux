@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "description": "What migrate copies to a new workstation, and what it refuses to copy. Paths are relative to the operator home directory.",
+  "trees": [
+    "workspace",
+    "bin",
+    "cpdb",
+    "Documents",
+    "Knowledge",
+    "Sync",
+    "Desktop",
+    "Templates",
+    "Public",
+    "Pictures",
+    "Music",
+    "Videos",
+    "Downloads",
+    "ISOs",
+    "Apps"
+  ],
+  "secrets": {
+    "trees": [
+      "secure"
+    ],
+    "paths": [
+      ".ssh",
+      ".gnupg",
+      ".aws",
+      ".azure",
+      ".kube",
+      ".docker",
+      ".config/gh",
+      ".claude.json",
+      ".codex",
+      ".copilot"
+    ],
+    "note": "Copied only by the explicit \"migrate secrets\" command, with modes preserved.",
+    "never_copy": [
+      ".ssh/authorized_keys"
+    ],
+    "never_copy_note": "The destination's authorized_keys is what grants access to it. Replacing it mid-migration revokes the key the migration itself is running over, which locks the operator out of the new machine with the copy half done. Add your keys to the new machine before migrating; see docs/NEW-MACHINE.md."
+  },
+  "excluded_trees": [
+    "snap"
+  ],
+  "exclude_patterns": [
+    "node_modules/",
+    ".venv/",
+    "venv/",
+    "__pycache__/",
+    "*.pyc",
+    "target/",
+    "build/",
+    "dist/",
+    ".gradle/caches/",
+    ".m2/repository/",
+    ".npm/_cacache/",
+    ".cache/",
+    ".next/",
+    ".turbo/",
+    ".terraform/",
+    ".DS_Store",
+    "*.swp",
+    ".Trash/",
+    "lost+found/"
+  ],
+  "exclude_note": "Regenerable build output and package caches. Excluding them is what makes the 121G workspace tree tractable; every exclusion is reported.",
+  "verification": "After copying, migrate re-runs rsync in dry-run mode. A byte-complete copy reports zero pending transfers; anything else is a failure."
+}

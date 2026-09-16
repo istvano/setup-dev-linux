@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Render source review to stdout, or update its document with explicit --write."""
+import argparse
+import json
+from pathlib import Path
+import sys
+sys.dont_write_bytecode = True
+from source_review import render_source_review
+
+root = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--write', action='store_true')
+args = parser.parse_args()
+text = render_source_review(json.loads((root / 'catalogue/source-review.json').read_text()))
+if args.write:
+    (root / 'docs/SOURCE-REVIEW.md').write_text(text)
+else:
+    print(text, end='')

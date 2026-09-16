@@ -1,0 +1,94 @@
+#!/usr/bin/python3 -B
+"""F01/F02 guest integration; not full workstation installation acceptance."""
+from pathlib import Path
+import argparse
+import json
+import os
+import subprocess
+import tarfile
+import sys
+import uuid
+import time
+
+ROOT = Path(__file__).resolve().parent.parent
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--controller', action='store_true', help='also provision and test the isolated guest controller twice')
+parser.add_argument('--reboot', action='store_true', help='also reboot the guest and repeat live foundation acceptance')
+parser.add_argument('--packages', action='store_true', help='test approved package apply, workflows and drift recovery')
+parser.add_argument('--user-environment', action='store_true', help='exercise chezmoi files, shell/proxy behavior and Git scopes/LFS')
+parser.add_argument('--sdkman-review', action='store_true', help='test reviewed SDKMAN source pair in an isolated guest fixture')
+parser.add_argument('--java-review', action='store_true', help='also compile/run all four reviewed JDKs through SDKMAN in isolation')
+args = parser.parse_args()
+STATE = ROOT / 'vm/state'
+os.umask(0o077)
+state = json.loads((STATE / 'vm.json').read_text())
+vm_id = state['id']
+uuid.UUID(vm_id)
+if state.get('purpose') != 'linux-os-setup-disposable-test':
+    raise SystemExit('Refusing unowned VM state')
+remote = '/var/tmp/linux-os-setup-test-' + vm_id
+
+def guest(command, **kwargs):
+    return subprocess.run([str(ROOT / 'script/vm'), 'ssh', command], check=True, **kwargs)
+
+# Confirm this is our dedicated guest before creating a destination or copying files.
+actual = guest('cat /etc/linux-os-setup-test-vm', capture_output=True, text=True).stdout.strip()
+if actual != vm_id:
+    raise SystemExit('Refusing unexpected guest')
+guest('cloud-init status --wait', timeout=180)
+guest('sudo -n cloud-init schema --system')
+files = [ROOT / n for n in ['bootstrap', 'README.md', 'AGENTS.md', 'TASKS.md', '.gitignore', 'pyproject.toml', 'uv.lock', 'justfile', 'Makefile', 'vm/mod.just', 'vm/guest-foundation.py', 'vm/desktop-fixture.py', 'vm/ubuntu-image.lock.json']]
+files.append(ROOT / 'vm/sdkman-source-fixture.py')
+files.append(ROOT / 'vm/jvm_build_fixture.py')
+files.append(ROOT / 'vm/go_build_fixture.py')
+files.append(ROOT / 'vm/rust_build_fixture.py')
+files.append(ROOT / 'vm/python_build_fixture.py')
+files.append(ROOT / 'vm/opencode_fixture.py')
+files.append(ROOT / 'vm/codex_fixture.py')
+files.append(ROOT / 'vm/cline_fixture.py')
+# The guest runs this repository's own test suite, so it needs the inputs that
+# suite reads. Relying on a previous driver having left them behind makes the
+# result depend on run order.
+for dirname in ['catalogue', 'profiles', 'specs', 'docs', 'script', 'tests', 'locks', 'ansible', 'user-files', 'manifest']:
+    files.extend(p for p in (ROOT / dirname).rglob('*') if p.is_file() and not p.is_symlink() and
+                 '__pycache__' not in p.parts and not p.name.endswith(('.pyc', '.local.json')))
+files.extend((ROOT / 'config').glob('*.schema.json'))
+files.extend((ROOT / 'config').glob('*.example.json'))
+bundle = STATE / 'test-source.tar'
+with tarfile.open(bundle, 'w') as archive:
+    for path in files:
+        archive.add(path, arcname=str(path.relative_to(ROOT)), recursive=False)
+guest('mkdir -p ' + remote)
+with bundle.open('rb') as stream:
+    guest('tar -xf - -C ' + remote, stdin=stream)
+log = STATE / 'foundation-test.log'
+with log.open('w') as output:
+    try:
+        guest('cd ' + remote + ' && python3 -B script/test', stdout=output, stderr=subprocess.STDOUT)
+        guest('cd ' + remote + ' && python3 -B -u vm/guest-foundation.py --expected-vm-id ' + vm_id + (' --controller' if args.controller else '') + (' --packages' if args.packages else '') + (' --user-environment' if args.user_environment else ''),
+              stdout=output, stderr=subprocess.STDOUT)
+        if args.sdkman_review or args.java_review:
+            guest('cd ' + remote + ' && python3 -B -u vm/sdkman-source-fixture.py --config guest.local.json --expected-vm-id ' + vm_id + (' --java-review' if args.java_review else ''),
+                  stdout=output, stderr=subprocess.STDOUT)
+        if args.reboot:
+            previous_boot = guest('cat /proc/sys/kernel/random/boot_id', capture_output=True, text=True).stdout.strip()
+            guest('sudo -n systemctl reboot', stdout=output, stderr=subprocess.STDOUT)
+            deadline = time.monotonic() + 180
+            while time.monotonic() < deadline:
+                try:
+                    current_boot = guest('cat /proc/sys/kernel/random/boot_id', capture_output=True, text=True).stdout.strip()
+                except subprocess.CalledProcessError:
+                    current_boot = None
+                if current_boot and current_boot != previous_boot:
+                    guest('cloud-init status --wait', stdout=output, stderr=subprocess.STDOUT, timeout=180)
+                    guest('cd ' + remote + ' && python3 -B -u vm/guest-foundation.py --expected-vm-id ' + vm_id + (' --controller' if args.controller else '') + (' --packages' if args.packages else '') + (' --user-environment' if args.user_environment else ''), stdout=output, stderr=subprocess.STDOUT)
+                    print('PASS: guest reboot observed and live foundation acceptance repeated', file=output)
+                    break
+                time.sleep(2)
+            else:
+                raise subprocess.CalledProcessError(1, 'guest-reboot-readiness')
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        print('FAIL: guest foundation suite; see private vm/state/foundation-test.log')
+        raise SystemExit(1)
+print('PASS: Ubuntu guest static/fixture and live storage foundation tests')
+print('Full workstation and GNOME end-to-end acceptance remains unfinished.')

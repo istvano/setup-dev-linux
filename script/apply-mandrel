@@ -1,0 +1,12 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible Mandrel worker."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.mandrel_runtime import install
+try:
+    request = json.load(sys.stdin)
+    print(json.dumps({'changed': install(request['config'], request['selected'])}))
+except Exception:
+    print('Mandrel delivery failed; inspect reviewed inputs and native prerequisite state.', file=sys.stderr)
+    raise SystemExit(1)

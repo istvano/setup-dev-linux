@@ -1,0 +1,455 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "revision",
+    "status",
+    "provenance",
+    "capabilities",
+    "linux_review_rows",
+    "mac_profile_mappings",
+    "mac_extension_mappings",
+    "mac_source_mappings",
+    "linux_extension_families"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "const": "selection-normalized-delivery-unverified"
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mac_commit",
+        "linux_review_sha256"
+      ],
+      "properties": {
+        "mac_commit": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "linux_review_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "purpose",
+          "kind",
+          "decision",
+          "profile",
+          "boundary",
+          "owner",
+          "evidence",
+          "delivery",
+          "licence",
+          "update_policy",
+          "conflicts",
+          "session_requirements",
+          "acceptance",
+          "open_question"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9.-]*$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "package",
+              "extension",
+              "behavior"
+            ]
+          },
+          "decision": {
+            "enum": [
+              "keep",
+              "optional",
+              "pending",
+              "omit"
+            ]
+          },
+          "profile": {
+            "type": "string",
+            "minLength": 1
+          },
+          "boundary": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "delivery": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "channel",
+              "identifier",
+              "candidate_url",
+              "os",
+              "architecture",
+              "version",
+              "integrity",
+              "blocker"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "unverified",
+                  "verified",
+                  "not-applicable"
+                ]
+              },
+              "channel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "identifier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "candidate_url": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "pattern": "^https://"
+              },
+              "os": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "architecture": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "version": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "integrity": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "blocker": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "licence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "identifier",
+              "classification"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "unreviewed",
+                  "reviewed",
+                  "not-applicable"
+                ]
+              },
+              "identifier": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "classification": {
+                "enum": [
+                  null,
+                  "free",
+                  "paid",
+                  "conditional"
+                ]
+              }
+            }
+          },
+          "update_policy": {
+            "enum": [
+              "supported-channel",
+              "reviewed-pin",
+              "documented-refresh",
+              "owned-settings"
+            ]
+          },
+          "conflicts": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "session_requirements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "acceptance": {
+            "type": "string",
+            "minLength": 1
+          },
+          "open_question": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "linux_review_rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "line",
+          "label",
+          "raw_decision",
+          "capability_ids"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "raw_decision": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capability_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "mac_profile_mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "line",
+          "token",
+          "active_in_mac_profile",
+          "capability_ids",
+          "disposition",
+          "note"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1
+          },
+          "active_in_mac_profile": {
+            "type": "boolean"
+          },
+          "capability_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "disposition": {
+            "enum": [
+              "mapped",
+              "replace",
+              "omit"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "mac_extension_mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "line",
+          "identifier",
+          "active_in_mac_manifest",
+          "capability_ids"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "identifier": {
+            "type": "string",
+            "minLength": 1
+          },
+          "active_in_mac_manifest": {
+            "type": "boolean"
+          },
+          "capability_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "mac_source_mappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source",
+          "capability_ids",
+          "note"
+        ],
+        "properties": {
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capability_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "linux_extension_families": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "family",
+          "capability_ids",
+          "note"
+        ],
+        "properties": {
+          "family": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capability_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true
+          },
+          "note": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

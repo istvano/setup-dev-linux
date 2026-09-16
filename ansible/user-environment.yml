@@ -1,0 +1,17 @@
+---
+- name: Apply declared user files with chezmoi
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Back up replacements and apply the finite user-file manifest
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-user-environment"
+        stdin: "{{ {'config': workstation_config, 'environment': user_environment} | to_json }}"
+      register: user_file_apply
+      changed_when: user_file_apply.rc == 0 and (user_file_apply.stdout | from_json).changed
+      no_log: true

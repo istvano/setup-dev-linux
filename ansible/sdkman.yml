@@ -1,0 +1,17 @@
+---
+- name: Deliver the reviewed SDKMAN manager
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify SDKMAN artifacts and stage manager policy
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-sdkman"
+        stdin: "{{ {'config': workstation_config} | to_json }}"
+      register: sdkman_apply
+      changed_when: sdkman_apply.rc == 0 and (sdkman_apply.stdout | from_json).changed
+      no_log: true

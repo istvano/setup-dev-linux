@@ -1,0 +1,19 @@
+---
+- name: Deliver reviewed rustup and Rust toolchain
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify inputs and place the complete Rust runtime state
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-rust-runtime"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: rust_runtime_apply
+      changed_when: >-
+        rust_runtime_apply.rc == 0 and
+        (rust_runtime_apply.stdout | from_json).changed
+      no_log: true

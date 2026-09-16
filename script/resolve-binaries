@@ -1,0 +1,155 @@
+#!/usr/bin/python3 -B
+"""Pin every third-party release binary to a version, URL and SHA-256.
+
+Reads manifest/binaries.json, asks each project's release feed what the current
+stable release is, and records a verifiable pin. Checksums come from the
+project's own published checksum file where one exists; only when none is
+published is the asset downloaded and hashed here. Nothing is installed.
+"""
+import argparse
+import hashlib
+import json
+import re
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+MANIFEST = ROOT / 'manifest/binaries.json'
+API = 'https://api.github.com/repos/{repo}/releases/latest'
+RELEASES = 'https://api.github.com/repos/{repo}/releases?per_page=30'
+AGENT = {'User-Agent': 'linux-os-setup-resolver'}
+CHECKSUM_HINTS = re.compile(
+    r'(checksums?\.txt|_checksums\.txt|SHA256SUMS|sha256sum\.txt|\.sha256)$', re.I)
+
+
+def fetch(url, binary=False):
+    request = urllib.request.Request(url, headers=AGENT)
+    with urllib.request.urlopen(request, timeout=120) as response:
+        data = response.read()
+    return data if binary else data.decode()
+
+
+def digest_from_checksums(text, asset_name, asset_specific):
+    """Find asset_name's SHA-256 in a published checksum file.
+
+    A bare digest is accepted only from a file that belongs to this asset by
+    name. A shared checksum file must name the asset on the matching line:
+    projects publish one such file per platform, and accepting a bare digest
+    from whichever one happened to be read first pins the wrong platform.
+    """
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) >= 2 and Path(parts[-1].lstrip('*')).name == asset_name:
+            if re.fullmatch(r'[0-9a-f]{64}', parts[0]):
+                return parts[0]
+        if asset_specific and len(parts) == 1 and re.fullmatch(r'[0-9a-f]{64}', parts[0]):
+            return parts[0]
+    return None
+
+
+def resolve_external(tool, version):
+    """Pin a project that publishes its binaries off GitHub (helm's get.helm.sh)."""
+    url = tool['url_template'].format(version=version)
+    asset = Path(url).name
+    text = fetch(tool['checksum_url_template'].format(version=version))
+    digest = digest_from_checksums(text, asset, asset_specific=True)
+    if not digest:
+        raise LookupError(f"{tool['id']}: no digest in {tool['checksum_url_template']}")
+    return {'version': version, 'asset': asset, 'url': url, 'sha256': digest,
+            'digest_source': 'published:' + Path(tool['checksum_url_template']).name}
+
+
+def match_assets(tool, release):
+    """Return (version, assets, asset) when this release carries a matching asset."""
+    version = release['tag_name'].lstrip('v')
+    assets = {a['name']: a['browser_download_url'] for a in release['assets']}
+    pattern = re.compile(tool['asset_pattern'].format(version=re.escape(version)))
+    matches = sorted(name for name in assets if pattern.fullmatch(name))
+    return (version, assets, matches[0]) if matches else None
+
+
+def resolve(tool):
+    release = json.loads(fetch(API.format(repo=tool['repo'])))
+    if tool.get('url_template'):
+        return resolve_external(tool, release['tag_name'].lstrip('v'))
+
+    found = match_assets(tool, release)
+    scanned = False
+    if not found:
+        # Some projects tag a release that carries no build for this platform
+        # (Obsidian ships an Android-only release). Walk back through recent
+        # stable releases rather than reporting the project has no Linux build.
+        for candidate in json.loads(fetch(RELEASES.format(repo=tool['repo']))):
+            if candidate.get('prerelease') or candidate.get('draft'):
+                continue
+            found = match_assets(tool, candidate)
+            if found:
+                scanned = True
+                break
+    if not found:
+        raise LookupError(f"{tool['id']}: no asset matched {tool['asset_pattern']!r} "
+                          f"in {release['tag_name']} or the 30 most recent releases")
+    version, assets, asset = found
+
+    digest = None
+    source = None
+    # Checksum files named after this asset are authoritative; try them first.
+    candidates = sorted(
+        (name for name in assets
+         if CHECKSUM_HINTS.search(name) and not name.endswith(('.sig', '.pem', '.asc'))),
+        key=lambda name: not name.startswith(asset))
+    for name in candidates:
+        try:
+            digest = digest_from_checksums(fetch(assets[name]), asset,
+                                           asset_specific=name.startswith(asset))
+        except (urllib.error.URLError, OSError, UnicodeDecodeError):
+            continue
+        if digest:
+            source = f'published:{name}'
+            break
+    if not digest:
+        digest = hashlib.sha256(fetch(assets[asset], binary=True)).hexdigest()
+        source = 'downloaded-and-hashed'
+
+    if scanned:
+        source += ' (newest release carrying a linux-amd64 build)'
+    return {'version': version, 'asset': asset, 'url': assets[asset],
+            'sha256': digest, 'digest_source': source}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--only', action='append', help='resolve just these ids')
+    parser.add_argument('--write', action='store_true', help='update manifest/binaries.json')
+    args = parser.parse_args()
+
+    manifest = json.loads(MANIFEST.read_text())
+    failures = []
+    for tool in manifest['binaries']:
+        if args.only and tool['id'] not in args.only:
+            continue
+        try:
+            pin = resolve(tool)
+        except (urllib.error.URLError, LookupError, KeyError, OSError) as exc:
+            failures.append(f"{tool['id']}: {exc}")
+            print(f"FAIL {tool['id']}: {exc}", file=sys.stderr)
+            continue
+        tool.update(pin)
+        print(f"{tool['id']:16s} {pin['version']:14s} {pin['sha256'][:12]}… "
+              f"({pin['digest_source']})")
+
+    if args.write:
+        MANIFEST.write_text(json.dumps(manifest, indent=2) + '\n')
+        print(f'wrote {MANIFEST}', file=sys.stderr)
+    if failures:
+        print(f'\n{len(failures)} unresolved:', file=sys.stderr)
+        for failure in failures:
+            print('  ' + failure, file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

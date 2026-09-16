@@ -1,0 +1,12 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker for reviewed JVM build tools."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.jvm_tools import install
+try:
+    request = json.load(sys.stdin)
+    print(json.dumps({'changed': install(request['config'], request['selected'])}))
+except Exception:
+    print('JVM tool delivery failed; inspect reviewed inputs and private candidate state.', file=sys.stderr)
+    raise SystemExit(1)

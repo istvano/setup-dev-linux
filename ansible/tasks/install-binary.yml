@@ -1,0 +1,56 @@
+---
+# Install one pinned release artifact. The checksum is verified on download by
+# get_url, so a tampered or truncated artifact fails before anything is unpacked.
+- name: "Download {{ binary.id }} {{ binary.version }}"
+  ansible.builtin.get_url:
+    url: "{{ binary.url }}"
+    dest: "{{ staging }}/{{ binary.asset }}"
+    checksum: "sha256:{{ binary.sha256 }}"
+    mode: "0644"
+    timeout: 60
+  # Release hosting returns transient 5xx errors often enough that a single
+  # attempt makes an install fail for reasons unrelated to the machine. The
+  # checksum still decides whether what arrived is acceptable.
+  register: download
+  until: download is succeeded
+  retries: 4
+  delay: 15
+
+- name: "Install {{ binary.id }} from its .deb"
+  ansible.builtin.apt:
+    deb: "{{ staging }}/{{ binary.asset }}"
+    state: present
+  become: true
+  when: binary.kind == 'deb'
+
+- name: "Place {{ binary.id }} executable"
+  ansible.builtin.copy:
+    src: "{{ staging }}/{{ binary.asset }}"
+    dest: "{{ install_dir }}/{{ binary.binary }}"
+    mode: "0755"
+    remote_src: true
+  become: true
+  when: binary.kind == 'raw'
+
+- name: "Unpack {{ binary.id }}"
+  when: binary.kind in ['tar', 'zip']
+  block:
+    - name: "Create an extraction directory for {{ binary.id }}"
+      ansible.builtin.file:
+        path: "{{ staging }}/{{ binary.id }}"
+        state: directory
+        mode: "0755"
+
+    - name: "Extract {{ binary.id }}"
+      ansible.builtin.unarchive:
+        src: "{{ staging }}/{{ binary.asset }}"
+        dest: "{{ staging }}/{{ binary.id }}"
+        remote_src: true
+
+    - name: "Place {{ binary.id }} executable"
+      ansible.builtin.copy:
+        src: "{{ staging }}/{{ binary.id }}/{{ binary.binary | replace('{version}', binary.version) }}"
+        dest: "{{ install_dir }}/{{ binary.id }}"
+        mode: "0755"
+        remote_src: true
+      become: true

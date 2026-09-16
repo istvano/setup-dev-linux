@@ -1,0 +1,16 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible NVM worker with guarded, reviewed binary-only installation."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.artifacts import registry
+from workstation.config import ROOT, load_json
+from workstation.node_runtime import install
+try:
+    request = json.load(sys.stdin)
+    catalogue, _ = load_json(ROOT / 'catalogue/capabilities.json')
+    tools = registry({e['id']: e for e in catalogue['capabilities']})
+    print(json.dumps({'changed': install(request['config'], request['selected'], tools)}))
+except Exception:
+    print('Node runtime delivery failed; inspect reviewed inputs and private runtime state.', file=sys.stderr)
+    raise SystemExit(1)

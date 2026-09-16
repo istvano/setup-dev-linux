@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-14",
+  "requirements": [
+    {
+      "capability": "mandrel",
+      "packages": [
+        {
+          "id": "dependency-cxx",
+          "package": "g++",
+          "source_package": "gcc-defaults",
+          "licence": "GPL-2.0-or-later; BSD notices; compiler GPL-3.0 with runtime exception",
+          "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/g/gcc-defaults/gcc-defaults_1.230ubuntu1/copyright",
+          "copyright_sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8",
+          "allowed_suites": [
+            "resolute",
+            "resolute-updates",
+            "resolute-security"
+          ]
+        },
+        {
+          "id": "dependency-zlib-dev",
+          "package": "zlib1g-dev",
+          "source_package": "zlib",
+          "licence": "Zlib",
+          "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/z/zlib/zlib_1.3.dfsg+really1.3.1-1ubuntu3.1/copyright",
+          "copyright_sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+          "allowed_suites": [
+            "resolute",
+            "resolute-updates",
+            "resolute-security"
+          ]
+        },
+        {
+          "id": "dependency-freetype-dev",
+          "package": "libfreetype-dev",
+          "source_package": "freetype",
+          "licence": "FTL OR GPL-2.0-or-later; bundled component notices",
+          "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/f/freetype/freetype_2.14.2+dfsg-1ubuntu0.1/copyright",
+          "copyright_sha256": "8951319d2cbc54c13f091eaedff603f717026e5bf7788902ccd635a094d7a561",
+          "allowed_suites": [
+            "resolute",
+            "resolute-updates",
+            "resolute-security"
+          ]
+        }
+      ]
+    },
+    {
+      "capability": "rust",
+      "packages": [
+        {
+          "id": "dependency-cxx",
+          "package": "g++",
+          "source_package": "gcc-defaults",
+          "licence": "GPL-2.0-or-later; BSD notices; compiler GPL-3.0 with runtime exception",
+          "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/g/gcc-defaults/gcc-defaults_1.230ubuntu1/copyright",
+          "copyright_sha256": "156004744edbf17a975f0004ac4a9295b160ab403d646c445235711255ca9ff8",
+          "allowed_suites": [
+            "resolute",
+            "resolute-updates",
+            "resolute-security"
+          ]
+        }
+      ]
+    }
+  ]
+}

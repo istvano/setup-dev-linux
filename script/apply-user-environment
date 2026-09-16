@@ -1,0 +1,17 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker; no sudo and no independent package delivery."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.artifacts import registry
+from workstation.config import ROOT, load_json
+from workstation.user_environment import apply
+try:
+    request = json.load(sys.stdin)
+    catalogue, _ = load_json(ROOT / 'catalogue/capabilities.json')
+    tools = registry({e['id']: e for e in catalogue['capabilities']})
+    env = request['environment']
+    print(json.dumps({'changed': apply(request['config'], env['selected'], env['settings'], tools)}))
+except Exception:
+    print('User environment apply failed; inspect private backups before recovery.', file=sys.stderr)
+    raise SystemExit(1)

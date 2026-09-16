@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "reviewed_at", "id", "version", "node_version", "licence", "launcher_sha256", "packages"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "reviewed_at": {"type": "string", "minLength": 1},
+    "id": {"const": "cline"},
+    "version": {"type": "string", "minLength": 1},
+    "node_version": {"type": "string", "minLength": 1},
+    "licence": {"type": "string", "minLength": 1},
+    "launcher_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "packages": {
+      "type": "array", "minItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["name", "version", "url", "destination", "sha256", "sha512", "members"],
+        "properties": {
+          "name": {"type": "string", "minLength": 1},
+          "version": {"type": "string", "minLength": 1},
+          "url": {"type": "string", "minLength": 1},
+          "destination": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "sha512": {"type": "string", "pattern": "^[0-9a-f]{128}$"},
+          "members": {
+            "type": "array", "minItems": 2,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["path", "size", "sha256", "executable"],
+              "properties": {
+                "path": {"type": "string", "minLength": 1},
+                "size": {"type": "integer", "minimum": 0},
+                "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+                "executable": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

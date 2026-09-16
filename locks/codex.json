@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-15",
+  "artifacts": [
+    {
+      "id": "codex",
+      "version": "0.154.0",
+      "url": "https://github.com/openai/codex/releases/download/rust-v0.154.0/codex-x86_64-unknown-linux-musl.tar.gz",
+      "licence": "Apache-2.0 with Ratatui MIT notice",
+      "licence_url": "https://raw.githubusercontent.com/openai/codex/rust-v0.154.0/LICENSE",
+      "entrypoint": "codex",
+      "format": "tar",
+      "sha256": "d7e18b2597ae8f242f5f31ee9e90deef48dbc9edd634d9868fb6435d08c07f02",
+      "licence_sha256": "d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc",
+      "files": [
+        {
+          "path": "codex",
+          "kind": "file",
+          "value": "3188814c35471432d4123203e0eb38e5bddc60226e3d7ddf0e59e649ea140022",
+          "executable": true
+        }
+      ]
+    }
+  ]
+}

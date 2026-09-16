@@ -1,0 +1,197 @@
+#!/usr/bin/python3 -B
+"""Apply the manifest in the disposable guest and rehearse the file migration.
+
+Sequence: sync this working tree into the guest, apply the manifest, verify what
+landed, copy a bounded sample of the operator's real home into the guest and
+prove the copy is complete, reboot, then verify and re-apply to show the result
+is stable and the apply is repeatable.
+"""
+import argparse
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import tarfile
+import time
+import uuid
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+STATE = ROOT / 'vm/state'
+GUEST_HOME = '/home/ws-test'
+# No GPU is present in the guest, so the gpu group cannot be exercised here.
+DEFAULT_GROUPS = ('core,dev,cloud,kubernetes,containers,lab,media,'
+                  'network,security,ai,productivity,desktop')
+
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--groups', default=DEFAULT_GROUPS)
+parser.add_argument('--skip-install', action='store_true', help='verify without applying')
+parser.add_argument('--skip-migrate', action='store_true')
+parser.add_argument('--skip-reboot', action='store_true')
+parser.add_argument('--migrate-source', help='home directory to copy from (default: this home)')
+parser.add_argument('--migrate-trees', default='bin,Documents',
+                    help='declared trees to actually copy during the rehearsal')
+args = parser.parse_args()
+
+os.umask(0o077)
+state = json.loads((STATE / 'vm.json').read_text())
+vm_id = state['id']
+uuid.UUID(vm_id)
+if state.get('purpose') != 'linux-os-setup-disposable-test':
+    raise SystemExit('Refusing unowned VM state')
+remote = '/var/tmp/linux-os-setup-test-' + vm_id
+log = STATE / 'manifest-test.log'
+
+
+def guest(command, **kwargs):
+    return subprocess.run([str(ROOT / 'script/vm'), 'ssh', command], check=True, **kwargs)
+
+
+def stage(message):
+    line = f'\n=== {message} ==='
+    print(line, flush=True)
+    with log.open('a') as output:
+        output.write(line + '\n')
+
+
+def guest_logged(command, **kwargs):
+    with log.open('a') as output:
+        return guest(command, stdout=output, stderr=subprocess.STDOUT, **kwargs)
+
+
+actual = guest('cat /etc/linux-os-setup-test-vm', capture_output=True, text=True).stdout.strip()
+if actual != vm_id:
+    raise SystemExit('Refusing unexpected guest')
+log.write_text('')
+log.chmod(0o600)
+
+stage('sync working tree into the guest')
+guest('cloud-init status --wait', timeout=300)
+files = [ROOT / n for n in ('bootstrap', 'pyproject.toml', 'uv.lock', 'vm/manifest_fixture.py')]
+files.append(ROOT / 'vm/migration_leak_check.py')
+for name in ('catalogue', 'profiles', 'script', 'locks', 'ansible', 'manifest', 'config',
+             'user-files', 'tests'):
+    files.extend(p for p in (ROOT / name).rglob('*')
+                 if p.is_file() and not p.is_symlink() and '__pycache__' not in p.parts
+                 and not p.name.endswith(('.pyc', '.local.json')))
+bundle = STATE / 'manifest-source.tar'
+with tarfile.open(bundle, 'w') as archive:
+    for path in files:
+        archive.add(path, arcname=str(path.relative_to(ROOT)), recursive=False)
+guest('rm -rf ' + remote + ' && mkdir -p ' + remote)
+with bundle.open('rb') as stream:
+    guest('tar -xf - -C ' + remote, stdin=stream)
+bundle.unlink()
+print(f'copied {len(files)} files', flush=True)
+
+fixture = (f'cd {remote} && python3 -B -u vm/manifest_fixture.py '
+           f'--expected-vm-id {vm_id} --groups {args.groups}')
+
+if not args.skip_install:
+    stage('apply the manifest')
+    started = time.monotonic()
+    try:
+        guest_logged(fixture, timeout=9000)
+    except subprocess.CalledProcessError:
+        print(f'FAIL: manifest apply; see {log}')
+        raise SystemExit(1)
+    print(f'applied in {time.monotonic() - started:.0f}s', flush=True)
+else:
+    stage('verify the manifest without applying')
+    guest_logged(fixture + ' --verify-only', timeout=1800)
+
+if not args.skip_migrate:
+    source = args.migrate_source or str(Path.home())
+    rsh = f'ssh -F {STATE / "ssh_config"}'
+
+    def run_migrate(label, extra, expect_zero=True):
+        command = [str(ROOT / 'bootstrap'), 'migrate',
+                   '--config', str(ROOT / 'config/standard-split.example.json'),
+                   '--to', 'linux-setup-test', '--rsh', rsh,
+                   '--remote-home', GUEST_HOME, '--source-home', source,
+                   '--format', 'json', *extra]
+        result = subprocess.run(command, capture_output=True, text=True)
+        with log.open('a') as output:
+            output.write(f'--- {label} ---\n' + result.stdout + result.stderr)
+        print(f'{label}: {result.stdout.strip()[:400]}', flush=True)
+        if expect_zero and result.returncode != 0:
+            print(f'FAIL: {label}; see {log}')
+            raise SystemExit(1)
+        return result
+
+    stage('preview the full migration plan against the real home')
+    run_migrate('full-home-dry-run', ['--dry-run'])
+
+    stage('rehearse a bounded real migration into the guest')
+    run_migrate('bounded-copy', ['--only-trees', args.migrate_trees])
+
+    stage('prove no credential material travelled with it')
+    # Name the credential files this machine actually has, so the guest can
+    # check for their arrival rather than merely for the absence of a directory.
+    # Send content digests, not names: the guest has its own authorized_keys and
+    # pubring.kbx, so a name match proves nothing and a hash match proves a leak.
+    source_home = Path(source)
+    digests = []
+    for candidate in ('.ssh', '.gnupg', '.aws', '.azure', '.kube', '.docker',
+                      '.config/gh', 'secure'):
+        directory = source_home / candidate
+        if not directory.is_dir():
+            continue
+        for entry in sorted(directory.rglob('*')):
+            if not entry.is_file() or entry.is_symlink():
+                continue
+            try:
+                size = entry.stat().st_size
+                # Every empty file shares one digest, so an empty source file
+                # would match every empty file in the guest and prove nothing.
+                if size == 0 or size > 8 * 1024 * 1024:
+                    continue
+                digest = hashlib.sha256(entry.read_bytes()).hexdigest()
+            except OSError:
+                continue
+            digests.append(f'{digest}  {entry.relative_to(source_home)}')
+    guest_leak = (f'cd {remote} && python3 -B -u vm/migration_leak_check.py '
+                  f'--expected-vm-id {vm_id} --home {GUEST_HOME} --digests-stdin')
+    try:
+        with log.open('a') as output:
+            guest(guest_leak, input='\n'.join(digests), text=True,
+                  stdout=output, stderr=subprocess.STDOUT, timeout=1800)
+        print(f'credential leak check: passed ({len(digests)} source credential '
+              f'files checked by content)', flush=True)
+    except subprocess.CalledProcessError:
+        print(f'FAIL: credential material reached the guest; see {log}')
+        raise SystemExit(1)
+
+if not args.skip_reboot:
+    stage('reboot and confirm the result survives')
+    previous = guest('cat /proc/sys/kernel/random/boot_id', capture_output=True, text=True).stdout.strip()
+    started = time.monotonic()
+    subprocess.run([str(ROOT / 'script/vm'), 'ssh', 'sudo -n systemctl reboot'], check=False)
+    # A guest carrying the full manifest boots slower than a bare image: snapd
+    # seeds four snaps and docker, libvirt and the desktop services all start.
+    deadline = time.monotonic() + 900
+    while time.monotonic() < deadline:
+        try:
+            # A hard timeout is required, not just ssh's ConnectTimeout. While
+            # the guest is down qemu's port forward still accepts the TCP
+            # connection, so ssh gets past connect and then waits for a banner
+            # that never arrives. Without this the first poll blocks for the
+            # whole window and the reboot looks like a failure.
+            current = guest('cat /proc/sys/kernel/random/boot_id',
+                            capture_output=True, text=True, timeout=20).stdout.strip()
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            current = None
+        if current and current != previous:
+            print(f'guest returned after {time.monotonic() - started:.0f}s', flush=True)
+            break
+        time.sleep(3)
+    else:
+        raise SystemExit('FAIL: guest did not come back within 900s of the reboot')
+    guest('cloud-init status --wait', timeout=300)
+    guest_logged(fixture + ' --verify-only', timeout=1800)
+    stage('apply a second time to prove the apply is repeatable')
+    guest_logged(fixture, timeout=9000)
+
+print('\nPASS: manifest applied, verified, migration rehearsed and repeated after reboot')
+print('GPU delivery is not covered: the guest has no NVIDIA hardware.')

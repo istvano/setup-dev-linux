@@ -1,0 +1,17 @@
+---
+- name: Install the reviewed Node runtime through NVM
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify cached Node archive and install offline through NVM
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-node-runtime"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: node_runtime_apply
+      changed_when: node_runtime_apply.rc == 0 and (node_runtime_apply.stdout | from_json).changed
+      no_log: true

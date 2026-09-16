@@ -1,49 +1,134 @@
 # linux-os-setup
 
-Reusable automation for Ubuntu 26.04 LTS amd64 workstations with GNOME.
-Automate selected applications and settings; provide a separate manual guide for
-data restoration. Hardware, disk roles and optional features come from machine
-configuration. The repository does not require a particular CPU, GPU, disk size,
-NVMe device name or an existing drive to transfer.
+Reproducible Ubuntu 26.04 LTS workstation setup, plus a file migration for
+moving to a new machine.
+
+The repository holds a declarative record of what this workstation runs and an
+installer that reproduces it elsewhere. New machine: install the manifest, copy
+your files, authenticate by hand.
+
+## Quick start
+
+```bash
+just verify-static                            # catalogue, manifest coverage, tests
+just plan config/your-machine.json            # what would be installed; writes nothing
+just install config/your-machine.json         # install it
+just migrate config/your-machine.json newbox  # copy your files, from the old machine
+```
+
+A `Makefile` offers the same targets, for a machine that does not have `just`
+on it yet — which includes a new one, before this repository installs it:
+
+```bash
+make verify-static
+make plan CONFIG=config/your-machine.json
+make install CONFIG=config/your-machine.json
+make migrate CONFIG=config/your-machine.json HOST=newbox
+```
+
+`just --list` and `make help` both list everything. The two are kept in step by
+a parity test.
+
+Full procedure: [NEW-MACHINE.md](docs/NEW-MACHINE.md).
+
+## What gets installed
+
+`manifest/` is the single source of truth:
+
+| File | Holds |
+|---|---|
+| `packages.json` | APT packages by group, each naming the archive or a repository |
+| `repositories.json` | Third-party APT sources, each with its signing key |
+| `snaps.json` | Snaps and their channels |
+| `binaries.json` | Third-party release binaries, each pinned to a version, URL and SHA-256 |
+| `runtimes.json` | NVM/Node, SDKMAN/JVM, uv, agent CLIs |
+| `shell.json` | Login shell, oh-my-zsh, starship, atuin |
+| `dotfiles.json` | Files chezmoi manages, and files it deliberately does not |
+| `desktop.json` | Curated GNOME settings, extensions and fonts |
+| `plugins.json` | Editor extensions and kubectl plugins |
+| `migrate.json` | Which home directories move, and what never moves |
+
+The manifest is grouped by purpose — `core`, `dev`, `cloud`, `kubernetes`,
+`containers`, `lab`, `gpu`, `desktop`, `media`, `productivity`, `ai`,
+`network`, `security` — so an install can take part of it:
+
+```bash
+just install config/your-machine.json core,dev,kubernetes
+```
+
+## How the manifest was decided
+
+Two inputs, with fixed precedence:
+
+1. **This machine** — `script/inventory` reads the installed packages, snaps,
+   third-party repositories, runtimes, shell setup, GNOME settings and the
+   binaries installed outside APT.
+2. **The Mac baseline** (`../mac-os-setup`) — contributes tools and structure
+   this machine lacks. Additive only, never a runtime dependency.
+
+Both render into [docs/INVENTORY-REVIEW.md](docs/INVENTORY-REVIEW.md), which
+records every item, where it came from, and the decision made about it.
+`script/check-manifest` fails if a kept selection has no delivery, or if the
+manifest would install something never selected.
+
+To change what a new machine gets, change the manifest.
+
+## Guarantees
+
+- Every third-party binary is pinned to a version, URL and SHA-256 before it
+  may install. Unpinned entries are refused, not downloaded.
+- Every third-party APT source declares a signing key or a Launchpad PPA.
+- Ubuntu archive packages need no per-item review; third-party sources do.
+- `install` never removes unrelated packages, never partitions or formats, and
+  refuses to run as root.
+- `install` is repeatable; a second run on a correct machine changes nothing.
+- `verify` reads the system and reports drift. It never repairs.
+- `migrate` never deletes on the destination, excludes credentials from the
+  ordinary copy, and proves completeness with a second pass rather than
+  assuming it.
 
 ## Storage layouts
 
 | Layout | System disk | Data disk |
 |---|---|---|
-| Single disk | EFI, separate /boot, / and /home; /var/lib within / | Not required |
-| Split system/data | EFI, separate /boot and / | /home; optionally separate /var/lib |
+| Single disk | EFI, separate `/boot`, `/` and `/home`; `/var/lib` within `/` | Not required |
+| Split system/data | EFI, separate `/boot` and `/` | `/home`; optionally separate `/var/lib` |
 
-Physical-drive transfer is a separate opt-in, disabled by default. Disk roles are
-selected using verified stable identities supplied in private configuration;
-“system disk” and “data disk” never mean the first/second enumerated device.
-Normal setup does not partition disks or move data. Existing transferred drives
-are preserved. No target disk encryption is selected in the current design.
+Disk roles come from verified stable identities in private configuration.
+"System disk" and "data disk" never mean the first or second enumerated device.
+No target disk encryption is selected. Automated physical-disk transfer was
+withdrawn on 2026-09-16; files move by copy.
 
-## Implementation documents
+## Testing
 
-- [Capability matrix](docs/CAPABILITY-MATRIX.md): confirmed selections and complete Mac/Linux mapping.
-- [Architecture](docs/ARCHITECTURE.md): configuration, storage guards, command and update contracts.
-- [Testing specification](docs/TESTING.md): static catalogue checks and future installation acceptance.
+```bash
+just verify-static        # no VM needed
+just vm clean-cycle       # destroy the guest, rebuild, apply, verify, migrate, reboot, repeat
+```
 
-- [Implementation plan](docs/IMPLEMENTATION-PLAN.md): milestones, interfaces and acceptance criteria.
-- [Tool selection](docs/TOOL-SELECTION.md): Ansible, chezmoi, SDKMAN, NVM and supporting tools.
-- [Confirmed decisions](docs/DECISIONS.md): reusable architecture and selected defaults.
-- [TASKS.md](TASKS.md): unfinished implementation work.
-- [Manual migration guide](docs/manual-migration.md): optional operator-run restoration.
+Grouped subcommands use a slash in make and a module in just, which spells the
+same path with `::` or a space:
 
-## Current migration example
+```bash
+make vm/status           just vm status      # or: just vm::status
+make vm/up               just vm up
+make vm/clean-cycle      just vm clean-cycle
+```
 
-[Current migration](docs/migrations/current.md) records the first target's hardware,
-source-drive observations and transfer procedure. It does not define requirements
-for other machines. [Reviewed software selections](docs/software-review.md) remain
-unchanged as decision evidence; later confirmed decisions supersede stale entries.
+`make help` and `just --list vm` list them.
 
-The P0 revision includes a normalized JSON catalogue, explicit default/target selections,
-structural schemas and three storage examples under `config/`. Examples contain placeholders
-and are not installation inputs. Delivery sources/licences/pins remain explicitly unverified;
-see TASKS for remaining evidence. Run `python3 script/check-catalogue` for static validation
-(Python 3 and jsonschema required). Static negative tests run with `python3 -B -m unittest discover -s tests`.
-Bootstrap, Ansible roles and workstation tests remain
-to be implemented. No installer or migration command has
-been run. Keep private disk identifiers, inventories, credentials and backups out
-of the repository. No commit or push is performed automatically.
+The VM cycle proves everything except GPU delivery and the desktop session —
+the guest has no NVIDIA hardware and runs a server image.
+
+## Documents
+
+- [New machine runbook](docs/NEW-MACHINE.md) — the procedure for moving
+- [Inventory review](docs/INVENTORY-REVIEW.md) — every item and its decision
+- [Machine manifest spec](specs/F13-machine-manifest.md) — contract and limits
+- [File migration spec](specs/F14-file-migration.md) — contract and limits
+- [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md),
+  [Operations](docs/OPERATIONS.md), [Testing](docs/TESTING.md)
+- [TASKS.md](TASKS.md) — what is unfinished
+
+Keep private disk identifiers, inventories, credentials, backups and VM images
+out of Git.

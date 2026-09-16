@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-13",
+  "entries": [
+    {
+      "id": "curl",
+      "package": "curl",
+      "source_package": "curl",
+      "licence": "curl with bundled component notices",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/c/curl/curl_8.18.0-1ubuntu2.5/copyright",
+      "copyright_sha256": "b36986270d288caa9f7c44876802de7a491139f3903dcb6356707ece08e1df4a",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "git",
+      "package": "git",
+      "source_package": "git",
+      "licence": "GPL-2.0-only with bundled component notices",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/g/git/git_2.53.0-1ubuntu1/copyright",
+      "copyright_sha256": "c60bb8fe022a5f6030d7cc8b98afdd2e2fe84d021e8a2f58e49ab32e176c906d",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "git-lfs",
+      "package": "git-lfs",
+      "source_package": "git-lfs",
+      "licence": "MIT (Expat)",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/g/git-lfs/git-lfs_3.7.1-1/copyright",
+      "copyright_sha256": "88098d745c1fa4ddb1a63574a9a557e9de7abc2033a7f92935ada9dd9a0bb070",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "jq",
+      "package": "jq",
+      "source_package": "jq",
+      "licence": "MIT with bundled component and documentation notices",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/j/jq/jq_1.8.1-4ubuntu2/copyright",
+      "copyright_sha256": "92965c1a25cfced63db0fcc869d060d773d6105da9bd8d3da232ed1691cda778",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "ripgrep",
+      "package": "ripgrep",
+      "source_package": "rust-ripgrep",
+      "licence": "MIT OR Unlicense; BSD-3-Clause completion",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/r/rust-ripgrep/rust-ripgrep_15.1.0-1ubuntu1/copyright",
+      "copyright_sha256": "e3e9e7ad55ed9bfd5a4d09fafe8cc1f14fcef42e01aaae884d1358b90efeb852",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "shellcheck",
+      "package": "shellcheck",
+      "source_package": "shellcheck",
+      "licence": "GPL-3.0-or-later",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/s/shellcheck/shellcheck_0.11.0-2/copyright",
+      "copyright_sha256": "921382c59778a630609c6b1c2a8ce115b8f75b18efe8ee9910fa5f324f3b89d0",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "zsh",
+      "package": "zsh",
+      "source_package": "zsh",
+      "licence": "Zsh; bundled BSD/MIT/Artistic/GPL notices",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/main/z/zsh/zsh_5.9-8ubuntu3/copyright",
+      "copyright_sha256": "9369faf5bbe0af781df418a6b8da7c178a67fb308112d663d9e7c9e193650cca",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "zsh-autosuggestions",
+      "package": "zsh-autosuggestions",
+      "source_package": "zsh-autosuggestions",
+      "licence": "MIT (Expat)",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/z/zsh-autosuggestions/zsh-autosuggestions_0.7.1-1build1/copyright",
+      "copyright_sha256": "aa5d5215642a3d342aa7e350eab75d7f3636077a107ff7d2a61ed1ef177e9b93",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    },
+    {
+      "id": "zsh-syntax-highlighting",
+      "package": "zsh-syntax-highlighting",
+      "source_package": "zsh-syntax-highlighting",
+      "licence": "BSD-3-Clause",
+      "copyright_url": "https://changelogs.ubuntu.com/changelogs/pool/universe/z/zsh-syntax-highlighting/zsh-syntax-highlighting_0.8.0-2build1/copyright",
+      "copyright_sha256": "b3f8f237e8964ff473972a5f0406e10fb8dd0c52d80dfe679687ae739b1d3231",
+      "allowed_suites": [
+        "resolute",
+        "resolute-updates",
+        "resolute-security"
+      ]
+    }
+  ]
+}

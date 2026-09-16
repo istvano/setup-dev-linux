@@ -1,0 +1,19 @@
+---
+- name: Deliver the reviewed Codex CLI
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify and place the complete versioned Codex payload
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-codex-runtime"
+        stdin: "{{ {'config': workstation_config} | to_json }}"
+      register: codex_runtime_apply
+      changed_when: >-
+        codex_runtime_apply.rc == 0 and
+        (codex_runtime_apply.stdout | from_json).changed
+      no_log: true

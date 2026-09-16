@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "example_only": true,
+  "target": {
+    "os": "ubuntu",
+    "release": "26.04",
+    "architecture": "amd64",
+    "user": "REPLACE_USER"
+  },
+  "selection_file": "../profiles/default.json",
+  "features": {
+    "gpu": "none"
+  },
+  "storage": {
+    "mode": "standard",
+    "layout": "single",
+    "separate_var_lib": false,
+    "encryption": "none",
+    "disks": {
+      "system": {
+        "stable_id": "REPLACE_SYSTEM_STABLE_ID",
+        "minimum_bytes": null
+      }
+    },
+    "mounts": {
+      "/boot/efi": {
+        "disk_role": "system",
+        "filesystem_uuid": "REPLACE_BOOT_EFI_UUID"
+      },
+      "/boot": {
+        "disk_role": "system",
+        "filesystem_uuid": "REPLACE_BOOT_UUID"
+      },
+      "/": {
+        "disk_role": "system",
+        "filesystem_uuid": "REPLACE_ROOT_UUID"
+      },
+      "/home": {
+        "disk_role": "system",
+        "filesystem_uuid": "REPLACE_HOME_UUID"
+      }
+    }
+  }
+}

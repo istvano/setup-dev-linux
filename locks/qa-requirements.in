@@ -1,0 +1,2 @@
+# Pre-build validation only; this is not the workstation installation environment.
+jsonschema==4.26.0

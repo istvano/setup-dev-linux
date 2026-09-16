@@ -1,0 +1,29 @@
+---
+- name: Verify the guarded automation foundation
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    - name: Read distribution identity using distribution Python
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - -c
+          - "import platform; print(platform.freedesktop_os_release()['ID']); print(platform.freedesktop_os_release()['VERSION_ID']); print(platform.machine())"
+      register: distribution_identity
+      changed_when: false
+
+    - name: Require the supported distribution and architecture
+      ansible.builtin.assert:
+        that:
+          - distribution_identity.stdout_lines == ['ubuntu', '26.04', 'x86_64']
+        quiet: true
+
+    - name: Confirm distribution APT bindings remain available
+      ansible.builtin.command:
+        argv: [/usr/bin/python3, -B, -c, "import apt; print('distribution-apt-ok')"]
+      changed_when: false

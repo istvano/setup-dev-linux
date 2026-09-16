@@ -1,0 +1,110 @@
+---
+- name: Install the APT packages the manifest selects
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/packages.json') | from_json }}"
+    repositories: "{{ lookup('file', workstation_root ~ '/manifest/repositories.json') | from_json }}"
+    repository_hosts: >-
+      {{ dict(repositories.repositories | map(attribute='id') | list
+              | zip(repositories.repositories | map(attribute='uri')
+                    | map('urlsplit', 'netloc') | list)) }}
+    selected_groups: "{{ manifest_groups | default(manifest.groups.keys() | list) }}"
+    selected: >-
+      {{ selected_groups | map('extract', manifest.groups) | flatten | list }}
+    # Vendor packages that install their own source file for the same URI.
+    self_registering: >-
+      {{ repositories.repositories | selectattr('self_registers_source', 'defined')
+         | selectattr('self_registers_source') | map(attribute='id') | list }}
+    vendor_packages: >-
+      {{ selected | selectattr('source', 'in', self_registering)
+         | map(attribute='name') | list }}
+    ordinary_packages: >-
+      {{ selected | rejectattr('source', 'in', self_registering)
+         | map(attribute='name') | list }}
+  tasks:
+    - name: Report what will be installed
+      ansible.builtin.debug:
+        msg: >-
+          {{ selected | length }} packages across {{ selected_groups | length }} groups
+          ({{ vendor_packages | length }} vendor-managed)
+
+    # Installing the right version once is not enough: another configured
+    # repository can ship the same package under a higher version and take it
+    # over at the next upgrade. google-cloud-cli ships a kubectl with a higher
+    # epoch than upstream Kubernetes, which is exactly this. Pin every
+    # repository-sourced package to the host the manifest declares.
+    - name: Pin repository packages to their declared source
+      ansible.builtin.copy:
+        dest: /etc/apt/preferences.d/workstation-manifest
+        mode: "0644"
+        content: |
+          # Generated from manifest/packages.json and manifest/repositories.json.
+          # Each package is held to the repository its manifest entry names.
+          {% for entry in selected | rejectattr('source', 'equalto', 'archive') | sort(attribute='name') %}
+          Package: {{ entry.name }}
+          Pin: origin {{ repository_hosts[entry.source] }}
+          Pin-Priority: 1001
+
+          {% endfor %}
+      become: true
+
+    - name: Refresh metadata so the pins take effect
+      ansible.builtin.apt:
+        update_cache: true
+      become: true
+
+    # A package name resolves against every configured repository, so a declared
+    # source that is not enforced is a source in name only. This checks that the
+    # version APT would install actually comes from the source the manifest
+    # names, and that the resolver's whole transaction stays within the declared
+    # sources and removes nothing.
+    - name: Inspect candidate sources before installing anything
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/probe-manifest-packages"
+        stdin: "{{ {'groups': selected_groups} | to_json }}"
+      register: package_probe
+      changed_when: false
+
+    - name: Reject a candidate that does not come from its declared source
+      ansible.builtin.assert:
+        that:
+          - item.install_allowed
+        fail_msg: >-
+          {{ item.package }} would install from an undeclared source
+          (declared: {{ item.source }})
+        quiet: true
+      loop: "{{ package_probe.stdout | from_json }}"
+      loop_control:
+        label: "{{ item.package }} <- {{ item.source }}"
+
+    # Each of these installs alone and hands its URI back before the next apt
+    # call. Both declare the same URI we declared, and APT refuses to read its
+    # whole source list while one URI carries two different Signed-By values.
+    - name: Install each vendor-managed repository's packages in turn
+      ansible.builtin.include_tasks: tasks/install-vendor-package.yml
+      loop: >-
+        {{ repositories.repositories | selectattr('self_registers_source', 'defined')
+           | selectattr('self_registers_source') | list }}
+      loop_control:
+        loop_var: vendor
+        label: "{{ vendor.id }}"
+
+    - name: Install the inspected versions without removing unrelated ones
+      ansible.builtin.apt:
+        name: >-
+          {{ package_probe.stdout | from_json
+             | rejectattr('package', 'in', vendor_packages)
+             | map(attribute='install_spec') | list }}
+        state: present
+        allow_unauthenticated: false
+        allow_downgrade: false
+        fail_on_autoremove: true
+        lock_timeout: 300
+      become: true

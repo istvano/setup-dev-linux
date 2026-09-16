@@ -1,0 +1,409 @@
+{
+  "schema_version": 1,
+  "description": "APT packages by group. \"source\": archive means the Ubuntu archive; anything else names a repository in repositories.json.",
+  "groups": {
+    "core": [
+      {
+        "name": "zsh",
+        "source": "archive"
+      },
+      {
+        "name": "git",
+        "source": "archive"
+      },
+      {
+        "name": "curl",
+        "source": "archive"
+      },
+      {
+        "name": "wget",
+        "source": "archive"
+      },
+      {
+        "name": "jq",
+        "source": "archive"
+      },
+      {
+        "name": "vim",
+        "source": "archive"
+      },
+      {
+        "name": "mc",
+        "source": "archive"
+      },
+      {
+        "name": "htop",
+        "source": "archive"
+      },
+      {
+        "name": "btop",
+        "source": "archive"
+      },
+      {
+        "name": "fastfetch",
+        "source": "archive"
+      },
+      {
+        "name": "httpie",
+        "source": "archive"
+      },
+      {
+        "name": "gnupg",
+        "source": "archive"
+      },
+      {
+        "name": "bat",
+        "source": "archive"
+      },
+      {
+        "name": "eza",
+        "source": "archive"
+      },
+      {
+        "name": "fd-find",
+        "source": "archive"
+      },
+      {
+        "name": "ripgrep",
+        "source": "archive"
+      },
+      {
+        "name": "fzf",
+        "source": "archive"
+      },
+      {
+        "name": "zoxide",
+        "source": "archive"
+      },
+      {
+        "name": "direnv",
+        "source": "archive"
+      },
+      {
+        "name": "git-delta",
+        "source": "archive"
+      },
+      {
+        "name": "git-lfs",
+        "source": "archive"
+      },
+      {
+        "name": "tmux",
+        "source": "archive"
+      },
+      {
+        "name": "just",
+        "source": "archive"
+      },
+      {
+        "name": "pandoc",
+        "source": "archive"
+      },
+      {
+        "name": "restic",
+        "source": "archive"
+      },
+      {
+        "name": "rclone",
+        "source": "archive"
+      },
+      {
+        "name": "atuin",
+        "source": "archive"
+      },
+      {
+        "name": "starship",
+        "source": "archive"
+      },
+      {
+        "name": "software-properties-common",
+        "source": "archive"
+      },
+      {
+        "name": "gh",
+        "source": "github-cli"
+      }
+    ],
+    "dev": [
+      {
+        "name": "build-essential",
+        "source": "archive"
+      },
+      {
+        "name": "code",
+        "source": "vscode"
+      },
+      {
+        "name": "dbeaver-ce",
+        "source": "dbeaver"
+      },
+      {
+        "name": "g++",
+        "source": "archive"
+      },
+      {
+        "name": "libfreetype-dev",
+        "source": "archive"
+      },
+      {
+        "name": "libxml2-utils",
+        "source": "archive"
+      },
+      {
+        "name": "meld",
+        "source": "archive"
+      },
+      {
+        "name": "neovim",
+        "source": "archive"
+      },
+      {
+        "name": "shellcheck",
+        "source": "archive"
+      },
+      {
+        "name": "shfmt",
+        "source": "archive"
+      },
+      {
+        "name": "yamllint",
+        "source": "archive"
+      },
+      {
+        "name": "zlib1g-dev",
+        "source": "archive"
+      }
+    ],
+    "cloud": [
+      {
+        "name": "awscli",
+        "source": "archive"
+      },
+      {
+        "name": "azure-cli",
+        "source": "azure-cli"
+      },
+      {
+        "name": "google-cloud-cli",
+        "source": "google-cloud-cli"
+      },
+      {
+        "name": "tofu",
+        "source": "opentofu"
+      }
+    ],
+    "kubernetes": [
+      {
+        "name": "kubectl",
+        "source": "kubernetes"
+      },
+      {
+        "name": "kubectx",
+        "source": "archive"
+      },
+      {
+        "name": "kustomize",
+        "source": "archive"
+      },
+      {
+        "name": "kind",
+        "source": "archive"
+      }
+    ],
+    "containers": [
+      {
+        "name": "docker-ce",
+        "source": "docker"
+      },
+      {
+        "name": "docker-ce-cli",
+        "source": "docker"
+      },
+      {
+        "name": "containerd.io",
+        "source": "docker"
+      },
+      {
+        "name": "docker-buildx-plugin",
+        "source": "docker"
+      },
+      {
+        "name": "docker-compose-plugin",
+        "source": "docker"
+      },
+      {
+        "name": "skopeo",
+        "source": "archive"
+      }
+    ],
+    "lab": [
+      {
+        "name": "libvirt-clients",
+        "source": "archive"
+      },
+      {
+        "name": "libvirt-daemon-system",
+        "source": "archive"
+      },
+      {
+        "name": "virt-manager",
+        "source": "archive"
+      },
+      {
+        "name": "bridge-utils",
+        "source": "archive"
+      },
+      {
+        "name": "quickemu",
+        "source": "ppa-quickemu"
+      }
+    ],
+    "gpu": [
+      {
+        "name": "nvidia-driver-595-open",
+        "source": "archive"
+      },
+      {
+        "name": "linux-modules-nvidia-595-open-generic-hwe-26.04",
+        "source": "archive"
+      },
+      {
+        "name": "nvtop",
+        "source": "archive"
+      },
+      {
+        "name": "dkms",
+        "source": "archive"
+      },
+      {
+        "name": "linux-headers-generic",
+        "source": "archive"
+      },
+      {
+        "name": "ubuntu-drivers-common",
+        "source": "archive"
+      },
+      {
+        "name": "nvidia-container-toolkit",
+        "source": "nvidia-container-toolkit"
+      }
+    ],
+    "desktop": [
+      {
+        "name": "dconf-cli",
+        "source": "archive"
+      },
+      {
+        "name": "dconf-editor",
+        "source": "archive"
+      },
+      {
+        "name": "gnome-shell-extension-manager",
+        "source": "archive"
+      },
+      {
+        "name": "gparted",
+        "source": "archive"
+      },
+      {
+        "name": "gedit",
+        "source": "archive"
+      },
+      {
+        "name": "ghostty",
+        "source": "archive"
+      },
+      {
+        "name": "fonts-inconsolata",
+        "source": "archive"
+      },
+      {
+        "name": "fonts-powerline",
+        "source": "archive"
+      },
+      {
+        "name": "fonts-jetbrains-mono",
+        "source": "archive"
+      }
+    ],
+    "media": [
+      {
+        "name": "ffmpeg",
+        "source": "archive"
+      },
+      {
+        "name": "flameshot",
+        "source": "archive"
+      },
+      {
+        "name": "kazam",
+        "source": "archive"
+      },
+      {
+        "name": "ubuntu-restricted-addons",
+        "source": "archive"
+      },
+      {
+        "name": "obs-studio",
+        "source": "ppa-obs"
+      }
+    ],
+    "productivity": [
+      {
+        "name": "google-chrome-stable",
+        "source": "google-chrome"
+      },
+      {
+        "name": "slack-desktop",
+        "source": "slack"
+      }
+    ],
+    "ai": [
+      {
+        "name": "claude-desktop",
+        "source": "claude-desktop"
+      },
+      {
+        "name": "chatgpt",
+        "source": "chatgpt"
+      }
+    ],
+    "network": [
+      {
+        "name": "openvpn",
+        "source": "archive"
+      },
+      {
+        "name": "network-manager-openvpn-gnome",
+        "source": "archive"
+      },
+      {
+        "name": "net-tools",
+        "source": "archive"
+      }
+    ],
+    "security": [
+      {
+        "name": "age",
+        "source": "archive"
+      },
+      {
+        "name": "gitleaks",
+        "source": "archive"
+      },
+      {
+        "name": "cosign",
+        "source": "archive"
+      },
+      {
+        "name": "nmap",
+        "source": "archive"
+      },
+      {
+        "name": "trivy",
+        "source": "trivy"
+      }
+    ]
+  },
+  "prerequisite_note": "Packages required by a selected capability, declared in catalogue/prerequisites.json, are listed here like any other package so that one file says what installs."
+}

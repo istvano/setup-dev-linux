@@ -1,0 +1,19 @@
+---
+- name: Deliver reviewed user uv and CPython
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Verify and place complete versioned user runtime payloads
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-python-user"
+        stdin: "{{ {'config': workstation_config, 'selected': selected_runtimes} | to_json }}"
+      register: python_user_apply
+      changed_when: >-
+        python_user_apply.rc == 0 and
+        (python_user_apply.stdout | from_json).changed
+      no_log: true

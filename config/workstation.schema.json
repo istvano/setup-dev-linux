@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "example_only",
+    "target",
+    "selection_file",
+    "features",
+    "storage"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "example_only": {
+      "type": "boolean"
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "os",
+        "release",
+        "architecture",
+        "user"
+      ],
+      "properties": {
+        "os": {
+          "const": "ubuntu"
+        },
+        "release": {
+          "const": "26.04"
+        },
+        "architecture": {
+          "const": "amd64"
+        },
+        "user": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "selection_file": {
+      "type": "string",
+      "minLength": 1
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gpu"
+      ],
+      "properties": {
+        "gpu": {
+          "enum": [
+            "none",
+            "nvidia"
+          ]
+        }
+      }
+    },
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode",
+        "layout",
+        "separate_var_lib",
+        "encryption",
+        "disks",
+        "mounts"
+      ],
+      "properties": {
+        "mode": {
+          "enum": [
+            "standard"
+          ]
+        },
+        "layout": {
+          "enum": [
+            "single",
+            "split"
+          ]
+        },
+        "separate_var_lib": {
+          "type": "boolean"
+        },
+        "encryption": {
+          "const": "none"
+        },
+        "disks": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "system"
+          ],
+          "properties": {
+            "system": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "stable_id",
+                "minimum_bytes"
+              ],
+              "properties": {
+                "stable_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minimum_bytes": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                }
+              }
+            },
+            "data": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "stable_id",
+                "minimum_bytes"
+              ],
+              "properties": {
+                "stable_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minimum_bytes": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 1
+                }
+              }
+            }
+          }
+        },
+        "mounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "/boot/efi",
+            "/boot",
+            "/",
+            "/home"
+          ],
+          "properties": {
+            "/boot/efi": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "disk_role",
+                "filesystem_uuid"
+              ],
+              "properties": {
+                "disk_role": {
+                  "enum": [
+                    "system",
+                    "data"
+                  ]
+                },
+                "filesystem_uuid": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "/boot": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "disk_role",
+                "filesystem_uuid"
+              ],
+              "properties": {
+                "disk_role": {
+                  "enum": [
+                    "system",
+                    "data"
+                  ]
+                },
+                "filesystem_uuid": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "/": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "disk_role",
+                "filesystem_uuid"
+              ],
+              "properties": {
+                "disk_role": {
+                  "enum": [
+                    "system",
+                    "data"
+                  ]
+                },
+                "filesystem_uuid": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "/home": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "disk_role",
+                "filesystem_uuid"
+              ],
+              "properties": {
+                "disk_role": {
+                  "enum": [
+                    "system",
+                    "data"
+                  ]
+                },
+                "filesystem_uuid": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "/var/lib": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "disk_role",
+                "filesystem_uuid"
+              ],
+              "properties": {
+                "disk_role": {
+                  "enum": [
+                    "system",
+                    "data"
+                  ]
+                },
+                "filesystem_uuid": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "user_settings_file": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "description": "User-scoped language runtimes. Installed as the target user, never by changing HOME under sudo. Versions are pinned in locks/.",
+  "node": {
+    "manager": "nvm",
+    "lock": "locks/node.json",
+    "versions": [
+      "22.21.0"
+    ],
+    "default": "22.21.0",
+    "globals": [
+      "corepack"
+    ],
+    "note": "pnpm and yarn come from corepack shims rather than separate globals."
+  },
+  "jvm": {
+    "manager": "sdkman",
+    "lock": "locks/sdkman-review.json",
+    "java_lock": "locks/java-review.json",
+    "tools_lock": "locks/jvm-tools.json",
+    "mandrel_lock": "locks/mandrel.json",
+    "java": [
+      "21-tem",
+      "25-tem",
+      "21-ms",
+      "25-ms"
+    ],
+    "java_default": "25-tem",
+    "mandrel": "25.0.0.1.r25",
+    "tools": [
+      "maven",
+      "gradle",
+      "kotlin"
+    ],
+    "note": "SDKMAN owns every JVM installation; no JVM tooling comes from APT."
+  },
+  "python": {
+    "manager": "uv",
+    "lock": "locks/python-user.json",
+    "note": "uv manages interpreters and project environments; the system Python stays untouched."
+  },
+  "agents": [
+    {
+      "id": "claude",
+      "delivery": "vendor-installer",
+      "lock": null,
+      "note": "Claude Code CLI; authentication stays manual."
+    },
+    {
+      "id": "codex",
+      "delivery": "vendor-installer",
+      "lock": "locks/codex.json"
+    },
+    {
+      "id": "opencode",
+      "delivery": "npm",
+      "lock": "locks/opencode.json"
+    },
+    {
+      "id": "cline",
+      "delivery": "npm",
+      "lock": "locks/cline.json"
+    },
+    {
+      "id": "copilot",
+      "delivery": "npm",
+      "lock": null,
+      "note": "GitHub Copilot CLI; source review outstanding."
+    }
+  ],
+  "excluded": [
+    {
+      "id": "go",
+      "reason": "Host Go toolchain not installed; Go work runs in containers."
+    },
+    {
+      "id": "rust",
+      "reason": "Host Rust toolchain not installed; Rust work runs in containers."
+    }
+  ]
+}

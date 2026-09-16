@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "description": "Third-party APT sources. Every entry declares a signing key, either a fetchable key_url or a vendored key_file with its recorded fingerprint. The Ubuntu archive needs no entry here.",
+  "repositories": [
+    {
+      "id": "docker",
+      "uri": "https://download.docker.com/linux/ubuntu",
+      "suite": "{codename}",
+      "components": [
+        "stable"
+      ],
+      "key_url": "https://download.docker.com/linux/ubuntu/gpg",
+      "provides": [
+        "docker-ce",
+        "docker-ce-cli",
+        "containerd.io",
+        "docker-buildx-plugin",
+        "docker-compose-plugin"
+      ],
+      "key_fingerprint": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
+    },
+    {
+      "id": "vscode",
+      "uri": "https://packages.microsoft.com/repos/code",
+      "suite": "stable",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+      "provides": [
+        "code"
+      ],
+      "key_fingerprint": "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
+    },
+    {
+      "id": "azure-cli",
+      "uri": "https://packages.microsoft.com/repos/azure-cli",
+      "suite": "{codename}",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
+      "provides": [
+        "azure-cli"
+      ],
+      "note": "Falls back to the newest supported Ubuntu suite when the current codename has no build; recorded explicitly rather than silently.",
+      "key_fingerprint": "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
+    },
+    {
+      "id": "github-cli",
+      "uri": "https://cli.github.com/packages",
+      "suite": "stable",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://cli.github.com/packages/githubcli-archive-keyring.gpg",
+      "provides": [
+        "gh"
+      ],
+      "key_fingerprint": "2C6106201985B60E6C7AC87323F3D4EA75716059"
+    },
+    {
+      "id": "google-chrome",
+      "uri": "https://dl.google.com/linux/chrome/deb/",
+      "suite": "stable",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://dl.google.com/linux/linux_signing_key.pub",
+      "provides": [
+        "google-chrome-stable"
+      ],
+      "key_fingerprint": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796",
+      "self_registers_source": true,
+      "self_registers_note": "The package's postinst rewrites the source file for this URI and marks it automatically configured, so the repository is configured only to obtain the package and then left to the vendor."
+    },
+    {
+      "id": "slack",
+      "uri": "https://packagecloud.io/slacktechnologies/slack/debian/",
+      "suite": "jessie",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://packagecloud.io/slacktechnologies/slack/gpgkey",
+      "provides": [
+        "slack-desktop"
+      ],
+      "key_fingerprint": "DB085A08CA13B8ACB917E0F6D938EC0D038651BD"
+    },
+    {
+      "id": "dbeaver",
+      "uri": "https://dbeaver.io/debs/dbeaver-ce",
+      "suite": "/",
+      "components": [],
+      "key_url": "https://dbeaver.io/debs/dbeaver.gpg.key",
+      "provides": [
+        "dbeaver-ce"
+      ],
+      "key_fingerprint": "BDFB19F681514B43875D16FA132C13A8A330F403"
+    },
+    {
+      "id": "kubernetes",
+      "uri": "https://pkgs.k8s.io/core:/stable:/v1.34/deb/",
+      "suite": "/",
+      "components": [],
+      "key_url": "https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key",
+      "provides": [
+        "kubectl"
+      ],
+      "key_fingerprint": "DE15B14486CD377B9E876E1A234654DA9A296436"
+    },
+    {
+      "id": "nvidia-container-toolkit",
+      "uri": "https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)",
+      "suite": "/",
+      "components": [],
+      "key_url": "https://nvidia.github.io/libnvidia-container/gpgkey",
+      "provides": [
+        "nvidia-container-toolkit"
+      ],
+      "key_fingerprint": "C95B321B61E88C1809C4F759DDCAE044F796ECB0"
+    },
+    {
+      "id": "claude-desktop",
+      "uri": "https://downloads.claude.ai/claude-desktop/apt/stable",
+      "suite": "stable",
+      "components": [
+        "main"
+      ],
+      "provides": [
+        "claude-desktop"
+      ],
+      "key_file": "manifest/keys/claude-desktop.asc",
+      "key_fingerprint": "31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE",
+      "key_uid": "Anthropic Claude Code Release Signing <security@anthropic.com>",
+      "key_note": "This vendor publishes no fetchable key; its installer places the keyring locally. The public key is vendored here with its fingerprint, taken from the vendor installation on 2026-09-16.",
+      "self_registers_source": true,
+      "self_registers_note": "The vendor package installs its own source file pointing at the same URI with its own keyring. Two source files for one URI with different Signed-By values make APT refuse to read its source list, so this repository is configured only to obtain the package and removed once the vendor manages it."
+    },
+    {
+      "id": "chatgpt",
+      "uri": "https://persistent.oaistatic.com/codex-app-prod/linux/deb",
+      "suite": "stable",
+      "components": [
+        "main"
+      ],
+      "provides": [
+        "chatgpt"
+      ],
+      "key_file": "manifest/keys/chatgpt.asc",
+      "key_fingerprint": "3BFA0E4AE8B8CC16A2D9BA684A3B4A566C4660E4",
+      "key_uid": "Codex Linux Repository",
+      "key_note": "This vendor publishes no fetchable key; its installer places the keyring locally. The public key is vendored here with its fingerprint, taken from the vendor installation on 2026-09-16.",
+      "self_registers_source": true,
+      "self_registers_note": "The vendor package installs its own source file pointing at the same URI with its own keyring. Two source files for one URI with different Signed-By values make APT refuse to read its source list, so this repository is configured only to obtain the package and removed once the vendor manages it."
+    },
+    {
+      "id": "opentofu",
+      "uri": "https://packages.opentofu.org/opentofu/tofu/any/",
+      "suite": "any",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://packages.opentofu.org/opentofu/tofu/gpgkey",
+      "provides": [
+        "tofu"
+      ],
+      "key_fingerprint": "F4AF70F66EAC4337EEECC97407D3DFCD4C61499F",
+      "key_note": "The repository is signed by subkey 70DF59811A8B9109 of this key. get.opentofu.org publishes a different key, for the standalone binary releases, which cannot verify this repository."
+    },
+    {
+      "id": "google-cloud-cli",
+      "uri": "https://packages.cloud.google.com/apt",
+      "suite": "cloud-sdk",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://packages.cloud.google.com/apt/doc/apt-key.gpg",
+      "provides": [
+        "google-cloud-cli"
+      ],
+      "key_fingerprint": "35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3"
+    },
+    {
+      "id": "trivy",
+      "uri": "https://aquasecurity.github.io/trivy-repo/deb",
+      "suite": "generic",
+      "components": [
+        "main"
+      ],
+      "key_url": "https://aquasecurity.github.io/trivy-repo/deb/public.key",
+      "provides": [
+        "trivy"
+      ],
+      "key_fingerprint": "825AD9036F7C850E6A6FED4935B8ACA44FD9CA9F"
+    },
+    {
+      "id": "ppa-obs",
+      "uri": "https://ppa.launchpadcontent.net/obsproject/obs-studio/ubuntu/",
+      "suite": "{codename}",
+      "components": [
+        "main"
+      ],
+      "ppa": "obsproject/obs-studio",
+      "provides": [
+        "obs-studio"
+      ],
+      "key_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0xBC7345F522079769F5BBE987EFC71127F425E228",
+      "key_fingerprint": "BC7345F522079769F5BBE987EFC71127F425E228",
+      "key_note": "Launchpad PPA signing key fetched over HTTPS from the Ubuntu keyserver and checked against the fingerprint Launchpad publishes for this archive, rather than trusting an hkp keyserver lookup."
+    },
+    {
+      "id": "ppa-quickemu",
+      "uri": "https://ppa.launchpadcontent.net/flexiondotorg/quickemu/ubuntu/",
+      "suite": "{codename}",
+      "components": [
+        "main"
+      ],
+      "ppa": "flexiondotorg/quickemu",
+      "provides": [
+        "quickemu"
+      ],
+      "key_url": "https://keyserver.ubuntu.com/pks/lookup?op=get&options=mr&search=0xAC4983BC6500F2E768D0CF7F08C0EFB260A1EEF3",
+      "key_fingerprint": "AC4983BC6500F2E768D0CF7F08C0EFB260A1EEF3",
+      "key_note": "Launchpad PPA signing key fetched over HTTPS from the Ubuntu keyserver and checked against the fingerprint Launchpad publishes for this archive, rather than trusting an hkp keyserver lookup."
+    }
+  ]
+}

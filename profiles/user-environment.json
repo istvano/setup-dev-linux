@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "status": "confirmed-pre-build",
+  "java": {
+    "manager": "sdkman",
+    "default_vendor": "temurin",
+    "default_major": 25,
+    "project_variants": [
+      "temurin-21",
+      "temurin-25",
+      "microsoft-21",
+      "microsoft-25"
+    ],
+    "mandrel_observed_version": "25.0.0.1.r25"
+  },
+  "shell": {
+    "framework": "oh-my-zsh",
+    "plugins": [
+      "git",
+      "zsh-autosuggestions",
+      "zsh-syntax-highlighting"
+    ],
+    "helpers": [
+      "proxyon",
+      "proxyoff"
+    ],
+    "proxy_settings": "private-local",
+    "file_owner": "chezmoi"
+  },
+  "version_policy": "reviewed-current-stable-adapt-projects",
+  "compatibility_validation": "synthetic-fixtures-no-existing-projects"
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-15",
+  "artifacts": [
+    {
+      "id": "opencode",
+      "version": "1.18.31",
+      "url": "https://github.com/anomalyco/opencode/releases/download/v1.18.31/opencode-linux-x64-baseline.tar.gz",
+      "licence": "MIT; bundled Bun/WebKit LGPL-2 and notices",
+      "licence_url": "https://raw.githubusercontent.com/anomalyco/opencode/v1.18.31/LICENSE",
+      "entrypoint": "opencode",
+      "format": "tar",
+      "sha256": "b283e8dbe9e6fc224bb4b79992ce3bd2174b8b7b0c3e7d1b4e6024a1d11edc84",
+      "licence_sha256": "625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b",
+      "files": [
+        {
+          "path": "opencode",
+          "kind": "file",
+          "value": "f9dab32248695e9ebd56b16a1921798fd85112cf5a69c7dfd0cabc1e17be4a11",
+          "executable": true
+        }
+      ]
+    }
+  ]
+}

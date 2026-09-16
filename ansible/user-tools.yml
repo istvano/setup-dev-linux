@@ -1,0 +1,17 @@
+---
+- name: Deliver explicitly selected immutable user tools
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  tasks:
+    - name: Validate storage and install reviewed user payloads
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-user-tools"
+        stdin: "{{ {'config': workstation_config, 'ids': selected_user_tools} | to_json }}"
+      register: user_tool_delivery
+      changed_when: user_tool_delivery.rc == 0 and (user_tool_delivery.stdout | from_json).changed
+      no_log: true

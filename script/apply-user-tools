@@ -1,0 +1,16 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker; validated private request arrives on stdin."""
+import json
+import sys
+sys.dont_write_bytecode = True
+from workstation.artifacts import install, registry
+from workstation.config import ROOT, InputError, load_json
+try:
+    request = json.load(sys.stdin)
+    catalogue, _ = load_json(ROOT / 'catalogue/capabilities.json')
+    approved = registry({e['id']: e for e in catalogue['capabilities']})
+    records = [approved[key] for key in request['ids']]
+    print(json.dumps({'changed': install(records, request['config'])}))
+except (ValueError, OSError, KeyError, TypeError):
+    print('User-tool delivery failed; no payload replacement was authorized', file=sys.stderr)
+    raise SystemExit(1)

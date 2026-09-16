@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "reviewed_at": "2026-09-14",
+  "artifacts": [
+    {
+      "id": "sdkman-cli",
+      "version": "5.23.0",
+      "url": "https://github.com/sdkman/sdkman-cli/releases/download/5.23.0/sdkman-cli-5.23.0.zip",
+      "format": "zip",
+      "sha256": "7ef83583a6986351ea8c86b8494a885fcae91a2fbfac91662bca7ea4f72bd230",
+      "licence": "Apache-2.0",
+      "licence_url": "https://raw.githubusercontent.com/sdkman/sdkman-cli/5.23.0/LICENSE",
+      "licence_sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "entrypoint": "sdkman-5.23.0/bin/sdkman-init.sh",
+      "files": [
+        {
+          "path": "sdkman-5.23.0/bin/sdkman-init.sh",
+          "kind": "file",
+          "value": "f35578c4ac307f6292775ebc7552aee4a5c18fd9987192b22f02023422193574",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/contrib/completion/bash/sdk",
+          "kind": "file",
+          "value": "bfd6123130f6b2e2c5c33a393b72c4a5e00ac3bd8c12b80814f831e57f5cc4d2",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-availability.sh",
+          "kind": "file",
+          "value": "3ef0bc5ac2aa01c6fa5a8169185cd6404fcf8667697d302043928c42762f51d6",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-cache.sh",
+          "kind": "file",
+          "value": "15241839ca9b7e12b29ee59bcacef5b483d7c210b95246a6e38fa05e3bda2944",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-config.sh",
+          "kind": "file",
+          "value": "042d77a04e4502b3915fda27af09d24c6a90396187dfad812aaeeb86258c4351",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-current.sh",
+          "kind": "file",
+          "value": "6e22fdf07fdbb1928a5008c0225d33f44c6607586b90760b7da3061fa656d82a",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-default.sh",
+          "kind": "file",
+          "value": "1e814d7a59013cceec9c4a5ec608b0e2b51233efb17876f0750e9c98d366e5bf",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-env-helpers.sh",
+          "kind": "file",
+          "value": "906b598aed548e8130494b59a0c8b42a99ae47c53031796ea8739af58c345b05",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-env.sh",
+          "kind": "file",
+          "value": "159fd4e9672665a4d8d9dbbc002a16839bb9dedbf5319310991546e3ebee3efb",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-flush.sh",
+          "kind": "file",
+          "value": "5ef8833d6e9af28636cc21916465cf56bf650e37c17793ed6a164f158a6155ec",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-help.sh",
+          "kind": "file",
+          "value": "247617360ddba9283ba03d2d5bb8a3fd4d1b79d0d2040264eb4ea060fef17ec1",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-home.sh",
+          "kind": "file",
+          "value": "129e36d416fd24779b0b5f8ba08093f6d86ab8125a428d6d8a7ada1ab3344aaf",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-install.sh",
+          "kind": "file",
+          "value": "1c9c40c554a1bd74d803c119575c9770398b6ca5f439e334731bc23344b4eee6",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-list.sh",
+          "kind": "file",
+          "value": "b030700f4eed7c9eb941a319e8b5e9801d6a0e713e22021bd42715b2a3f35527",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-main.sh",
+          "kind": "file",
+          "value": "7faec4b29440467428ef0d7900dfb23959d66b9e1993f47baaa1c68cbc96e8e9",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-path-helpers.sh",
+          "kind": "file",
+          "value": "214ee9f94fe1500c63c6a54e78e969cf4c7b800354a06dd0d31d01a4d5e26585",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-selfupdate.sh",
+          "kind": "file",
+          "value": "d171613a9910843c7bc90f1a8a61cc9170946335a04a103a6a9eb16f5488f208",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-uninstall.sh",
+          "kind": "file",
+          "value": "81cc5ce816c7e237c6ec7ef38ccf8d15633d9f95067ad400a413554bf77c970d",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-update.sh",
+          "kind": "file",
+          "value": "3e1186321f8b3ecc35b478e89df497f7db25e39452c6ae480bb9d46c8bedd89a",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-upgrade.sh",
+          "kind": "file",
+          "value": "4e77791377fcbf289cc90b6961a1eb017cc3e4025a9df370cb22082687aa14ed",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-use.sh",
+          "kind": "file",
+          "value": "1ff49cb8d13d084ab84938b5576cec4b8bdd012f31c6e6bbced6873ed2da23b4",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-utils.sh",
+          "kind": "file",
+          "value": "adbfa1a9e6c20bf0359dc75a7bc694c677b51e8066a0bd612b2b54ca916e8629",
+          "executable": false
+        },
+        {
+          "path": "sdkman-5.23.0/src/sdkman-version.sh",
+          "kind": "file",
+          "value": "6f9a701dc48fb649ab22f2987af1db81d2aa91ec0d0b0a23cf036773970845fb",
+          "executable": false
+        }
+      ]
+    },
+    {
+      "id": "sdkman-native",
+      "version": "0.7.35",
+      "url": "https://github.com/sdkman/sdkman-cli-native/releases/download/v0.7.35/sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu.zip",
+      "format": "zip",
+      "sha256": "d5130a98a6bfbda78dbfe50515996c40f53fce99c5d62748a80ca901d81163b3",
+      "licence": "Apache-2.0",
+      "licence_url": "https://raw.githubusercontent.com/sdkman/sdkman-cli-native/v0.7.35/LICENSE",
+      "licence_sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "entrypoint": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/version",
+      "files": [
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/current",
+          "kind": "file",
+          "value": "a021d9db1044088320f7c96880ce5876a5e45cf50bed75a0839571fd12c49eb2",
+          "executable": true
+        },
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/default",
+          "kind": "file",
+          "value": "2c31a9e19a27659a6361f22495f2d372302bed1a750e8a74f4473f1042b12460",
+          "executable": true
+        },
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/help",
+          "kind": "file",
+          "value": "a424d57997c362193769ab0a7231d4dd0d1892d490f99ad0973985a60c019304",
+          "executable": true
+        },
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/home",
+          "kind": "file",
+          "value": "6967d768dc0a82c11155d59afa4985918fd7c513c50efcfa437fe7eb36c09e1c",
+          "executable": true
+        },
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/uninstall",
+          "kind": "file",
+          "value": "71530d8347dbf05dd1f911a2f741145690a2bdf23eb1ef2ef9fd65ada20542d3",
+          "executable": true
+        },
+        {
+          "path": "sdkman-cli-native-0.7.35-x86_64-unknown-linux-gnu/libexec/version",
+          "kind": "file",
+          "value": "80ee7a2987c03ec751f7fa60eeb900e80cac7cf059c488ca8bc2ff52c08b6430",
+          "executable": true
+        }
+      ]
+    }
+  ]
+}
