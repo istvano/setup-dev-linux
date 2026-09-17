@@ -151,7 +151,10 @@ def main(argv=None):
                 from .cline_runtime import verify as verify_cline
                 package_checks.extend(verify_cline(Path(pwd.getpwnam(context['config']['target']['user']).pw_dir), context['selected']))
             from .delivery import verify as verify_delivery
+            from .system import verify as verify_system
             groups_now = manifest_groups or applied_groups()
+            package_checks.extend(verify_system(context['config']['target']['user'],
+                                                groups=groups_now))
             package_checks.extend(verify_delivery(groups=groups_now))
             if groups_now is None or 'ai' in groups_now:
                 from .npm_cli import verify as verify_npm_cli

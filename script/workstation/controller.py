@@ -184,6 +184,11 @@ def apply_foundation(config, root=ROOT, user_tools=None, user_environment=None, 
         if remaining:
             run_stage(remaining, 3600)
 
+        # Group membership follows the packages that create the groups, and
+        # precedes nothing: it only takes effect in a later session anyway.
+        if manifest_groups:
+            run_stage(['system-groups.yml'], 300)
+
         # Pinned agent CLIs install into the user's tool directory.
         if manifest_groups and 'ai' in manifest_groups:
             run_stage(['npm-cli.yml'], 1800)

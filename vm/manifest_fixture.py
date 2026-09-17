@@ -168,6 +168,12 @@ def verify_new_deliveries():
             if check['id'] in ('vscode-extensions', 'krew-plugins'):
                 report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
+    from workstation.system import verify as verify_system
+    import getpass
+    for check in verify_system(getpass.getuser(), ROOT, groups=GROUPS):
+        report(check['status'] in ('passed', 'deferred'),
+               f"system {check['id']}: {check['status']} — {check['reason']}")
+
     if 'ai' in GROUPS:
         from workstation.npm_cli import verify as verify_agent
         agents = json.loads((ROOT / 'manifest/runtimes.json').read_text())['agents']

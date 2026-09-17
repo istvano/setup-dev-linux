@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "description": "System settings the manifest declares beyond packages. Group membership is here because installing a package is not the same as being able to use it.",
+  "user_groups": [
+    {
+      "group": "docker",
+      "requires_manifest_group": "containers",
+      "reason": "Reaching the Docker socket without sudo. D006 authorises rootful docker-group membership for the selected user.",
+      "effective_after": "a fresh login",
+      "note": "Membership grants root-equivalent access through the daemon. It is granted deliberately, to one selected user, and to no one else."
+    }
+  ]
+}

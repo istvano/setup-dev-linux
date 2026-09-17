@@ -4,7 +4,7 @@ What works, what does not, and what is deliberately excluded. Decisions are in
 [DECISIONS.md](docs/DECISIONS.md); what a new machine gets is in `manifest/`,
 decided in [the inventory review](docs/INVENTORY-REVIEW.md).
 
-Last verified 2026-09-16 by a clean VM cycle from a destroyed guest: 45 checks,
+Last verified 2026-09-17 by a clean VM cycle from a destroyed guest: 50 checks,
 no failures. Evidence:
 [TESTING.md](docs/TESTING.md#machine-manifest-and-file-migration-acceptance--2026-09-16).
 
@@ -64,6 +64,12 @@ Each item below has guest evidence, not just a passing unit test.
   upstream publishes and writes nothing. `make update/apply` re-pins the
   binaries, repository keys and npm agent CLIs, then runs the checks. Locks that
   carry per-file digests are named and left alone rather than swept.
+- **Docker group membership.** `manifest/system.json` declares it,
+  `ansible/system-groups.yml` grants it by appending, and verification tells the
+  three states apart: not a member (the install did not finish), a member whose
+  session predates the grant (log out and back in), and effective with the
+  socket answering. Proven in the guest: deferred on first apply, passing after
+  the reboot, `docker run hello-world` working without sudo.
 - **Two entry points.** `justfile` and `Makefile` expose the same targets, kept
   in step by a parity test.
 - Foundation, locked controller, approved-package slice, chezmoi shell/Git
@@ -76,9 +82,6 @@ Ordered by what it blocks, not by subsystem.
 
 ### 1. Blocks trusting the result
 
-- [ ] **Docker group membership is unverified.** The package installs and the
-  user is added, but nothing confirms a fresh login actually grants socket
-  access — the failure people hit on a new machine.
 - [ ] **VS Code extension versions are not pinned.** Unlike the binaries and the
   agent CLIs, extensions install at whatever version the Marketplace offers.
   Pinning them needs a resolver that does not exist yet, and a stale pin with no

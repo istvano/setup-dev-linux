@@ -89,8 +89,8 @@ must be observed. DDC acceptance applies only when the optional capability is en
 
 ## Current evidence
 
-Last full cycle: **2026-09-16**, from a guest destroyed and rebuilt from the
-signature-verified Ubuntu 26.04 image. **45 checks, no failures.**
+Last full cycle: **2026-09-17**, from a guest destroyed and rebuilt from the
+signature-verified Ubuntu 26.04 image. **50 checks, no failures.**
 
 | | |
 |---|---|
@@ -108,6 +108,7 @@ signature-verified Ubuntu 26.04 image. **45 checks, no failures.**
 | Credential separation | 2,195 source credential files compared by content; none arrived |
 | Reboot | Guest returned in 24s; every group verified again unchanged |
 | Second apply | Repeatable, no change |
+| Docker group | Deferred on first apply, effective after the reboot, `docker run` without sudo |
 
 Host gates before the run: `check-catalogue`, `check-manifest` and the unit
 tests, all passing — `make verify-static`.
@@ -122,8 +123,6 @@ tests, all passing — `make verify-static`.
   suspend are unobserved.
 - **The migration at full size.** Rehearsed at 4.08 GB against real data shapes;
   the real move is 167.6 GB across 389,518 files.
-- **Docker group membership.** Installed and the user added, but fresh-login
-  socket access is unverified.
 
 ## History
 

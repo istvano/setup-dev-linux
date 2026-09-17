@@ -1,0 +1,38 @@
+---
+- name: Grant the declared system group memberships
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/system.json') | from_json }}"
+    target_user: "{{ workstation_config.target.user }}"
+    wanted: >-
+      {{ manifest.user_groups
+         | selectattr('requires_manifest_group', 'in', manifest_groups) | list }}
+  tasks:
+    - name: Report what will be granted
+      ansible.builtin.debug:
+        msg: >-
+          {{ target_user }} joins {{ wanted | map(attribute='group') | join(', ') or 'no groups' }}
+
+    # Appends only: this must never be the whole group list, or it would remove
+    # the memberships the distribution granted at install time.
+    - name: Add the target user to each declared group
+      ansible.builtin.user:
+        name: "{{ target_user }}"
+        groups: "{{ wanted | map(attribute='group') | list }}"
+        append: true
+      become: true
+      when: wanted | length > 0
+
+    - name: Confirm the group database now lists the user
+      ansible.builtin.command:
+        argv: [/usr/bin/getent, group, "{{ item.group }}"]
+      register: group_entry
+      changed_when: false
+      failed_when: target_user not in (group_entry.stdout | default('')).split(':')[-1]
+      loop: "{{ wanted }}"
+      loop_control:
+        label: "{{ item.group }}"
