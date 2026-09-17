@@ -123,6 +123,52 @@ These are deliberately not automated:
 - **Docker group**: log out and back in before the group membership applies.
 - **IntelliJ IDEA**: install fresh rather than using the copy in `~/Apps`.
 
+## Private Git identities
+
+Optionally add `"user_settings_file": "user-settings.local.json"` to the explicit
+machine configuration. The path resolves relative to that machine file. The settings
+file must be owned by the invoking user, with no group/other access (for example,
+mode 0600). It uses the committed [schema](../config/user-settings.schema.json):
+
+```json
+{
+  "schema_version": 1,
+  "identities": [
+    {
+      "scope": "personal",
+      "directory": "/absolute/path/to/personal/projects",
+      "name": "Your personal Git name",
+      "email": "your-personal-address@example.invalid"
+    },
+    {
+      "scope": "work",
+      "directory": "/absolute/path/to/work/projects",
+      "name": "Your work Git name",
+      "email": "your-work-address@example.invalid"
+    }
+  ]
+}
+```
+
+Supply actual private values locally. Directories must not overlap or use glob
+patterns. Missing identity settings are reported as incomplete; no identity is guessed.
+Verification reports contain a settings digest, never the identity values.
+
+## Private proxy settings
+
+`proxyon` reads `~/.config/linux-os-setup/proxy.local.json`, or an explicit
+`WORKSTATION_PROXY_SETTINGS` path. This runtime JSON file must be owned by the current
+user, have no group/other access and be a regular file rather than a symlink. It
+contains exactly four string keys: `http_proxy`, `https_proxy`, `all_proxy`, `no_proxy`.
+Nonempty proxy URLs use http, https, socks5 or socks5h. Empty strings explicitly clear
+that proxy during activation. Control characters and duplicate/unknown keys fail.
+The helpers export both lowercase and uppercase forms and never evaluate shell code.
+
+The first `proxyon` saves prior values, unset state and export attributes. Repeated
+activation retains that original snapshot. `proxyoff` restores it; repeated deactivation
+is harmless. Missing/invalid settings leave the environment unchanged. Do not put
+proxy credentials in the repository or copy old secret-bearing shell function bodies.
+
 ## What this cannot tell you
 
 The VM acceptance cycle exercises everything except the GPU stack, because the

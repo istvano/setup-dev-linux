@@ -139,3 +139,73 @@ class ProxyInput(unittest.TestCase):
         self.path.write_text(json.dumps(value))
         with self.assertRaises(ValueError):
             self.reader(self.path)
+
+class DeclarationMatchesDeliveryTest(unittest.TestCase):
+    """manifest/dotfiles.json must declare exactly what is delivered.
+
+    Declaring a file nothing installs is how a new machine ends up with the
+    starship binary and no prompt configuration.
+    """
+
+    def rendered(self):
+        import json
+        tools = {a['id']: a for a in
+                 json.loads((ROOT / 'locks/user-tools.json').read_text())['artifacts']}
+        selected = {'shell-integration', 'git-identity', 'chezmoi', 'git', 'oh-my-zsh',
+                    'zsh', 'zsh-autosuggestions', 'zsh-syntax-highlighting',
+                    'starship', 'atuin'}
+        private = {'identities': [{'scope': 'personal', 'directory': '/tmp/fixture',
+                                   'name': 'Fixture', 'email': 'fixture@example.invalid'}]}
+        files, _, deferred = render(Path('/home/fixture'), selected, private, tools, ROOT)
+        self.assertEqual(deferred, [], 'the fixture selection should defer nothing')
+        return set(files)
+
+    def declared(self):
+        import json
+        manifest = json.loads((ROOT / 'manifest/dotfiles.json').read_text())
+        return {entry['path'] for entry in manifest['managed']}
+
+    def test_every_declared_dotfile_is_delivered(self):
+        undelivered = sorted(self.declared() - self.rendered())
+        self.assertEqual(undelivered, [],
+                         'declared in manifest/dotfiles.json but nothing writes it')
+
+    def test_the_prompt_configuration_is_delivered_when_starship_is_selected(self):
+        self.assertIn('.config/starship.toml', self.rendered())
+
+    def test_the_prompt_is_actually_started(self):
+        """ZSH_THEME is empty in the managed shell, so the configuration file
+        renders nothing unless starship is initialised."""
+        import json
+        tools = {a['id']: a for a in
+                 json.loads((ROOT / 'locks/user-tools.json').read_text())['artifacts']}
+        selected = {'shell-integration', 'chezmoi', 'oh-my-zsh', 'zsh',
+                    'zsh-autosuggestions', 'zsh-syntax-highlighting', 'starship', 'atuin'}
+        files, _, _ = render(Path('/home/fixture'), selected, {}, tools, ROOT)
+        shell = files['.config/linux-os-setup/shell.zsh']
+        self.assertIn('starship init zsh', shell)
+        self.assertIn('atuin init zsh', shell)
+
+    def test_tool_configuration_is_absent_when_the_tool_is_not_selected(self):
+        import json
+        tools = {a['id']: a for a in
+                 json.loads((ROOT / 'locks/user-tools.json').read_text())['artifacts']}
+        selected = {'shell-integration', 'chezmoi', 'oh-my-zsh', 'zsh',
+                    'zsh-autosuggestions', 'zsh-syntax-highlighting'}
+        files, _, _ = render(Path('/home/fixture'), selected, {}, tools, ROOT)
+        self.assertNotIn('.config/starship.toml', files)
+        self.assertNotIn('.config/atuin/config.toml', files)
+        self.assertNotIn('starship init', files['.config/linux-os-setup/shell.zsh'])
+
+    def test_private_dotfiles_are_never_declared_as_managed(self):
+        """A committed .npmrc would carry an employer registry and address."""
+        import json
+        manifest = json.loads((ROOT / 'manifest/dotfiles.json').read_text())
+        never = {entry['path'] for entry in manifest['never_managed']}
+        self.assertIn('.npmrc', never)
+        self.assertEqual(self.declared() & never, set())
+
+
+
+if __name__ == '__main__':
+    unittest.main()

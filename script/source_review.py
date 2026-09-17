@@ -35,7 +35,7 @@ def render_source_review(ledger):
         'Extension ZIP package manifests were inspected without executing them. Root IDs and',
         'versions must agree with Marketplace metadata. Dependency/pack children are recorded',
         'separately and still require review; they must not be silently accepted as root coverage.', '',
-        'See [pre-build review](PRE-BUILD-REVIEW.md) for decisions and principal blockers.', '',
+        'Reasoning and outstanding gates are in [source evidence](SOURCE-EVIDENCE.md).', '',
         '## Selected artifact candidates', '',
         '| Capability | Proposed source | Observed version(s) | Integrity evidence |',
         '|---|---|---|---|',

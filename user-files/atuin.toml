@@ -1,0 +1,18 @@
+# Shell history. Adapted from the Mac baseline; portable as written.
+
+# Keep shell history local unless sync is explicitly configured by the operator.
+auto_sync = false
+update_check = false
+
+# Insert selected history for review instead of executing it immediately. This
+# deliberately diverges from upstream, where enter_accept defaults to true. Do
+# not "correct" it: pressing enter on a recalled destructive command is exactly
+# the accident this avoids.
+enter_accept = false
+
+[daemon]
+enabled = false
+autostart = false
+
+[ai]
+enabled = false

@@ -1,0 +1,20 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker: install declared editor extensions and kubectl plugins."""
+import json
+import os
+import pwd
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.plugins import PluginError, install
+
+try:
+    request = json.load(sys.stdin)
+    home = pwd.getpwuid(os.geteuid()).pw_dir
+    print(json.dumps({'changed': install(home, groups=request.get('groups') or None)}))
+except PluginError as exc:
+    print('plugin delivery failed: ' + str(exc), file=sys.stderr)
+    raise SystemExit(1)
+except Exception:
+    print('plugin delivery failed; inspect the declared manifest.', file=sys.stderr)
+    raise SystemExit(1)

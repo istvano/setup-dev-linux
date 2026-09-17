@@ -260,5 +260,66 @@ class ReviewContracts(unittest.TestCase):
                     qa['check_links']()
 
 
+class SourceReviewScopeTests(unittest.TestCase):
+    """Review covers third-party sources only (D018).
+
+    Reviewing an Ubuntu archive package per item repeats what the archive
+    signature already establishes; the records that remain are the ones where
+    a human decision actually adds something.
+    """
+
+    def setUp(self):
+        self.catalogue = qa['read_json'](ROOT / 'catalogue/capabilities.json')
+        self.review = qa['read_json'](ROOT / 'catalogue/source-review.json')
+        self.entries = {e['id']: e for e in self.catalogue['capabilities']}
+        self.covered = {r['capability_id'] for r in self.review['records']}
+
+    def channel(self, identifier):
+        return self.entries[identifier]['delivery']['channel']
+
+    def test_archive_packages_carry_no_review_record(self):
+        archive = [i for i in self.covered
+                   if self.channel(i) in ('candidate-apt', 'ubuntu-apt')]
+        self.assertEqual(archive, [],
+                         'the archive signature is the guarantee; no per-item record')
+
+    def test_third_party_sources_are_all_covered(self):
+        missing = sorted(
+            e['id'] for e in self.catalogue['capabilities']
+            if e['decision'] == 'keep' and e['kind'] in ('package', 'extension')
+            and e['delivery']['channel'] not in ('candidate-apt', 'ubuntu-apt',
+                                                 'provided-by', None)
+            and e['id'] not in self.covered)
+        self.assertEqual(missing, [], 'a third-party source with no review record')
+
+    def test_the_channels_kept_are_the_third_party_ones(self):
+        channels = {self.channel(i) for i in self.covered}
+        self.assertIn('upstream-release', channels)
+        self.assertIn('vscode-marketplace', channels)
+        self.assertNotIn('candidate-apt', channels)
+
+    def test_a_provided_by_tool_follows_its_provider(self):
+        """mcedit ships inside an archive package, so it is archive-sourced."""
+        provided = [e for e in self.catalogue['capabilities']
+                    if e['delivery']['channel'] == 'provided-by' and e['decision'] == 'keep']
+        for entry in provided:
+            provider = self.entries.get(entry['delivery']['identifier'])
+            if provider and provider['delivery']['channel'] in ('candidate-apt', 'ubuntu-apt'):
+                self.assertNotIn(entry['id'], self.covered,
+                                 f"{entry['id']} is provided by an archive package")
+
+    def test_the_file_states_its_scope(self):
+        self.assertIn('Third-party', self.review['scope'])
+
+    def test_adding_an_archive_package_does_not_require_a_review(self):
+        """The check must not demand a record the policy says is unnecessary."""
+        catalogue = copy.deepcopy(self.catalogue)
+        for entry in catalogue['capabilities']:
+            if entry['id'] == 'btop':
+                self.assertEqual(entry['delivery']['channel'], 'candidate-apt')
+                break
+        qa['check_source_review'](catalogue, self.review)
+
+
 if __name__ == '__main__':
     unittest.main()

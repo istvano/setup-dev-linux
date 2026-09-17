@@ -150,7 +150,24 @@ def main(argv=None):
             if 'cline' in context['selected']:
                 from .cline_runtime import verify as verify_cline
                 package_checks.extend(verify_cline(Path(pwd.getpwnam(context['config']['target']['user']).pw_dir), context['selected']))
-            if 'desktop' in [g for g in (args.manifest_groups or 'desktop').split(',')]:
+            from .delivery import verify as verify_delivery
+            groups_now = manifest_groups or applied_groups()
+            package_checks.extend(verify_delivery(groups=groups_now))
+            if groups_now is None or 'ai' in groups_now:
+                from .npm_cli import verify as verify_npm_cli
+                import json as _json
+                agents = _json.loads((Path(__file__).resolve().parents[2]
+                                      / 'manifest/runtimes.json').read_text())['agents']
+                home_path = Path(pwd.getpwnam(context['config']['target']['user']).pw_dir)
+                for agent in agents:
+                    if agent.get('delivery') == 'npm-pinned':
+                        package_checks.extend(verify_npm_cli(home_path, agent['lock_id']))
+            if groups_now is None or {'dev', 'kubernetes'} & set(groups_now):
+                from .plugins import verify as verify_plugins
+                package_checks.extend(verify_plugins(
+                    Path(pwd.getpwnam(context['config']['target']['user']).pw_dir),
+                    groups=groups_now))
+            if 'desktop' in (manifest_groups or applied_groups() or ['desktop']):
                 from .desktop import verify as verify_desktop
                 package_checks.extend(verify_desktop())
             checks.extend(package_checks)

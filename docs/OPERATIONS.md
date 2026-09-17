@@ -93,3 +93,92 @@ overwrite/repair of those integrity failures. Inspect private `.workstation/foun
 for a failed sync/playbook. A normal rerun rechecks storage and integrity. Editing
 dependency declarations requires an explicit lock refresh and new review, not a
 workstation update that silently changes tracked pins.
+
+## Keeping versions current
+
+Before a deployment, find out what has moved:
+
+```bash
+make update/report        # or: just update report
+```
+
+It writes nothing. Every pinned version is compared with what upstream
+publishes, and each row is one of:
+
+| Status | Meaning |
+|---|---|
+| `current` | The pin is the published release |
+| `update-available` | Upstream has moved on |
+| `run-its-resolver` | Refreshed by its own resolver; `update/apply` runs it |
+| `no-feed` | No version index exists to check against |
+| `unreachable` | The check could not run — network, or a changed API |
+
+Then apply what can be applied:
+
+```bash
+make update/apply         # or: just update apply
+```
+
+This re-pins the third-party release binaries, re-records the repository signing
+keys, refreshes the npm-published agent CLIs, and then runs the catalogue check,
+the manifest check and the tests. A bad pin fails there rather than on a machine.
+
+### What `update/apply` does not touch
+
+Most locks are hand-curated: their payloads carry a digest for every file in the
+artifact, so re-pinning means re-reviewing the payload, not substituting a
+version string. `update/report` names them, and they stay where they are:
+
+`node` · `chezmoi` · `pnpm` · `nvm` · `oh-my-zsh` · `uv` · `python` ·
+`opencode` · `codex` · `cline` · `mandrel` · the JDKs · the SDKMAN candidates
+
+Refreshing one of those is a deliberate piece of work: fetch the new artifact,
+regenerate its file manifest, record the licence, and run the guest cycle.
+
+Three sources have no feed at all and are listed so the gap stays visible: the
+Microsoft JDK builds (the `aka.ms` redirect publishes no version index) and the
+controller's own toolchain in `locks/bootstrap.json`, which is changed
+deliberately rather than on a sweep.
+
+VS Code extension versions are not pinned; they install at whatever the
+Marketplace offers.
+
+### After applying
+
+```bash
+make verify-static        # catalogue, manifest coverage, tests
+make vm/clean-cycle       # destroy the guest, rebuild, apply, verify, reboot, repeat
+```
+
+Only then deploy. A refresh that has not been through the guest cycle has not
+been tested — the pins changed, and nothing has installed them.
+
+### GitHub rate limits
+
+Checking every pinned version takes more than GitHub's **60 unauthenticated
+requests an hour**: the report alone makes about fifteen, and re-pinning the 27
+binaries makes one per tool. Without a token a full refresh runs out partway
+and reports sources as unreachable that are merely unasked.
+
+Supply a token and the limit becomes 5000 an hour:
+
+```bash
+GITHUB_TOKEN=... make update/apply
+```
+
+`gh auth token` is used when the environment has none — but a token kept in a
+keyring the session cannot read comes back stale, and GitHub answers a stale
+token with 403 rather than ignoring it. Both tools retry unauthenticated in
+that case, so a bad token degrades to the ordinary limit instead of failing.
+
+If you see `github-rate-limited-or-forbidden`, either wait for the hour to roll
+over or export a working token.
+
+### In a pipeline
+
+```bash
+python3 -B script/update-report --fail-on-update
+```
+
+Exits non-zero when anything is out of date or could not be checked, so a
+scheduled job can tell you without anyone running it by hand.

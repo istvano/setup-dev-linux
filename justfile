@@ -7,6 +7,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 [doc("Disposable test VM: fetch, reset, up, status, stop, ssh, accept, foundation, clean-cycle")]
 mod vm
 
+[doc("Version refresh: report, apply, binaries, keys")]
+mod update 'just/update.just'
+
 default:
   @just --list
 
@@ -41,14 +44,6 @@ review MAC="../mac-os-setup" OUT="/tmp/workstation-inventory.json":
 desktop-manifest OUT="/tmp/workstation-inventory.json":
   python3 -B script/inventory --output {{OUT}}
   python3 -B script/build-desktop-manifest --inventory {{OUT}} --dropped-apps kiro
-
-# Re-pin every third-party release binary to its current version and checksum.
-pin:
-  python3 -B script/resolve-binaries --write
-
-# Record the signing-key fingerprint of every third-party APT source.
-pin-keys:
-  python3 -B script/resolve-repository-keys --write
 
 # --- A new workstation ------------------------------------------------------
 

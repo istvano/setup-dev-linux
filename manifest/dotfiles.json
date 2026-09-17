@@ -8,16 +8,6 @@
       "reason": "Shell configuration; proxy values templated out."
     },
     {
-      "path": ".zprofile",
-      "templated": false,
-      "reason": "Login shell environment."
-    },
-    {
-      "path": ".profile",
-      "templated": false,
-      "reason": "POSIX login environment."
-    },
-    {
       "path": ".gitconfig",
       "templated": true,
       "reason": "Identity and signing key are private data."
@@ -25,22 +15,14 @@
     {
       "path": ".config/starship.toml",
       "templated": false,
-      "reason": "Prompt configuration."
+      "reason": "Prompt configuration.",
+      "source": "user-files/starship.toml"
     },
     {
       "path": ".config/atuin/config.toml",
       "templated": false,
-      "reason": "Shell history settings."
-    },
-    {
-      "path": ".vim",
-      "templated": false,
-      "reason": "Editor configuration."
-    },
-    {
-      "path": ".npmrc",
-      "templated": true,
-      "reason": "Registry settings; any token stays private."
+      "reason": "Shell history settings.",
+      "source": "user-files/atuin.toml"
     },
     {
       "path": ".selected_editor",
@@ -96,6 +78,18 @@
     {
       "path": ".bash_history",
       "reason": "History is not reproduced on a new machine."
+    },
+    {
+      "path": ".npmrc",
+      "reason": "Carries an employer registry URL, an address and a TLS exception; private input, moved by migrate secrets rather than declared here."
+    },
+    {
+      "path": ".zprofile",
+      "reason": "Only adds ~/.local/bin to PATH, which the managed shell integration already does."
+    },
+    {
+      "path": ".profile",
+      "reason": "The distribution default; nothing here needs to change it."
     }
   ]
 }

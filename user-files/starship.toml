@@ -1,0 +1,52 @@
+# Prompt configuration. Adapted from the Mac baseline; the modules below are
+# portable, only the comments about macOS-only tools were changed.
+
+add_newline = false
+
+# Three times starship's 500 ms default. Left high for slow git in large
+# repositories; this is the knob to lower if the prompt ever feels sluggish.
+command_timeout = 1500
+
+[character]
+success_symbol = "[❯](bold green)"
+error_symbol = "[❯](bold red)"
+
+# The next two modules are a safety control, not decoration. Acting on the wrong
+# cluster or account is the failure this tooling exists to prevent; showing the
+# context makes it a state you see rather than one you discover afterwards. Both
+# read files and environment variables instead of spawning subprocesses, so the
+# prompt cost is small.
+
+[kubernetes]
+disabled = false
+format = '[$symbol$context( \($namespace\))]($style) '
+style = "bold red"
+symbol = "☸ "
+
+# No `disabled` key: [aws] is already enabled by default upstream. Only the
+# presentation is customised here. It reads AWS_PROFILE from the environment.
+[aws]
+format = '[$symbol$profile( \($region\))]($style) '
+style = "bold yellow"
+symbol = "☁ "
+
+# The exit code, including every stage of a pipeline. The character module above
+# already reddens on failure but hides which code, and in a pipeline it hides
+# which stage — the common case when debugging a `kubectl ... | jq ...` chain.
+[status]
+disabled = false
+pipestatus = true
+format = '[$symbol$status]($style) '
+style = "bold red"
+symbol = "✘"
+
+# direnv fails silently: an unapproved .envrc simply does nothing, with no cue.
+# This shows loaded/allowed state, so "why is my env empty" becomes visible.
+[direnv]
+disabled = false
+
+# Nested shell depth, shown from two levels up. Nesting is common here — tmux,
+# container exec, a shell inside a VM — and knowing you are two shells deep
+# stops you acting in the wrong one.
+[shlvl]
+disabled = false

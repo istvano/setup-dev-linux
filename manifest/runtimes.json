@@ -42,9 +42,10 @@
   "agents": [
     {
       "id": "claude",
-      "delivery": "vendor-installer",
-      "lock": null,
-      "note": "Claude Code CLI; authentication stays manual."
+      "delivery": "npm-pinned",
+      "lock": "locks/claude-code.json",
+      "note": "Claude Code CLI, pinned to exact npm tarballs; authentication stays manual.",
+      "lock_id": "claude-code"
     },
     {
       "id": "codex",
@@ -63,9 +64,10 @@
     },
     {
       "id": "copilot",
-      "delivery": "npm",
-      "lock": null,
-      "note": "GitHub Copilot CLI; source review outstanding."
+      "delivery": "npm-pinned",
+      "lock": "locks/copilot.json",
+      "note": "GitHub Copilot CLI, pinned to exact npm tarballs; authentication stays manual.",
+      "lock_id": "copilot"
     }
   ],
   "excluded": [

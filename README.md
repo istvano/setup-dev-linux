@@ -99,6 +99,17 @@ Disk roles come from verified stable identities in private configuration.
 No target disk encryption is selected. Automated physical-disk transfer was
 withdrawn on 2026-09-16; files move by copy.
 
+## Keeping it current
+
+```bash
+make update/report        # what has moved upstream; writes nothing
+make update/apply         # re-pin what can be re-pinned, then check
+```
+
+`update/report` compares every pinned version with what upstream publishes and
+says which can be refreshed automatically and which are hand-curated locks
+needing review. Full procedure: [OPERATIONS.md](docs/OPERATIONS.md#keeping-versions-current).
+
 ## Testing
 
 ```bash
@@ -122,12 +133,11 @@ the guest has no NVIDIA hardware and runs a server image.
 
 ## Documents
 
+Start with [the document index](docs/README.md), or go straight to:
+
 - [New machine runbook](docs/NEW-MACHINE.md) — the procedure for moving
+- [Operations](docs/OPERATIONS.md) — commands, and keeping versions current
 - [Inventory review](docs/INVENTORY-REVIEW.md) — every item and its decision
-- [Machine manifest spec](specs/F13-machine-manifest.md) — contract and limits
-- [File migration spec](specs/F14-file-migration.md) — contract and limits
-- [Architecture](docs/ARCHITECTURE.md), [Decisions](docs/DECISIONS.md),
-  [Operations](docs/OPERATIONS.md), [Testing](docs/TESTING.md)
 - [TASKS.md](TASKS.md) — what is unfinished
 
 Keep private disk identifiers, inventories, credentials, backups and VM images

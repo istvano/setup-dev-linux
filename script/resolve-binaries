@@ -11,6 +11,8 @@ import hashlib
 import json
 import re
 import sys
+import os
+import subprocess
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -24,10 +26,44 @@ CHECKSUM_HINTS = re.compile(
     r'(checksums?\.txt|_checksums\.txt|SHA256SUMS|sha256sum\.txt|\.sha256)$', re.I)
 
 
+def github_token():
+    """Raises GitHub's rate limit from 60 requests an hour to 5000. Pinning 27
+    binaries needs more than 60 between this and the update report."""
+    for name in ('GITHUB_TOKEN', 'GH_TOKEN'):
+        if os.environ.get(name):
+            return os.environ[name]
+    try:
+        result = subprocess.run(['gh', 'auth', 'token'], capture_output=True,
+                                text=True, check=False, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def read(url, token=None, timeout=120):
+    headers = dict(AGENT)
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.read()
+
+
 def fetch(url, binary=False):
-    request = urllib.request.Request(url, headers=AGENT)
-    with urllib.request.urlopen(request, timeout=120) as response:
-        data = response.read()
+    """Fetch a URL, authenticating GitHub calls when a usable token exists.
+
+    A token can be stale — `gh` keeps one in a keyring it cannot always read —
+    and GitHub answers a bad token with 403 rather than falling back. An
+    unauthenticated retry keeps a broken token from breaking the tool.
+    """
+    token = github_token() if 'api.github.com' in url else None
+    try:
+        data = read(url, token)
+    except urllib.error.HTTPError as error:
+        if error.code == 403 and token:
+            data = read(url)
+        else:
+            raise
     return data if binary else data.decode()
 
 

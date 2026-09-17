@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "claude-code",
+  "version": "2.1.273",
+  "licence": "Anthropic commercial terms",
+  "entrypoint": "package/claude",
+  "entrypoint_sha256": "6c752e2cc7c110c9df15f26d8d134d438c5ae95dbd610efc1a308bf7f9c5f6c1",
+  "platform_package": "@anthropic-ai/claude-code-linux-x64",
+  "packages": [
+    {
+      "name": "@anthropic-ai/claude-code",
+      "version": "2.1.273",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.273.tgz",
+      "sha256": "436d4315dd35cbb86725a19de8691170ac3610c142d318cbf1c00b9529dedf7b",
+      "bytes": 27798
+    },
+    {
+      "name": "@anthropic-ai/claude-code-linux-x64",
+      "version": "2.1.273",
+      "url": "https://registry.npmjs.org/@anthropic-ai/claude-code-linux-x64/-/claude-code-linux-x64-2.1.273.tgz",
+      "sha256": "ab7679e0dc5b38cd07d9d63e3a1db1178bae722474270469795b733ecada103c",
+      "bytes": 101647074
+    }
+  ]
+}

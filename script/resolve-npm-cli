@@ -1,0 +1,94 @@
+#!/usr/bin/python3 -B
+"""Pin an npm-published CLI and its Linux platform package to exact tarballs.
+
+The CLIs delivered this way publish a thin entry package whose platform binary
+is an optional dependency. Resolving them with npm at install time would take
+whatever the registry offers then; this records the exact tarballs instead.
+
+A tarball's SHA-256 covers every file inside it, so the digest is the whole
+guarantee — there is no need to also list each member.
+"""
+import argparse
+import hashlib
+import io
+import json
+import subprocess
+import sys
+import tarfile
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+REGISTRY = 'https://registry.npmjs.org/'
+
+
+def npm_view(spec, field):
+    result = subprocess.run(['npm', 'view', spec, field, '--json'],
+                            capture_output=True, text=True, check=False, timeout=120)
+    if result.returncode != 0 or not result.stdout.strip():
+        return None
+    return json.loads(result.stdout)
+
+
+def tarball(name, version):
+    url = npm_view(f'{name}@{version}', 'dist.tarball')
+    if not url:
+        raise LookupError(f'{name}@{version}: no tarball published')
+    if not url.startswith(REGISTRY):
+        raise LookupError(f'{name}@{version}: tarball is not on the npm registry')
+    with urllib.request.urlopen(url, timeout=300) as response:
+        data = response.read()
+    return data, {'name': name, 'version': version, 'url': url,
+                  'sha256': hashlib.sha256(data).hexdigest(), 'bytes': len(data)}
+
+
+def entrypoint_digest(data, entrypoint):
+    """Hash the executable itself, so replacement after install is detectable."""
+    with tarfile.open(fileobj=io.BytesIO(data)) as archive:
+        member = archive.getmember(entrypoint)
+        if not member.isfile() or not member.mode & 0o111:
+            raise LookupError(f'{entrypoint} is not an executable file in the tarball')
+        with archive.extractfile(member) as stream:
+            return hashlib.file_digest(stream, 'sha256').hexdigest()
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--id', required=True, help='lock identifier, e.g. claude-code')
+    parser.add_argument('--package', required=True, help='npm entry package name')
+    parser.add_argument('--platform-package', required=True,
+                        help='linux x64 package name')
+    parser.add_argument('--entrypoint', required=True,
+                        help='executable path inside the platform package')
+    parser.add_argument('--licence', required=True)
+    parser.add_argument('--version', help='pin this version instead of the current one')
+    parser.add_argument('--write', action='store_true')
+    args = parser.parse_args()
+
+    version = args.version or npm_view(args.package, 'version')
+    if not version:
+        print(f'{args.package}: no published version', file=sys.stderr)
+        return 1
+    _, entry = tarball(args.package, version)
+    platform_data, platform = tarball(args.platform_package, version)
+    packages = [entry, platform]
+    digest = entrypoint_digest(platform_data, args.entrypoint)
+
+    lock = {'schema_version': 1, 'id': args.id, 'version': version,
+            'licence': args.licence, 'entrypoint': args.entrypoint,
+            'entrypoint_sha256': digest,
+            'platform_package': args.platform_package,
+            'packages': packages}
+    for package in packages:
+        print(f"{package['name']:38s} {package['version']:10s} "
+              f"{package['sha256'][:12]}… {package['bytes'] / 1e6:6.1f} MB")
+    print(f'entrypoint {args.entrypoint} {digest[:12]}…')
+    if args.write:
+        path = ROOT / 'locks' / f'{args.id}.json'
+        path.write_text(json.dumps(lock, indent=2) + '\n')
+        print(f'wrote {path}', file=sys.stderr)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

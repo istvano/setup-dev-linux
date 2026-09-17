@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "description": "Where each pinned version comes from, so an update report can say what moved. Entries with an \"apply\" command can be re-pinned automatically; the rest are hand-curated locks whose payloads carry per-file digests and need review.",
+  "sources": [
+    {
+      "id": "binaries",
+      "kind": "group",
+      "probe": "resolver",
+      "manifest": "manifest/binaries.json",
+      "apply": "script/resolve-binaries --write",
+      "note": "27 pinned release binaries"
+    },
+    {
+      "id": "repository-keys",
+      "kind": "group",
+      "probe": "resolver",
+      "manifest": "manifest/repositories.json",
+      "apply": "script/resolve-repository-keys --write",
+      "note": "16 signing keys; reports drift on its own"
+    },
+    {
+      "id": "claude-code",
+      "lock": "locks/claude-code.json",
+      "field": "version",
+      "probe": "npm",
+      "package": "@anthropic-ai/claude-code",
+      "apply": "script/resolve-npm-cli --id claude-code --package @anthropic-ai/claude-code --platform-package @anthropic-ai/claude-code-linux-x64 --entrypoint package/claude --licence 'Anthropic commercial terms' --write"
+    },
+    {
+      "id": "copilot",
+      "lock": "locks/copilot.json",
+      "field": "version",
+      "probe": "npm",
+      "package": "@github/copilot",
+      "apply": "script/resolve-npm-cli --id copilot --package @github/copilot --platform-package @github/copilot-linux-x64 --entrypoint package/copilot --licence 'GitHub pre-release terms' --write"
+    },
+    {
+      "id": "cline",
+      "lock": "locks/cline.json",
+      "field": "version",
+      "probe": "npm",
+      "package": "cline"
+    },
+    {
+      "id": "opencode",
+      "lock": "locks/opencode.json",
+      "artifact": "opencode",
+      "probe": "github_release",
+      "repo": "anomalyco/opencode"
+    },
+    {
+      "id": "codex",
+      "lock": "locks/codex.json",
+      "artifact": "codex",
+      "probe": "github_release",
+      "repo": "openai/codex"
+    },
+    {
+      "id": "node",
+      "lock": "locks/node.json",
+      "artifact": "node",
+      "probe": "nodejs"
+    },
+    {
+      "id": "chezmoi",
+      "lock": "locks/user-tools.json",
+      "artifact": "chezmoi",
+      "probe": "github_release",
+      "repo": "twpayne/chezmoi"
+    },
+    {
+      "id": "nvm",
+      "lock": "locks/user-tools.json",
+      "artifact": "nvm",
+      "probe": "github_release",
+      "repo": "nvm-sh/nvm"
+    },
+    {
+      "id": "pnpm",
+      "lock": "locks/user-tools.json",
+      "artifact": "pnpm",
+      "probe": "github_release",
+      "repo": "pnpm/pnpm"
+    },
+    {
+      "id": "oh-my-zsh",
+      "lock": "locks/user-tools.json",
+      "artifact": "oh-my-zsh",
+      "probe": "git_ref",
+      "repo": "https://github.com/ohmyzsh/ohmyzsh",
+      "ref": "HEAD"
+    },
+    {
+      "id": "uv",
+      "lock": "locks/python-user.json",
+      "artifact": "uv",
+      "probe": "github_release",
+      "repo": "astral-sh/uv"
+    },
+    {
+      "id": "python",
+      "lock": "locks/python-user.json",
+      "artifact": "python",
+      "probe": "github_release",
+      "repo": "astral-sh/python-build-standalone",
+      "note": "release tag is a date; the CPython version is chosen within it",
+      "match": "contains"
+    },
+    {
+      "id": "mandrel",
+      "lock": "locks/mandrel.json",
+      "artifact": "mandrel",
+      "probe": "github_release",
+      "repo": "graalvm/mandrel"
+    },
+    {
+      "id": "sdkman-cli",
+      "lock": "locks/sdkman-review.json",
+      "artifact": "sdkman-cli",
+      "probe": "github_release",
+      "repo": "sdkman/sdkman-cli"
+    },
+    {
+      "id": "sdkman-native",
+      "lock": "locks/sdkman-review.json",
+      "artifact": "sdkman-native",
+      "probe": "github_release",
+      "repo": "sdkman/sdkman-cli-native"
+    },
+    {
+      "id": "temurin-25",
+      "lock": "locks/java-review.json",
+      "artifact": "temurin-25",
+      "probe": "github_release",
+      "repo": "adoptium/temurin25-binaries"
+    },
+    {
+      "id": "temurin-21",
+      "lock": "locks/java-review.json",
+      "artifact": "temurin-21",
+      "probe": "github_release",
+      "repo": "adoptium/temurin21-binaries"
+    },
+    {
+      "id": "maven",
+      "lock": "locks/jvm-tools.json",
+      "artifact": "maven",
+      "probe": "sdkman",
+      "candidate": "maven"
+    },
+    {
+      "id": "gradle",
+      "lock": "locks/jvm-tools.json",
+      "artifact": "gradle",
+      "probe": "sdkman",
+      "candidate": "gradle"
+    },
+    {
+      "id": "kotlin",
+      "lock": "locks/jvm-tools.json",
+      "artifact": "kotlin",
+      "probe": "sdkman",
+      "candidate": "kotlin"
+    },
+    {
+      "id": "microsoft-25",
+      "lock": "locks/java-review.json",
+      "artifact": "microsoft-25",
+      "probe": "none",
+      "note": "aka.ms redirect publishes no version index"
+    },
+    {
+      "id": "microsoft-21",
+      "lock": "locks/java-review.json",
+      "artifact": "microsoft-21",
+      "probe": "none",
+      "note": "aka.ms redirect publishes no version index"
+    },
+    {
+      "id": "controller",
+      "lock": "locks/bootstrap.json",
+      "artifact": "uv",
+      "probe": "none",
+      "note": "the controller toolchain is changed deliberately, not on a sweep"
+    }
+  ]
+}

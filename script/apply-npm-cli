@@ -1,0 +1,18 @@
+#!/usr/bin/python3 -B
+"""Internal Ansible worker: place pinned npm-published agent CLIs."""
+import json
+import os
+import pwd
+import sys
+
+sys.dont_write_bytecode = True
+from workstation.npm_cli import install
+
+try:
+    request = json.load(sys.stdin)
+    home = pwd.getpwuid(os.geteuid()).pw_dir
+    changed = any([install(home, identifier) for identifier in request['ids']])
+    print(json.dumps({'changed': changed}))
+except Exception:
+    print('agent CLI delivery failed; inspect the reviewed lock.', file=sys.stderr)
+    raise SystemExit(1)

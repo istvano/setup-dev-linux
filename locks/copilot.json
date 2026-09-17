@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "id": "copilot",
+  "version": "1.0.85",
+  "licence": "GitHub pre-release terms",
+  "entrypoint": "package/copilot",
+  "entrypoint_sha256": "d928a8f4620cf1047ada093b15b26dc3943b963d31f427b081ba1fafa586bfb0",
+  "platform_package": "@github/copilot-linux-x64",
+  "packages": [
+    {
+      "name": "@github/copilot",
+      "version": "1.0.85",
+      "url": "https://registry.npmjs.org/@github/copilot/-/copilot-1.0.85.tgz",
+      "sha256": "d26e3c15310bdcdcc910ed223285bed8d68aaebce0d344f97224b5cfdaeeee36",
+      "bytes": 5452
+    },
+    {
+      "name": "@github/copilot-linux-x64",
+      "version": "1.0.85",
+      "url": "https://registry.npmjs.org/@github/copilot-linux-x64/-/copilot-linux-x64-1.0.85.tgz",
+      "sha256": "4a0081b1b615639c8101ccd39c71bbef4f194e86a1be81fd03962a59daae1026",
+      "bytes": 98301507
+    }
+  ]
+}

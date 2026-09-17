@@ -1,0 +1,252 @@
+#!/usr/bin/python3 -B
+"""Report what a version refresh would change, before anything is written.
+
+Answering "are we on the latest?" before a deployment needs two things this
+repository did not have: one place that knows where every pinned version comes
+from, and a report that compares the recorded pin with what upstream publishes.
+
+Most pins live in hand-curated locks whose payloads carry per-file digests.
+Those cannot be rewritten by a sweep and are reported as needing review; only
+the entries with an `apply` command can be re-pinned automatically, and only
+`--write` does that.
+"""
+import argparse
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SOURCES = ROOT / 'catalogue/update-sources.json'
+AGENT = {'User-Agent': 'linux-os-setup-update-report'}
+TIMEOUT = 60
+
+
+def github_token():
+    """A token raises GitHub's limit from 60 requests an hour to 5000.
+
+    Checking every pinned version takes more than 60 calls between this report
+    and the binary resolver, so without one a full refresh runs out partway and
+    reports sources as unreachable that are merely unasked.
+    """
+    for name in ('GITHUB_TOKEN', 'GH_TOKEN'):
+        value = os.environ.get(name)
+        if value:
+            return value
+    try:
+        result = subprocess.run(['gh', 'auth', 'token'], capture_output=True,
+                                text=True, check=False, timeout=15)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() or None
+
+
+def read(url, token=None):
+    headers = dict(AGENT)
+    if token:
+        headers['Authorization'] = f'Bearer {token}'
+    request = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+        return response.read().decode()
+
+
+def fetch(url):
+    """Fetch a URL, authenticating GitHub calls when a usable token exists.
+
+    A token can be stale — `gh` keeps one in a keyring it cannot always read —
+    and GitHub answers a bad token with 403 rather than falling back. An
+    unauthenticated retry keeps a broken token from breaking the tool.
+    """
+    token = github_token() if 'api.github.com' in url else None
+    try:
+        return read(url, token)
+    except urllib.error.HTTPError as error:
+        if error.code == 403 and token:
+            try:
+                return read(url)
+            except urllib.error.HTTPError as retry:
+                error = retry
+        if error.code == 403:
+            raise LookupError('github-rate-limited-or-forbidden') from error
+        raise
+
+
+def normalise(value):
+    """Compare versions without the prefixes each project happens to use.
+
+    Tags are spelled "v1.2.3", "jdk-25.0.4.1+1", "rust-v0.154.0" and
+    "mandrel-25.0.4.1-Final" for the same kind of thing.
+    """
+    if not value:
+        return ''
+    text = str(value).strip()
+    text = re.sub(r'^(jdk-|mandrel-|rust-|release-|node-)', '', text)
+    text = text.lstrip('vV')
+    return text.replace('+', '-')
+
+
+def github_latest(source):
+    data = json.loads(fetch(f"https://api.github.com/repos/{source['repo']}/releases/latest"))
+    return data['tag_name']
+
+
+def npm_latest(source):
+    return json.loads(fetch(
+        f"https://registry.npmjs.org/{source['package'].replace('/', '%2f')}/latest"))['version']
+
+
+def nodejs_latest(source):
+    releases = json.loads(fetch('https://nodejs.org/dist/index.json'))
+    return releases[0]['version'] if releases else None
+
+
+def sdkman_latest(source):
+    return fetch(f"https://api.sdkman.io/2/candidates/default/{source['candidate']}").strip()
+
+
+def git_ref_latest(source):
+    result = subprocess.run(['git', 'ls-remote', source['repo'], source.get('ref', 'HEAD')],
+                            capture_output=True, text=True, check=False, timeout=TIMEOUT)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise LookupError('git ls-remote failed')
+    return result.stdout.split()[0]
+
+
+PROBES = {'github_release': github_latest, 'npm': npm_latest, 'nodejs': nodejs_latest,
+          'sdkman': sdkman_latest, 'git_ref': git_ref_latest}
+
+
+def recorded(source):
+    """The version this repository currently pins for a source."""
+    if source['probe'] == 'resolver':
+        return None
+    try:
+        document = json.loads((ROOT / source['lock']).read_text())
+    except (OSError, ValueError):
+        return None
+    if source.get('field'):
+        return document.get(source['field'])
+    artifacts = document.get('artifacts')
+    # Locks spell this both ways: a list of records carrying their own id, and a
+    # mapping keyed by id. bootstrap.json uses the mapping.
+    if isinstance(artifacts, dict):
+        return (artifacts.get(source['artifact']) or {}).get('version')
+    for artifact in artifacts or []:
+        if isinstance(artifact, dict) and artifact.get('id') == source['artifact']:
+            return artifact.get('version')
+    return None
+
+
+def matches(current, latest, source):
+    """Whether the pin is already the published release.
+
+    Most sources compare equal after normalising the tag. python-build-standalone
+    tags a release by date and the recorded version embeds that date alongside
+    the CPython version, so there the tag is contained rather than equal.
+    """
+    if source.get('match') == 'contains':
+        return normalise(latest) in normalise(current)
+    return normalise(current) == normalise(latest)
+
+
+def examine(source):
+    """Return (recorded, latest, status) for one source."""
+    if source['probe'] == 'none':
+        return recorded(source), None, 'no-feed'
+    if source['probe'] == 'resolver':
+        return None, None, 'run-its-resolver'
+    current = recorded(source)
+    try:
+        latest = PROBES[source['probe']](source)
+    except (urllib.error.URLError, OSError, LookupError, KeyError, ValueError,
+            subprocess.SubprocessError):
+        return current, None, 'unreachable'
+    if latest is None:
+        return current, None, 'unreachable'
+    if matches(current, latest, source):
+        return current, latest, 'current'
+    return current, latest, 'update-available'
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--write', action='store_true',
+                        help='re-pin the sources that can be re-pinned automatically')
+    parser.add_argument('--only', action='append', help='report just these ids')
+    parser.add_argument('--fail-on-update', action='store_true',
+                        help='exit non-zero when anything is out of date, for CI')
+    args = parser.parse_args()
+
+    sources = json.loads(SOURCES.read_text())['sources']
+    if args.only:
+        sources = [s for s in sources if s['id'] in args.only]
+
+    rows, updates, unreachable = [], [], []
+    for source in sources:
+        current, latest, status = examine(source)
+        rows.append((source, current, latest, status))
+        if status == 'update-available':
+            updates.append(source)
+        if status == 'unreachable':
+            unreachable.append(source['id'])
+
+    width = max(len(s['id']) for s, *_ in rows) if rows else 10
+    print(f"{'item'.ljust(width)}  {'pinned':<22} {'latest':<22} status")
+    print('-' * (width + 56))
+    for source, current, latest, status in rows:
+        mark = {'update-available': '*', 'unreachable': '!'}.get(status, ' ')
+        print(f"{mark}{source['id'].ljust(width)} {str(current or '-')[:21]:<22} "
+              f"{str(latest or '-')[:21]:<22} {status}")
+
+    automatic = [s for s in updates if s.get('apply')]
+    review = [s for s in updates if not s.get('apply')]
+    resolvers = [s for s, *_ in rows if s['probe'] == 'resolver']
+
+    print()
+    print(f'{len(updates)} of {len(rows)} sources have a newer version.')
+    if automatic:
+        print(f"  re-pinned automatically: {', '.join(s['id'] for s in automatic)}")
+    if review:
+        print(f"  needs review (hand-curated lock): {', '.join(s['id'] for s in review)}")
+    if unreachable:
+        print(f"  could not be checked: {', '.join(unreachable)}")
+    if resolvers:
+        print(f"  refreshed by their own resolver: "
+              f"{', '.join(s['id'] for s in resolvers)}"
+              " — included in `make update/apply`")
+
+    if not args.write:
+        print('\nNothing was written. `make update/apply` re-pins what can be '
+              'refreshed automatically.')
+        # A report that found something is not a failure. --fail-on-update is
+        # for a pipeline that wants to be told.
+        return 1 if args.fail_on_update and (updates or unreachable) else 0
+
+    failures = []
+    for source in automatic + resolvers:
+        command = source['apply']
+        print(f"\n$ {command}")
+        # shlex, not split(): one apply command carries a quoted licence string.
+        result = subprocess.run([sys.executable, '-B', *shlex.split(command)],
+                                cwd=ROOT, check=False)
+        if result.returncode != 0:
+            failures.append(source['id'])
+    if review:
+        print(f"\nStill pinned to an older version, by design: "
+              f"{', '.join(s['id'] for s in review)}.")
+        print('Their locks carry per-file digests and are re-pinned deliberately, '
+              'not by a sweep.')
+    if failures:
+        print(f"\nFailed to re-pin: {', '.join(failures)}", file=sys.stderr)
+        return 1
+    print('\nRe-pinned. Run `just verify-static` and the VM cycle before deploying.')
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

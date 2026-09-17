@@ -100,12 +100,35 @@ def check_matrix(catalogue):
     require(matrix == render_matrix(catalogue), 'matrix differs from catalogue; run python3 -B script/render-matrix --write')
 
 
+# Channels whose artifacts the Ubuntu archive already signs. Reviewing those
+# per item repeats what the archive signature establishes; review is for
+# everything that comes from somewhere else (D018).
+ARCHIVE_CHANNELS = {'candidate-apt', 'ubuntu-apt'}
+
+
+def third_party_channel(entry, entries):
+    """Whether this capability comes from outside the Ubuntu archive.
+
+    "provided-by" defers to whatever provides it, so a tool shipped inside an
+    archive package is archive-sourced too.
+    """
+    channel = entry['delivery']['channel']
+    if channel == 'provided-by':
+        provider = entries.get(entry['delivery']['identifier'])
+        return third_party_channel(provider, entries) if provider else True
+    return channel is not None and channel not in ARCHIVE_CHANNELS
+
+
 def check_source_review(catalogue, review):
     check_schema(review, 'catalogue/source-review.schema.json')
-    expected = {e['id'] for e in catalogue['capabilities'] if e['decision'] == 'keep' and e['kind'] in ('package', 'extension')}
+    entries = {e['id']: e for e in catalogue['capabilities']}
+    expected = {e['id'] for e in catalogue['capabilities']
+                if e['decision'] == 'keep' and e['kind'] in ('package', 'extension')
+                and third_party_channel(e, entries)}
     records = {r['capability_id']: r for r in review['records']}
     require(len(records) == len(review['records']), 'duplicate source-review capability')
-    require(set(records) == expected, 'source-review coverage must equal selected package/extension IDs')
+    require(set(records) == expected,
+            'source-review coverage must equal the selected third-party package/extension IDs')
     require(review['catalogue_revision'] == catalogue['revision'], 'stale source-review revision')
     for id, record in records.items():
         for artifact in record['artifacts']:

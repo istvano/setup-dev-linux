@@ -7,7 +7,8 @@
     "reviewed_at",
     "status",
     "catalogue_revision",
-    "records"
+    "records",
+    "scope"
   ],
   "properties": {
     "schema_version": {
@@ -29,6 +30,10 @@
       "items": {
         "$ref": "#/$defs/record"
       }
+    },
+    "scope": {
+      "type": "string",
+      "description": "Which capabilities this review covers, and why the rest are excluded."
     }
   },
   "$defs": {
@@ -50,7 +55,11 @@
           "minLength": 1
         },
         "status": {
-          "const": "review-required"
+          "enum": [
+            "review-required",
+            "accepted"
+          ],
+          "description": "accepted once the licence is classified from observed evidence."
         },
         "proposed_channel": {
           "type": "string",

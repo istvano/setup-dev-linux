@@ -8,6 +8,7 @@ when dpkg says so, a binary when it is executable, a snap when snapd lists it.
 """
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -129,6 +130,7 @@ def verify():
     report(not broken, f'{attempted - len(broken)}/{attempted} sampled binaries execute'
                        + (': failed ' + ', '.join(broken) if broken else ''))
 
+    verify_new_deliveries()
     verify_desktop()
 
 
@@ -146,6 +148,34 @@ def verify_desktop():
         report(check['status'] in ('passed', 'deferred'),
                f"desktop {check['id']}: {check['status']} — {check['reason']} "
                f"({total} declared keys)")
+
+
+def verify_new_deliveries():
+    """Extensions, kubectl plugins and the pinned agent CLIs, read from the
+    installed system rather than from the installer's own report."""
+    sys.path.insert(0, str(ROOT / 'script'))
+    import pwd
+    home = Path(pwd.getpwuid(os.geteuid()).pw_dir)
+
+    from workstation.delivery import verify as verify_delivery
+    for check in verify_delivery(ROOT, groups=GROUPS):
+        if check['id'].startswith('manifest-'):
+            report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
+
+    if {'dev', 'kubernetes'} & set(GROUPS):
+        from workstation.plugins import verify as verify_plugins
+        for check in verify_plugins(home, ROOT, groups=GROUPS):
+            if check['id'] in ('vscode-extensions', 'krew-plugins'):
+                report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
+
+    if 'ai' in GROUPS:
+        from workstation.npm_cli import verify as verify_agent
+        agents = json.loads((ROOT / 'manifest/runtimes.json').read_text())['agents']
+        for agent in agents:
+            if agent.get('delivery') == 'npm-pinned':
+                for check in verify_agent(home, agent['lock_id'], ROOT):
+                    report(check['status'] == 'passed',
+                           f"agent {check['id']}: {check['reason']}")
 
 
 def install(config):

@@ -100,6 +100,14 @@ def render(home, selected, private, tools, root=ROOT):
                                      shlex.quote(str(destination(home, python))))
             if 'opencode' in selected:
                 runtime_lines.append('export OPENCODE_DISABLE_AUTOUPDATE=1')
+            # The managed shell sets ZSH_THEME="", so the prompt has to be
+            # started explicitly: the configuration file alone renders nothing.
+            if 'starship' in selected:
+                runtime_lines.append('command -v starship >/dev/null && '
+                                     'eval "$(starship init zsh)"')
+            if 'atuin' in selected:
+                runtime_lines.append('command -v atuin >/dev/null && '
+                                     'eval "$(atuin init zsh)"')
             if rust:
                 rust_root = state_root(home, rust)
                 runtime_lines += [
@@ -131,6 +139,16 @@ def render(home, selected, private, tools, root=ROOT):
             add('.config/linux-os-setup/shell.zsh', shell, 'shell-integration')
             for name in ['proxy.zsh', 'proxy-settings.py']:
                 add('.config/linux-os-setup/' + name, (root / 'user-files' / name).read_text(), 'shell-integration')
+            # Configuration for the shell tools started above. Each is written
+            # only when its capability is selected, so a machine that does not
+            # install the tool does not get a stray configuration file.
+            if 'starship' in selected:
+                add('.config/starship.toml',
+                    (root / 'user-files/starship.toml').read_text(), 'shell-integration')
+            if 'atuin' in selected:
+                add('.config/atuin/config.toml',
+                    (root / 'user-files/atuin.toml').read_text(), 'shell-integration')
+            add('.selected_editor', 'SELECTED_EDITOR="/usr/bin/vim"\n', 'shell-integration')
             add('.zshrc', merge_include(read_owned(home, '.zshrc'), 'source "$HOME/.config/linux-os-setup/shell.zsh"'), 'shell-integration')
     git_lines, git_owners = [], []
     def quote(text):

@@ -1,0 +1,24 @@
+---
+- name: Deliver pinned npm-published agent CLIs
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    manifest: "{{ lookup('file', workstation_root ~ '/manifest/runtimes.json') | from_json }}"
+    pinned: >-
+      {{ manifest.agents | selectattr('lock', 'defined') | selectattr('lock', 'truthy')
+         | selectattr('delivery', 'equalto', 'npm-pinned') | map(attribute='lock_id') | list }}
+  tasks:
+    # Runs as the target user: these install into the user's own tool directory.
+    - name: Place each pinned agent CLI
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/python3
+          - -B
+          - "{{ workstation_root }}/script/apply-npm-cli"
+        stdin: "{{ {'ids': pinned} | to_json }}"
+      register: npm_cli_apply
+      changed_when: (npm_cli_apply.stdout | from_json).changed
+      when: pinned | length > 0

@@ -227,6 +227,14 @@ failed, because nothing attempts to install it.
 the manifest would install something never selected, or when a binary or
 repository key is unpinned.
 
+Applied to `catalogue/source-review.json` on 2026-09-17: records are kept for
+third-party sources only — 54 of the previous 151. The 97 dropped were Ubuntu
+archive packages, where a per-item record repeated what the archive signature
+already establishes. A capability delivered by another (`provided-by`) follows
+its provider. `check-catalogue` enforces the scope in both directions: a
+third-party source without a record fails, and so does a record for an archive
+package.
+
 ## D019 — Selection changes of 2026-09-16
 
 Decided in review with the operator:
@@ -256,3 +264,41 @@ mid-transfer.
 The secrets pass therefore never copies `~/.ssh/authorized_keys`. Access to the
 new machine is established before the migration starts, and any further
 authorized keys are added there by hand.
+
+## D021 — Source review completed, 2026-09-17
+
+All 54 third-party review records are accepted; every licence is classified in
+`catalogue/capabilities.json` from observed evidence with a recorded digest.
+49 are free licences; 5 are conditional and are accepted for personal use on
+this workstation only:
+
+| Capability | Licence | Constraint |
+|---|---|---|
+| `claude-code` | Anthropic commercial terms | No redistribution right granted |
+| `extension-anthropic.claude-code` | Anthropic commercial terms | No redistribution right granted |
+| `extension-openai.chatgpt` | OpenAI terms of use | No redistribution right granted |
+| `extension-ms-vscode-remote.remote-containers` | Microsoft extension licence | Licensed only for use with Microsoft products |
+| `extension-ms-vscode-remote.remote-ssh` | Microsoft extension licence | Licensed only for use with Microsoft products |
+
+Four needed a determination the captured evidence did not carry, resolved by
+fetching the release licence:
+
+- **zed** — GPL-3.0 for the editor; some components Apache-2.0, the
+  collaboration server licensed separately.
+- **ghostty** — MIT. The Ubuntu package copyright aggregates its whole
+  dependency tree, which is why it lists 60 further licences.
+- **extension-redhat.vscode-xml** — EPL-2.0.
+- **controller-python** — the python-build-standalone tooling is MPL-2.0; the
+  CPython artifacts carry PSF plus bundled third-party licences.
+
+Two carry a caveat worth keeping visible:
+
+- **firefox** — MPL-2.0 covers the code, but the licence grants no rights to
+  Mozilla trademarks, so redistribution under the Firefox branding is not
+  permitted.
+- **bitwarden** — GPL-3.0 by default, with `/bitwarden_license` under the
+  Bitwarden License v1.0; the published client mixes both.
+
+`source-review.schema.json` gained `accepted` as a record status; it previously
+allowed only `review-required`, which is why nothing could ever be marked done.
+

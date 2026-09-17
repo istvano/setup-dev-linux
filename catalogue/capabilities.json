@@ -239,9 +239,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "GPL-3.0-or-later",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -307,9 +307,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "GPL-3.0-or-later",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -619,9 +619,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "GPL-3.0-only",
+        "classification": "free"
       },
       "update_policy": "documented-refresh",
       "conflicts": [
@@ -931,9 +931,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Anthropic commercial terms",
+        "classification": "conditional"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -1136,9 +1136,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "supported-channel",
       "conflicts": [],
@@ -1170,9 +1170,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MPL-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -1618,9 +1618,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "supported-channel",
       "conflicts": [],
@@ -1653,9 +1653,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "supported-channel",
       "conflicts": [],
@@ -1723,9 +1723,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "supported-channel",
       "conflicts": [],
@@ -1963,9 +1963,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Anthropic commercial terms",
+        "classification": "conditional"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2065,9 +2065,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2099,9 +2099,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2167,9 +2167,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2235,9 +2235,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2303,9 +2303,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2337,9 +2337,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2371,9 +2371,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2405,9 +2405,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2439,9 +2439,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Microsoft extension licence",
+        "classification": "conditional"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2473,9 +2473,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Microsoft extension licence",
+        "classification": "conditional"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2507,9 +2507,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2541,9 +2541,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "OpenAI terms of use",
+        "classification": "conditional"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2575,9 +2575,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "EPL-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2609,9 +2609,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2677,9 +2677,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2779,9 +2779,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -2951,9 +2951,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MPL-2.0",
+        "classification": "free"
       },
       "update_policy": "documented-refresh",
       "conflicts": [],
@@ -3670,9 +3670,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -4946,9 +4946,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -4980,9 +4980,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -5014,9 +5014,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -5048,9 +5048,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -5082,9 +5082,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -5116,9 +5116,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -6076,9 +6076,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "Apache-2.0",
+        "classification": "free"
       },
       "update_policy": "supported-channel",
       "conflicts": [],
@@ -6669,9 +6669,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -8422,9 +8422,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "MIT",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],
@@ -8491,9 +8491,9 @@
         "blocker": "Confirm Ubuntu 26.04 delivery, licence, dependencies and verification; resolve any required release/integrity lock before installation."
       },
       "licence": {
-        "status": "unreviewed",
-        "identifier": null,
-        "classification": null
+        "status": "reviewed",
+        "identifier": "GPL-3.0-only",
+        "classification": "free"
       },
       "update_policy": "reviewed-pin",
       "conflicts": [],

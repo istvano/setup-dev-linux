@@ -69,12 +69,23 @@ desktop-manifest: ## Regenerate manifest/desktop.json from this machine's GNOME 
 	$(PYTHON) script/inventory --output $(OUT)
 	$(PYTHON) script/build-desktop-manifest --inventory $(OUT) --dropped-apps kiro
 
-.PHONY: pin
-pin: ## Re-pin every third-party release binary to its current version and checksum
+.PHONY: update/report
+update/report: ## Show what a version refresh would change; writes nothing
+	$(PYTHON) script/update-report
+
+.PHONY: update/apply
+update/apply: ## Re-pin everything that can be re-pinned automatically, then check
+	$(PYTHON) script/update-report --write
+	$(PYTHON) script/check-catalogue
+	$(PYTHON) script/check-manifest
+	$(PYTHON) -m unittest discover -s tests
+
+.PHONY: update/binaries
+update/binaries: ## Re-pin the third-party release binaries only
 	$(PYTHON) script/resolve-binaries --write
 
-.PHONY: pin-keys
-pin-keys: ## Record the signing-key fingerprint of every third-party APT source
+.PHONY: update/keys
+update/keys: ## Re-record the repository signing-key fingerprints only
 	$(PYTHON) script/resolve-repository-keys --write
 
 # --- A new workstation ------------------------------------------------------

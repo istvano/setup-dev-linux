@@ -184,6 +184,15 @@ def apply_foundation(config, root=ROOT, user_tools=None, user_environment=None, 
         if remaining:
             run_stage(remaining, 3600)
 
+        # Pinned agent CLIs install into the user's tool directory.
+        if manifest_groups and 'ai' in manifest_groups:
+            run_stage(['npm-cli.yml'], 1800)
+
+        # Extensions and kubectl plugins need the tools that own them, which the
+        # package and binary stages installed.
+        if manifest_groups and {'dev', 'kubernetes'} & set(manifest_groups):
+            run_stage(['plugins.yml'], 3600)
+
         # Desktop settings last: they configure packages installed above.
         if manifest_groups and 'desktop' in manifest_groups:
             run_stage(['desktop.yml'], 300)

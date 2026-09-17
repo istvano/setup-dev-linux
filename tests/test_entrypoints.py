@@ -16,7 +16,7 @@ MAKEFILE = ROOT / 'Makefile'
 # Grouped subcommands: make spells them "vm/status", just spells the same thing
 # "vm::status" because "/" is a module path separator there. Compared by the
 # same name either way.
-MODULES = {'vm': ROOT / 'vm/mod.just'}
+MODULES = {'vm': ROOT / 'vm/mod.just', 'update': ROOT / 'just/update.just'}
 
 # Listing targets is each tool's own convention, not a shared workflow step.
 LIST_ONLY = {'default', 'help'}
@@ -63,7 +63,7 @@ class ParityTest(unittest.TestCase):
 
     def test_the_expected_workflow_targets_are_present(self):
         expected = {'check', 'check-manifest', 'test', 'verify-static',
-                    'inventory', 'review', 'pin', 'pin-keys',
+                    'inventory', 'review', 'update/report', 'update/apply',
                     'plan', 'preflight', 'install', 'verify',
                     'migrate-plan', 'migrate', 'migrate-secrets',
                     'vm/reset', 'vm/up', 'vm/status', 'vm/accept', 'vm/clean-cycle',
