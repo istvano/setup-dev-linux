@@ -20,7 +20,8 @@ parser.add_argument('--verify-only', action='store_true')
 parser.add_argument('--handoff', choices=['first', 'again'],
                     help='apply ends with the handoff to setup-dev-linux-wsl: first '
                          '(non-interactive, with the former command-line set) or again '
-                         '(its recorded choice); absent, the run is host only')
+                         '(no --profiles and no --allow-ssh either: both repositories use '
+                         'what they recorded); absent, the run is host only')
 args = parser.parse_args()
 
 marker = Path('/etc/linux-os-setup-test-vm')
@@ -249,8 +250,9 @@ def verify_new_deliveries():
 def install(config):
     # The way the operator runs it: explicit profiles, then (with --handoff) the
     # handoff to setup-dev-linux-wsl, non-interactive because the guest has no
-    # terminal. Standard input is closed so nothing can wait for an answer; the
-    # handoff's own output goes to standard error, which the driver logs.
+    # terminal; the re-run (--handoff again) passes no profiles and no SSH flag,
+    # so the record decides. Standard input is closed so nothing can wait for an
+    # answer; the handoff's own output goes to standard error, which the driver logs.
     command = harness.apply_command(ROOT / 'bootstrap', config, ','.join(PROFILES),
                                     handoff=args.handoff)
     result = subprocess.run(command, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
@@ -267,6 +269,11 @@ def install(config):
     if args.handoff:
         report(harness.check_passed(value, 'handoff'),
                f'handoff to setup-dev-linux-wsl ({args.handoff} run)')
+    if args.handoff == 'again':
+        # No --profiles and no --allow-ssh were passed: the record decided both.
+        findings = harness.rerun_findings(value, PROFILES)
+        report(not findings, 'the re-run used the recorded profiles and SSH choice'
+                             + (': ' + '; '.join(findings) if findings else ''))
     if result.returncode not in (0, 3):
         print(json.dumps(value, indent=2)[:4000])
 

@@ -4,8 +4,9 @@
 Sequence: sync this working tree into the guest, apply (host stages, then the
 handoff: setup-dev-linux-wsl's ./bootstrap apply --target linux, cloned from
 GitHub, non-interactive), verify what landed on both sides, reboot, then
-verify and apply again with no command-line profile list, to show the result
-is stable and the apply is repeatable. The guest needs network access.
+verify and apply again with no host profiles, no SSH flag and no command-line
+profile list, so both repositories run from what they recorded, to show the
+result is stable and the apply is repeatable. The guest needs network access.
 --skip-handoff keeps the cycle host only.
 """
 import argparse
@@ -91,8 +92,9 @@ print(f'copied {len(files)} files', flush=True)
 fixture = (f'cd {remote} && python3 -B -u vm/manifest_fixture.py '
            f'--expected-vm-id {vm_id} --groups {args.groups}')
 # First apply: the handoff with --cli-profiles and a throwaway identity, so
-# setup-dev-linux-wsl runs --non-interactive. Every later run: its recorded
-# choice, as an operator's re-run.
+# setup-dev-linux-wsl runs --non-interactive. Every later run: no profiles and
+# no SSH flag for either repository, so both use what they recorded, as an
+# operator's re-run.
 first = fixture + ('' if args.skip_handoff else ' --handoff first')
 again = fixture + ('' if args.skip_handoff else ' --handoff again')
 

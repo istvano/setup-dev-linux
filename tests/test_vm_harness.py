@@ -50,6 +50,39 @@ class CleanCycleTest(unittest.TestCase):
         for name in ('--cli-profiles', '--cli-git-name', '--cli-git-email'):
             self.assertNotIn(name, command)
 
+    def test_the_re_run_uses_this_repositorys_record_too(self):
+        """RB21: no --profiles and no --allow-ssh, so the recorded state is what runs."""
+        command = harness.apply_command('/b', '/c.json', harness.CLEAN_CYCLE_PROFILES,
+                                        handoff='again')
+        self.assertEqual(command, ['/b', 'apply', '--config', '/c.json', '--format', 'json'])
+
+    def report(self, source='recorded', selected=None, ssh='allow-ssh-true-recorded'):
+        selected = selected if selected is not None else harness.CLEAN_CYCLE_PROFILES.split(',')
+        catalogue = profiles.load(ROOT)
+        return {'profiles': {'source': source, 'selected': profiles.parse(','.join(selected),
+                                                                           catalogue)},
+                'checks': [{'id': 'firewall:ssh-choice', 'status': 'notice', 'reason': ssh}]}
+
+    def test_the_re_run_report_must_show_the_recorded_choices(self):
+        chosen = profiles.parse(harness.CLEAN_CYCLE_PROFILES, profiles.load(ROOT))
+        self.assertEqual(harness.rerun_findings(self.report(), chosen), [])
+        self.assertEqual(len(harness.rerun_findings(self.report(source='default'), chosen)), 1)
+        self.assertEqual(len(harness.rerun_findings(self.report(selected=['desktop']), chosen)),
+                         1)
+        for ssh in ('allow-ssh-true-explicit', 'allow-ssh-false-recorded'):
+            self.assertEqual(len(harness.rerun_findings(self.report(ssh=ssh), chosen)), 1, ssh)
+        missing = {'profiles': self.report()['profiles'], 'checks': []}
+        self.assertEqual(len(harness.rerun_findings(missing, chosen)), 1)
+
+    def test_without_the_firewall_no_ssh_choice_is_demanded(self):
+        report = self.report(selected=['desktop'])
+        report['checks'] = []
+        self.assertEqual(harness.rerun_findings(report, ['desktop']), [])
+
+    def test_the_fixture_checks_the_re_run_report(self):
+        text = (ROOT / 'vm/manifest_fixture.py').read_text()
+        self.assertIn('harness.rerun_findings(value, PROFILES)', text)
+
     def test_a_host_only_apply_never_hands_off(self):
         command = harness.apply_command('/b', '/c.json', harness.CLEAN_CYCLE_PROFILES,
                                         handoff=None)
