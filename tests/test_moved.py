@@ -32,7 +32,13 @@ DROPPED_ROWS = {
 FILE = (r'(?:profiles/[a-z0-9-]+\.Brewfile|apt/base\.list|apt/vendor\.list'
         r'|chezmoi/[A-Za-z0-9_./-]+)')
 MOVED = re.compile(r'^setup-dev-linux-wsl:([a-z0-9-]+) \((' + FILE + r')\)$')
-DROPPED = re.compile(r'^dropped:(.+)$')
+DROPPED = re.compile(r'^dropped:(?! )(.+)$')
+# Decision-reference forms. The test cannot reach setup-dev-linux-wsl, so it checks the
+# form and a closed set of ADR numbers verified against that repository's main
+# docs/DECISIONS.md (ADR-010: sniff not carried; ADR-014: Java 25 / Temurin).
+ADR = re.compile(r'^dropped: setup-dev-linux-wsl ADR-(\d{3}) \(.+\)$')
+MISE_JAVA = re.compile(r'^setup-dev-linux-wsl: mise java temurin-\d+( / temurin-\d+)* \(.+; ADR-(\d{3})\)$')
+ADRS = {'010', '014'}
 
 # What stays on the host: these must remain in the manifests.
 HOST_KEPT = {
@@ -71,6 +77,14 @@ class LosslessTableTest(unittest.TestCase):
                 m = MOVED.match(dest)
                 if m:
                     self.assertIn(m.group(1), WSL_LABELS, f'{item}: unknown profile in {dest}')
+                    continue
+                a = ADR.match(dest)
+                if a:
+                    self.assertIn(a.group(1), ADRS, f'{item}: unknown ADR in {dest}')
+                    continue
+                a = MISE_JAVA.match(dest)
+                if a:
+                    self.assertIn(a.group(2), ADRS, f'{item}: unknown ADR in {dest}')
                     continue
                 d = DROPPED.match(dest)
                 self.assertTrue(d, f'{item}: destination {dest!r} is neither a profile/file nor a DROPPED row')

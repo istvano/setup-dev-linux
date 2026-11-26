@@ -135,3 +135,6 @@ Destinations are verified against `setup-dev-linux-wsl` main: a profile fragment
 | `shell:starship` | `setup-dev-linux-wsl:core (profiles/core.Brewfile)` |  |
 | `shell:zsh-autosuggestions` | `setup-dev-linux-wsl:shell-zsh (profiles/shell-zsh.Brewfile)` |  |
 | `shell:zsh-syntax-highlighting` | `setup-dev-linux-wsl:shell-zsh (profiles/shell-zsh.Brewfile)` |  |
+| `krew:sniff` | `dropped: setup-dev-linux-wsl ADR-010 (sniff needs packet-capture privileges in the pod)` | not carried; see ADR-010 |
+| `runtime:java:21-ms` | `setup-dev-linux-wsl: mise java temurin-25 / temurin-21 (replaces the Microsoft Build of OpenJDK; ADR-014)` | operator chose Temurin |
+| `runtime:java:25-ms` | `setup-dev-linux-wsl: mise java temurin-25 / temurin-21 (replaces the Microsoft Build of OpenJDK; ADR-014)` | operator chose Temurin |
