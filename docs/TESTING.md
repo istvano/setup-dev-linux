@@ -99,19 +99,24 @@ one guest, the way the operator does (D030 in [DECISIONS.md](DECISIONS.md)):
 2. Verify, reading the installed system: packages, pinned binaries, snaps, repository
    keys, VS Code extensions, GNOME settings; UFW enabled with incoming denied, outgoing
    allowed and the `OpenSSH` rule present; OpenSnitch installed and running, its daemon
-   and UI defaults seeded to allow and the seeding recorded in `state.json`;
+   default `allow` as Ubuntu ships it, its UI default seeded to allow and that seeding
+   recorded in `state.json`;
    `sudo apt-get update` and `apt-get check` with no warning, error or `Signed-By`
    conflict (claude-desktop registers its own source and setup-dev-linux-wsl adds
    Anthropic's for Claude Code); `bootstrap verify` with no failed check and a passing
    `cli:verify`.
-3. Reboot, verify again, then `apply` a second time with no `--cli-profiles` and no
-   identity: setup-dev-linux-wsl uses what it recorded, and the run must not conflict
-   with it.
+3. Reboot, verify again, then `apply` a second time with no `--profiles`, no
+   `--allow-ssh`, no `--cli-profiles` and no identity: both repositories use what
+   they recorded, and the run must not conflict with it. Its report must say
+   `Profiles source: recorded` with the first apply's profiles and
+   `firewall:ssh-choice` `allow-ssh-true-recorded` (apply over SSH would refuse
+   without that record).
 
 The guest needs network access: setup-dev-linux-wsl is cloned from GitHub and installs
 from Homebrew and vendor repositories. `script/test-manifest-vm --skip-handoff` keeps a
 host-only cycle; `--groups LIST` selects other host profiles (add `firewall` only with
-`--allow-ssh`, which the harness passes for you). The private log is
+`--allow-ssh`, which the harness passes for you on the first apply; the re-run
+relies on the record). The private log is
 `vm/state/manifest-test.log`.
 
 `script/test-vm --controller` stays controller-only: it applies the `firewall` profile
@@ -124,11 +129,13 @@ Automated by the cycle above:
 - [ ] Both repositories on one guest: `handoff` passed on the first apply, `cli:verify`
   passed in `bootstrap verify`.
 - [ ] `apt-get update` and `apt-get check` clean with both repositories' sources.
-- [ ] OpenSnitch allow mode seeded once: daemon `DefaultAction` `allow`, UI
-  `default_action=1`, both flags in `state.json`.
+- [ ] OpenSnitch in allow mode: daemon `DefaultAction` `allow` (Ubuntu's package
+  default; never written by the playbook), UI `default_action=1` seeded once and
+  `firewall.opensnitch_ui_seeded` in `state.json`.
 - [ ] UFW enabled, default deny incoming, allow outgoing, SSH allowed as chosen.
 - [ ] A second `apply` after the reboot completes (exit 0 or 3, `handoff` passed)
-  without a profile conflict: it passes no `--profiles` to setup-dev-linux-wsl. Whether
+  without a profile conflict: it passes no `--profiles` to either repository and no
+  `--allow-ssh`, and its report shows the recorded profiles and SSH choice. Whether
   it changed nothing is not checked automatically; read the log.
 
 By hand, in the same guest after the cycle (`./script/vm ssh`, or the desktop fixture
@@ -138,8 +145,9 @@ for a session):
   GNOME session and automatic login, the OpenSnitch UI is running in that session and
   connected to the daemon.
 - [ ] **UFW with `lab`**: start a libvirt guest on the default network inside the test
-  guest (nested KVM) and confirm it gets an address from virbr0's DHCP and resolves
-  names, with UFW enabled.
+  guest (nested KVM) and confirm it gets an address from virbr0's DHCP, resolves
+  names and reaches the network through NAT, with UFW enabled. Nothing automated
+  checks the four `virbr0` rules in the guest; `sudo ufw show added` lists them.
 - [ ] **Ctrl-C during the bootstrap**: from an interactive SSH session with a terminal
   (`ssh -t`), run `apply` and press Ctrl-C while setup-dev-linux-wsl's bootstrap is
   running. `apply` prints one `apply: interrupted; re-running is safe` line, no

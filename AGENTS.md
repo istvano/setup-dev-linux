@@ -68,7 +68,10 @@ Decided 2026-09-16, in review with the operator:
 - Preserve unrelated user configuration; back up replacements privately. Never
   copy histories, credentials or whole application profiles into committed
   configuration.
-- Containers use loopback-only published ports.
+- Containers this repository publishes (none today) bind their ports to loopback.
+  Containers run through setup-dev-linux-wsl's Docker keep Docker's default: by the
+  operator's choice their published ports stay reachable from the network, ahead
+  of UFW (D027 in docs/DECISIONS.md).
 - Credentials, VPN profiles, backup destinations, data restoration and physical
   hardware interventions remain manual. Report incomplete requirements honestly.
 

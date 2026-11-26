@@ -36,6 +36,7 @@
   "dotfile:.gitconfig",
   "dotfile:.selected_editor",
   "dotfile:.zshrc",
+  "group:docker",
   "krew:images",
   "krew:neat",
   "krew:sniff",

@@ -74,26 +74,35 @@ so a re-run without `--profiles` keeps it even after re-cloning or rebuilding
 `.workstation/`:
 
 ```bash
-./bootstrap apply --config config/your-machine.local.json --profiles gpu,firewall   # a headless GPU server
+./bootstrap apply --config config/your-machine.local.json --profiles gpu,firewall --allow-ssh   # a headless GPU server, reached over SSH
 ```
 
 ## Firewall
 
 The `firewall` profile enables UFW (deny incoming, allow outgoing) and installs
-OpenSnitch running in allow mode (the daemon's `"DefaultAction": "allow"` and, with the
-desktop set, the UI's own `default_action` in `~/.config/opensnitch/settings.conf`; both
-are seeded once on first install, so setup and the handoff are never blocked). Switch to
-deny yourself later: re-runs do not rewrite it, but after that the handoff and later
-`apply` runs may prompt for git, apt and Homebrew connections.
+OpenSnitch running in allow mode, so setup and the handoff are never blocked. The
+daemon's `"DefaultAction": "allow"` is what Ubuntu's package ships; this repository
+never writes the daemon's configuration. With the desktop set, the UI's own
+`default_action` in `${XDG_CONFIG_HOME:-~/.config}/opensnitch/settings.conf` is seeded
+to allow once, only where you have set none. Switch to deny yourself later: re-runs do
+not rewrite it, but after that the handoff and later `apply` runs may prompt for git,
+apt and Homebrew connections.
 
-SSH is closed unless you pass `--allow-ssh`. The choice is recorded as
-`firewall.allow_ssh` in the same `state.json`, so later runs without the flag keep it,
-and `--no-allow-ssh` removes the rule again. A run over SSH without `--allow-ssh`
-warns that new SSH logins will be refused.
+SSH is closed unless you pass `--allow-ssh`, which adds UFW's `OpenSSH` rule: port 22
+only, and it needs `openssh-server` installed (apply refuses before any change without
+it). The choice is recorded as `firewall.allow_ssh` in the same `state.json`, so later
+runs without the flag keep it, and `--no-allow-ssh` removes the rule again. Over SSH,
+`apply` with the `firewall` profile refuses before any change until there is a choice:
+pass `--allow-ssh` or `--no-allow-ssh` once (`--no-allow-ssh` warns that new SSH logins
+will be refused). `plan` shows the decision as `firewall:ssh` with its source.
 
 ```bash
 ./bootstrap apply --config config/your-machine.local.json --allow-ssh
 ```
+
+With `lab`, the firewall also lets libvirt's guests reach DHCP (67/udp) and DNS (53)
+on `virbr0` and routes their traffic in and out of it; deselecting `lab` later leaves
+those rules in place.
 
 Docker comes from setup-dev-linux-wsl, and the ports its containers publish stay
 reachable from the network: Docker's own packet-filter rules bypass UFW. With the
@@ -138,7 +147,9 @@ Two inputs, with fixed precedence:
 
 1. **This machine** — `script/inventory` reads the installed packages, snaps,
    third-party repositories, runtimes, shell setup, GNOME settings and the
-   binaries installed outside APT.
+   binaries installed outside APT. (History: runtimes, shell setup and the other
+   command-line items have since moved to setup-dev-linux-wsl; see
+   [docs/MOVED.md](docs/MOVED.md).)
 2. **The Mac baseline** (`../mac-os-setup`) — contributes tools and structure
    this machine lacks. Additive only, never a runtime dependency.
 

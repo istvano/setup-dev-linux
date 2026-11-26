@@ -389,25 +389,50 @@ configuration file is never rewritten. `--manifest-groups` is the former name of
 The `firewall` profile runs `ansible/firewall.yml`.
 
 - **UFW**: default deny incoming, default allow outgoing, enabled. Incoming SSH (the
-  UFW `OpenSSH` application rule) is allowed only with `--allow-ssh`, never by
-  default, and the rule is added before UFW is enabled. The choice is recorded as
+  UFW `OpenSSH` application rule, which covers port 22 only) is allowed only with
+  `--allow-ssh`, never by default, and the rule is added before UFW is enabled. The
+  profile is shipped by `openssh-server`, so an effective allow without
+  `/etc/ufw/applications.d/openssh-server` is refused before any change
+  (`allow-ssh-needs-openssh-server; install openssh-server or pass --no-allow-ssh`)
+  instead of failing after the packages stage. The choice is recorded as
   `firewall.allow_ssh` in `state.json` (D025), not in the configuration file;
   later runs without a flag keep it, so an omitted flag never closes SSH, and
-  `--no-allow-ssh` removes the rule and records that. libvirt's bridge is left to
-  libvirt's own rules.
-- **SSH warning**: when `apply` runs over SSH (`SSH_CONNECTION` is set) and SSH is
-  not allowed, it warns on standard error and adds a `firewall:ssh-closing`
-  notice. It does not refuse: the current session survives; new logins do not.
+  `--no-allow-ssh` removes the rule and records that.
+- **SSH sessions need a decision**: when `apply` runs over SSH (`SSH_CONNECTION` is
+  set) with the `firewall` profile and the SSH choice would come from the default (no
+  flag, no record), it refuses before any change, exit 2, with
+  `ssh-session-needs-an-explicit-choice; pass --allow-ssh or --no-allow-ssh`. The
+  default would otherwise lock a headless server out of new SSH logins with nothing
+  but a warning. An explicit `--no-allow-ssh`, or a recorded choice, proceeds; with
+  SSH closed it warns on standard error and adds a `firewall:ssh-closing` notice (the
+  current session survives; new logins do not). `plan` shows the decision as a
+  `firewall:ssh` line, `allow-ssh-<true|false>-<explicit|recorded|default>`, and
+  warns when apply would refuse; `verify` reports it as a `firewall:ssh-choice`
+  notice. `verify` counts any rule that lets SSH in (`OpenSSH`, `ssh`, `22`,
+  `22/tcp`; ALLOW or LIMIT; v4 or v6) as SSH allowed, so a hand-added port rule does
+  not pass as "SSH not allowed".
+- **libvirt with `lab`**: UFW's default deny incoming and its routed policy would
+  drop libvirt guests' DHCP, DNS and NAT on the default network. When `lab` is
+  selected with `firewall`, the playbook adds, before enabling UFW,
+  `ufw allow in on virbr0 to any port 67 proto udp`,
+  `ufw allow in on virbr0 to any port 53` (UDP and TCP),
+  `ufw route allow in on virbr0` and `ufw route allow out on virbr0`. ufw skips a
+  rule that exists, so re-runs change nothing. Deselecting `lab` removes none of
+  them: like packages, rules are never uninstalled. Whether a guest then gets an
+  address and resolves names is a manual check (TESTING.md).
 - **OpenSnitch**, the Linux counterpart of LuLu (Mac) and simplewall (Windows):
   `opensnitch` and `opensnitch-ebpf-modules` from the Ubuntu archive, enabled and
-  running; its UI (`python3-opensnitch-ui`) only with the desktop set. Allow mode
-  is seeded once, on first install, so setup and the handoff are never blocked by
-  a prompt: `"DefaultAction": "allow"` in `/etc/opensnitchd/default-config.json`
-  and, with the desktop set, `[global] default_action=1` in
-  `~/.config/opensnitch/settings.conf` (created when absent; an existing value is
-  never rewritten; the file is backed up before an edit). The flags
-  `firewall.opensnitch_seeded` and `firewall.opensnitch_ui_seeded` in `state.json`
-  record it. Later runs never rewrite either value: the operator switches to deny
+  running; its UI (`python3-opensnitch-ui`) only with the desktop set. It runs in
+  allow mode so setup and the handoff are never blocked by a prompt. The daemon's
+  `"DefaultAction": "allow"` in `/etc/opensnitchd/default-config.json` is what
+  Ubuntu's package (1.6.9) ships; this repository never writes that file. It is
+  system-wide while any record of a seed would be per-user, and a write could only
+  ever undo an operator's deny. With the desktop set, the UI's own default, which
+  decides while the UI is connected, is seeded as `[global] default_action=1` in
+  `${XDG_CONFIG_HOME:-~/.config}/opensnitch/settings.conf` (an absolute
+  `XDG_CONFIG_HOME` only, as QSettings does): created when absent, an existing
+  value never rewritten, the file backed up before an edit, and only once, recorded
+  as `firewall.opensnitch_ui_seeded` in `state.json`. The operator switches to deny
   once their rules exist, and after that re-runs and the handoff may prompt.
 
 `verify` reads `ufw status verbose` through `sudo -n` (without cached credentials
@@ -449,10 +474,17 @@ The last `apply` stage, run only when the host stages succeeded; host verificati
 findings are reported but do not hold it back. As the target user, never as root:
 
 1. Clone `https://github.com/istvano/setup-dev-linux-wsl` into
-   `~/workspace/setup-dev-linux-wsl`, or update that clone. An existing directory's
-   origin is read with `git config --get remote.origin.url`. A directory that is not
-   a clone, a clone of another repository, or one with local changes to tracked
-   files stops the run with a message naming it; nothing is overwritten.
+   `~/workspace/setup-dev-linux-wsl`, or update that clone. Git and the bootstrap
+   run with every `GIT_*` variable removed from the environment, so a `GIT_DIR`,
+   `GIT_WORK_TREE`, `GIT_INDEX_FILE` or `GIT_CONFIG_*` left in the operator's shell
+   cannot point them elsewhere. An existing directory's origin is read with
+   `git config --get remote.origin.url`, which returns the URL as configured, before
+   any `url.<base>.insteadOf` rewrite: a rewrite is hidden by it, not exposed. That is
+   deliberate: a legitimate insteadOf setup (a mirror, or the tests' local bare
+   repository) keeps working, and `~/.gitconfig` belongs to the operator, outside the
+   threat model. A directory that is not a clone, a clone of another repository, or
+   one with local changes to tracked files stops the run with a message naming it;
+   nothing is overwritten.
 2. Fetch, resolve `--linux-ref` (default `main`; `origin/<ref>`, else a tag or
    commit) with `git rev-parse --verify`, and check it out once with
    `checkout --detach`.
@@ -496,11 +528,14 @@ except `gpu` (the guest has no NVIDIA hardware) and `--allow-ssh` (the harness
 reaches the guest over SSH), ending with the handoff. The first apply passes
 `--cli-profiles` with the former command-line set and a throwaway identity, so
 setup-dev-linux-wsl runs non-interactively. The re-run after the reboot passes
-neither, which is the operator's re-run path. The guest needs network access:
+neither, nor `--profiles` or `--allow-ssh`: both repositories run from what the first
+apply recorded, which is the operator's re-run path, and the fixture fails unless that
+report says `Profiles source: recorded` with the first run's profiles and
+`firewall:ssh-choice` `allow-ssh-true-recorded`. The guest needs network access:
 setup-dev-linux-wsl is cloned from GitHub and installs from Homebrew and vendor
 repositories.
 
-Besides what the host installed, the cycle checks UFW and the OpenSnitch seeding,
+Besides what the host installed, the cycle checks UFW, OpenSnitch's allow mode,
 that `apt-get update` and `apt-get check` stay clean with both repositories'
 sources, and that `bootstrap verify` ends with a passing `cli:verify`.
 `--skip-handoff` keeps a host-only cycle. `script/test-vm --controller` keeps a

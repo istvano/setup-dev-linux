@@ -9,9 +9,9 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 
 | Command | Current behavior |
 |---|---|
-| `./bootstrap plan --config PATH [--profiles LIST] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | Prints the `Profiles:` line and the stages the selection runs, ending with `stage:handoff`, and the first-run `hint:` line when setup-dev-linux-wsl has recorded no profile choice. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
+| `./bootstrap plan --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | Prints the `Profiles:` line and the stages the selection runs, ending with `stage:handoff`, the SSH decision as `firewall:ssh` (`allow-ssh-<true\|false>-<explicit\|recorded\|default>`) with the `firewall` profile, a `warning:` on stderr when apply would refuse it, and the first-run `hint:` line when setup-dev-linux-wsl has recorded no profile choice. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
-| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, then the host stages of the selection (foundation, packages, system groups, VS Code extensions with `dev-gui`, GNOME settings with `desktop`, firewall with `firewall`); reports remaining source/role failures; then the handoff to setup-dev-linux-wsl unless `--no-handoff` |
+| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | `install` is an alias. Guard first, target user only; with `firewall`, refuses before any change over SSH with no SSH choice (`ssh-session-needs-an-explicit-choice`) and an SSH allow without openssh-server (`allow-ssh-needs-openssh-server`); verified uv/Python archives and frozen controller graph, then the host stages of the selection (foundation, packages, system groups, VS Code extensions with `dev-gui`, GNOME settings with `desktop`, firewall with `firewall`); reports remaining source/role failures; then the handoff to setup-dev-linux-wsl unless `--no-handoff` |
 | `./bootstrap verify --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps, then setup-dev-linux-wsl's `script/verify --target linux` as `cli:verify` unless `--no-handoff`; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
@@ -27,18 +27,27 @@ same. `FLAGS` is any further bootstrap option: `--allow-ssh`, `--no-allow-ssh`,
 (`--cli-git-name`) is safer given to `./bootstrap` directly.
 
 Firewall: the `firewall` profile runs `ansible/firewall.yml` (UFW default deny incoming, allow
-outgoing, enabled; OpenSnitch from the Ubuntu archive, enabled, `DefaultAction` `allow` in
-`/etc/opensnitchd/default-config.json`; its UI only with the desktop set, whose per-user
-`~/.config/opensnitch/settings.conf` gets `[global] default_action=1` only when absent, with
-a backup before any edit). Allow mode is seeded once (`firewall.opensnitch_seeded` and
-`firewall.opensnitch_ui_seeded` in `state.json`) and never rewritten, so switching to deny
-sticks; after that, re-runs and the handoff may prompt. `verify` reports the daemon and UI
-modes as notices. Over SSH without `--allow-ssh`, apply warns on stderr and adds a
-`firewall:ssh-closing` notice. Incoming SSH is allowed
-only with `--allow-ssh`. The choice is recorded as `firewall.allow_ssh` in the per-user
+outgoing, enabled; OpenSnitch from the Ubuntu archive, enabled, in allow mode because Ubuntu's
+package ships `"DefaultAction": "allow"`: the daemon's `/etc/opensnitchd/default-config.json`
+is never written; its UI only with the desktop set, whose per-user
+`${XDG_CONFIG_HOME:-~/.config}/opensnitch/settings.conf` gets `[global] default_action=1` only
+when the key is absent, with a backup before any edit, once (`firewall.opensnitch_ui_seeded`
+in `state.json`)). Neither value is rewritten, so switching to deny sticks; after that,
+re-runs and the handoff may prompt. `verify` reports the daemon and UI modes as notices. With
+`lab` as well, the playbook adds `ufw allow in on virbr0 to any port 67 proto udp`,
+`ufw allow in on virbr0 to any port 53`, `ufw route allow in on virbr0` and
+`ufw route allow out on virbr0` before enabling UFW, so libvirt guests keep DHCP, DNS and NAT;
+they stay when `lab` is deselected. Incoming SSH is allowed only with `--allow-ssh`, as UFW's
+`OpenSSH` application rule (port 22 only; the profile comes from `openssh-server`, so apply
+refuses `--allow-ssh` without that package, before any change). Over SSH (`SSH_CONNECTION`
+set), apply with `firewall` refuses before any change until there is a choice, a flag or a
+recorded one; an explicit `--no-allow-ssh` proceeds, warns on stderr and adds a
+`firewall:ssh-closing` notice. The choice is recorded as `firewall.allow_ssh` in the per-user
 `state.json` (not in your config file); later runs without a flag reuse it, `--no-allow-ssh`
-turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose` through
-`sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker comes from
+turns it off and removes the `OpenSSH` rule. `verify` reports the choice as a
+`firewall:ssh-choice` notice and reads `ufw status verbose` through `sudo -n` (run `sudo -v`
+first, otherwise that check is `deferred`); any rule letting SSH in (`OpenSSH`, `ssh`, `22`,
+`22/tcp`, ALLOW or LIMIT, v4 or v6) counts as SSH allowed. Docker comes from
 setup-dev-linux-wsl and its published ports stay reachable from the network (D027): Docker's own
 packet-filter rules bypass UFW, and with the `firewall` profile `verify` prints a
 `firewall:docker-bypass` notice when `docker` is present. Publish on `127.0.0.1`, or filter in the `DOCKER-USER` chain, to keep a port
@@ -118,8 +127,11 @@ with use; these are fixture sizes, not generic workstation defaults.
 setup-dev-linux-wsl from GitHub and installs from Homebrew and vendor repositories.
 The first apply in the guest passes `--cli-profiles` with the former command-line set and
 a throwaway identity (`--cli-git-name`, `--cli-git-email`), because the guest has no
-terminal; the second passes neither. The harness reaches the guest over SSH, so it passes
-`--allow-ssh` whenever the `firewall` profile is selected.
+terminal. The harness reaches the guest over SSH, so the first apply passes `--allow-ssh`
+whenever the `firewall` profile is selected. The re-run passes none of these, and no
+`--profiles` either: both repositories run from what they recorded, and the fixture checks
+that the report says `Profiles source: recorded` and `firewall:ssh-choice`
+`allow-ssh-true-recorded`.
 
 Host sandbox access may require tool approval for KVM/process visibility and loopback
 SSH. No sudo/host package installation is needed with the currently available QEMU

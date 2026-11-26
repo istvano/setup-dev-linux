@@ -51,6 +51,7 @@ def items(root=ROOT):
         out.add(f'shell:{shell["history"]["name"]}')
     out.update(f'shell:{h}' for h in shell.get('helpers', {}).get('proxy', []))
     out.update(f'dotfile:{d["path"]}' for d in _load(root, 'dotfiles').get('managed', []))
+    out.update(f'group:{g["group"]}' for g in _load(root, 'system').get('user_groups', []))
     plugins = _load(root, 'plugins')
     out.update(f'vscode:{e}' for e in plugins.get('vscode_extensions', []))
     out.update(f'krew:{k}' for k in plugins.get('krew_plugins', []))

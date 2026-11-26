@@ -47,24 +47,27 @@ desktop set (`desktop,media,productivity,ai,network,dev-gui`) decides whether a 
 headless (D025). Selection order: `--profiles`, else the recorded choice, else the
 default; every report carries `Profiles:` and `Profiles source:`. The record is
 `${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json`: one JSON object of
-named keys (`profiles`; `firewall` with `allow_ssh`, `opensnitch_seeded`,
-`opensnitch_ui_seeded`), directory 0700, file 0600, owner and symlink checks on every
+named keys (`profiles`; `firewall` with `allow_ssh` and `opensnitch_ui_seeded`; an
+`opensnitch_seeded` left by an earlier version is ignored), directory 0700, file 0600, owner and symlink checks on every
 read and write, atomic replace. A state file that exists but fails a check stops the run;
 it is never treated as absent. The operator's configuration file is never rewritten.
 
 ## Firewall
 
-UFW: deny incoming, allow outgoing, enabled; SSH only with `--allow-ssh`, recorded and
-kept. OpenSnitch: daemon always with `firewall`, UI with the desktop set, allow mode
-seeded once and never rewritten (D026). Docker, installed by setup-dev-linux-wsl, writes
+UFW: deny incoming, allow outgoing, enabled; SSH (port 22, UFW's `OpenSSH` profile from
+openssh-server) only with `--allow-ssh`, recorded and kept; over SSH, apply refuses until
+a choice exists. With `lab`, DHCP, DNS and routing on `virbr0` for libvirt's guests.
+OpenSnitch: daemon always with `firewall`, in the allow mode Ubuntu's package ships (its
+configuration is never written), UI with the desktop set, whose per-user allow default
+is seeded once and never rewritten (D026). Docker, installed by setup-dev-linux-wsl, writes
 its own packet-filter rules ahead of UFW's, so published ports stay reachable (D027);
 `verify` notes it when `docker` is present and the `firewall` profile is selected.
 
 ## Handoff
 
 As the target user, never root: clone or update `~/workspace/setup-dev-linux-wsl`
-(origin read with `git config --get remote.origin.url`; a foreign or dirty clone stops
-the run untouched), resolve `--linux-ref` with `rev-parse --verify`, `checkout --detach`
+(git and the bootstrap run without any `GIT_*` variable; origin read with
+`git config --get remote.origin.url`; a foreign or dirty clone stops the run untouched), resolve `--linux-ref` with `rev-parse --verify`, `checkout --detach`
 once, run `./bootstrap apply --target linux` attached to the terminal. `--profiles` is
 passed only with `--cli-profiles`; `--cli-git-name`/`--cli-git-email` add
 `--non-interactive`. Its exit code becomes the run's when it fails. `verify` runs its

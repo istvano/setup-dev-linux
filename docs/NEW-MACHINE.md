@@ -48,10 +48,12 @@ line described in step 4.
 
 To change the host profiles, pass `--profiles`. A server leaves out the desktop set
 (`desktop,media,productivity,ai,network,dev-gui`); `firewall` can be selected on its
-own:
+own. A server reached over SSH needs `--allow-ssh` (or, deliberately, `--no-allow-ssh`)
+with the firewall: `plan` shows the decision as `firewall:ssh`, and `apply` over SSH
+refuses without one:
 
 ```bash
-./bootstrap plan --config config/your-machine.local.json --profiles gpu,firewall
+./bootstrap plan --config config/your-machine.local.json --profiles gpu,firewall --allow-ssh
 ```
 
 ## 3. Check the target machine
@@ -78,8 +80,10 @@ repository used to install, give that list:
 ```
 
 Add `,gpu-nvidia` when you selected the `gpu` host profile. Add `--allow-ssh` if you
-reach this machine over SSH: the firewall closes incoming SSH otherwise, and a run
-over SSH without it warns that new logins will be refused. Both choices, the host
+reach this machine over SSH: the firewall closes incoming SSH otherwise. Over SSH,
+`apply` refuses before any change until you pass `--allow-ssh` or `--no-allow-ssh`
+(which warns that new logins will be refused). `--allow-ssh` opens port 22 only (UFW's
+`OpenSSH` profile) and needs `openssh-server` installed. Both choices, the host
 profiles and `--allow-ssh`, are recorded in
 `${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json` and kept by later
 runs.

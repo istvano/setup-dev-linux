@@ -29,8 +29,9 @@ DROPPED_ROWS = {
     'sdkman', 'nvm', 'oh-my-zsh (+ agnoster theme)', 'httpie',
     'Mandrel / GraalVM via SDKMAN',
 }
+# script/docker-setup: where setup-dev-linux-wsl adds the operator to the docker group.
 FILE = (r'(?:profiles/[a-z0-9-]+\.Brewfile|apt/base\.list|apt/vendor\.list'
-        r'|chezmoi/[A-Za-z0-9_./-]+)')
+        r'|chezmoi/[A-Za-z0-9_./-]+|script/docker-setup)')
 MOVED = re.compile(r'^setup-dev-linux-wsl:([a-z0-9-]+) \((' + FILE + r')\)$')
 DROPPED = re.compile(r'^dropped:(?! )(.+)$')
 # Decision-reference forms. The test cannot reach setup-dev-linux-wsl, so it checks the

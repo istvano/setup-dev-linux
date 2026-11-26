@@ -7,7 +7,8 @@ applications, drivers, GNOME, snaps, VS Code and its extensions, zed, obsidian, 
 firewall) have no row.
 
 Destinations are verified against `setup-dev-linux-wsl` main: a profile fragment
-(`profiles/<name>.Brewfile`), its apt lists, its mise config or its chezmoi sources.
+(`profiles/<name>.Brewfile`), its apt lists, its mise config, its chezmoi sources or,
+for the docker group, its `script/docker-setup`.
 `dropped:<name>` points at a row of that repository's `docs/DROPPED.md`.
 
 | Item | Destination | Note |
@@ -47,6 +48,7 @@ Destinations are verified against `setup-dev-linux-wsl` main: a profile fragment
 | `dotfile:.gitconfig` | `setup-dev-linux-wsl:core (chezmoi/dot_gitconfig.tmpl)` |  |
 | `dotfile:.selected_editor` | `setup-dev-linux-wsl:core (chezmoi/dot_zshrc.tmpl)` | EDITOR=nvim in the zshrc |
 | `dotfile:.zshrc` | `setup-dev-linux-wsl:core (chezmoi/dot_zshrc.tmpl)` |  |
+| `group:docker` | `setup-dev-linux-wsl:runtime-docker (script/docker-setup)` | the operator joins the docker group there, with Docker; formerly `manifest/system.json` `user_groups` |
 | `krew:images` | `setup-dev-linux-wsl:kubernetes (chezmoi/run_onchange_after_28_krew-plugins.sh.tmpl)` |  |
 | `krew:neat` | `setup-dev-linux-wsl:kubernetes (chezmoi/run_onchange_after_28_krew-plugins.sh.tmpl)` |  |
 | `krew:tree` | `setup-dev-linux-wsl:kubernetes (chezmoi/run_onchange_after_28_krew-plugins.sh.tmpl)` |  |
