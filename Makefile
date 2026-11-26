@@ -17,11 +17,12 @@ PYTHON ?= python3 -B
 BOOTSTRAP ?= ./bootstrap
 OUT ?= /tmp/workstation-inventory.json
 MAC ?= ../mac-os-setup
-# GROUPS is the former name of PROFILES.
-GROUPS ?=
-PROFILES ?= $(GROUPS)
+# ':=' not '?=' for PROFILES, GROUPS and FLAGS: only a value on the command line
+# counts, never one exported in the environment, which would silently change what
+# apply selects. GROUPS is the former name of PROFILES.
+GROUPS :=
+PROFILES := $(GROUPS)
 ARGS ?=
-# ':=' not '?=': only FLAGS= on the command line counts, never an exported FLAGS.
 FLAGS :=
 
 # Fail with a usable message instead of passing an empty flag to a command that

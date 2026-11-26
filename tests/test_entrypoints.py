@@ -141,6 +141,16 @@ class MakefileBehaviourTest(unittest.TestCase):
                                 env={**os.environ, 'FLAGS': '--allow-ssh'})
         self.assertNotIn('--allow-ssh', result.stdout)
 
+    def test_profiles_from_the_environment_are_ignored(self):
+        """As FLAGS: an exported PROFILES or GROUPS never selects host profiles."""
+        for name in ('PROFILES', 'GROUPS'):
+            result = subprocess.run(['make', '-C', str(ROOT), '-n', 'apply', 'CONFIG=x.json'],
+                                    capture_output=True, text=True,
+                                    env={**os.environ, name: 'gpu'})
+            self.assertNotIn('--profiles', result.stdout, name)
+        result = self.make('-n', 'apply', 'CONFIG=x.json', 'GROUPS=lab')
+        self.assertIn('--profiles lab', result.stdout, 'GROUPS= on the command line still counts')
+
     def test_install_runs_apply(self):
         result = self.make('-n', 'install', 'CONFIG=x.json', 'PROFILES=lab')
         self.assertIn('apply --config x.json --profiles lab', result.stdout)
