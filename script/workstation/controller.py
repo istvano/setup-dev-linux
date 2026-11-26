@@ -123,19 +123,17 @@ def host_stages(selection, root=ROOT):
 def apply_firewall_stage(run_stage, config, selection=None):
     """The firewall stage: UFW and OpenSnitch (ansible/firewall.yml).
 
-    The SSH choice, the desktop flag and whether OpenSnitch's allow mode is
-    still to be seeded reach the playbook as extra variables (apply_foundation
-    writes them). Allow mode is a first-install default: once seeded it is
-    never rewritten, because the operator switches to deny later. The UI's
-    per-user default is seeded here, as the target user, only when absent.
+    The SSH choice, the selected profiles and the desktop flag reach the
+    playbook as extra variables (apply_foundation writes them). The daemon's
+    system-wide configuration is never written: Ubuntu's package already ships
+    allow mode, and the operator switches to deny later. The UI's per-user
+    default is seeded here, once, as the target user, only when absent.
     """
     from . import firewall
     run_stage([FIREWALL_PLAYBOOK], FIREWALL_TIMEOUT)
-    if not firewall.opensnitch_seeded():
-        firewall.record_flag('opensnitch_seeded')
     if selection and selection.get('desktop') and not firewall.opensnitch_ui_seeded():
         home = Path(pwd.getpwuid(os.geteuid()).pw_dir)
-        firewall.seed_ui_settings(home / firewall.UI_SETTINGS)
+        firewall.seed_ui_settings(firewall.ui_settings_path(home))
         firewall.record_flag('opensnitch_ui_seeded')
 
 
@@ -201,10 +199,6 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
                         'ANSIBLE_LOCAL_TEMP': str(state / 'ansible-local'),
                         'ANSIBLE_REMOTE_TEMP': str(state / 'ansible-remote'),
                         'ANSIBLE_NOCOLOR': '1', 'ANSIBLE_CONFIG': str(root / 'ansible/ansible.cfg')})
-    seed_opensnitch = False
-    if 'firewall' in selection['stages']:
-        from . import firewall
-        seed_opensnitch = not firewall.opensnitch_seeded()
     log = state / 'foundation.log'
     from .storage import preflight
     require(preflight(config)[1] == 0, 'storage-changed-before-controller-sync')
@@ -220,8 +214,7 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
                                          'manifest_groups': selection['groups'],
                                          'selected_repositories': selection['repositories'],
                                          'firewall_allow_ssh': bool(allow_ssh),
-                                         'host_desktop': bool(selection['desktop']),
-                                         'firewall_seed_opensnitch': seed_opensnitch}))
+                                         'host_desktop': bool(selection['desktop'])}))
         variables.chmod(0o600)
         extra = ['--extra-vars', '@' + str(variables)]
 

@@ -9,6 +9,7 @@ import contextlib
 import getpass
 import io
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -365,6 +366,8 @@ class CliTest(unittest.TestCase):
             self.mocks = {target: stack.enter_context(patch(target, return_value=value))
                           for target, value in targets.items()}
             stack.enter_context(patch('os.geteuid', return_value=1000))
+            stack.enter_context(patch.dict(os.environ))
+            os.environ.pop('SSH_CONNECTION', None)  # apply would refuse over SSH (RB18)
             stack.enter_context(contextlib.redirect_stdout(stdout))
             stack.enter_context(contextlib.redirect_stderr(stderr))
             code = main(args)

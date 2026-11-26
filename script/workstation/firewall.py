@@ -3,8 +3,15 @@
 UFW denies incoming and allows outgoing; SSH is allowed only when the operator
 chose it (`--allow-ssh`), and that choice is recorded in per-user state so a
 later run without the flag does not silently remove the rule from a machine
-the operator reaches over SSH. OpenSnitch is installed and running in allow
-mode (`"DefaultAction": "allow"`): the setup, and the handoff to
+the operator reaches over SSH. Over SSH, apply refuses until a choice exists
+(a flag or a record). The UFW `OpenSSH` profile comes from openssh-server and
+covers port 22 only, so `--allow-ssh` needs that package.
+
+OpenSnitch is installed and running in allow mode: Ubuntu's package ships
+`"DefaultAction": "allow"` and the daemon's system-wide configuration is never
+written here, so an operator's later deny is never undone. With the desktop
+set the UI, which decides while connected, gets its own allow default once,
+only where the operator has set none. The setup, and the handoff to
 setup-dev-linux-wsl that follows it, must never be blocked by a prompt nobody
 is there to answer. Switching to deny is the operator's later decision, made
 with the rules they have built up.
@@ -33,10 +40,15 @@ OPENSNITCH_CONFIG = '/etc/opensnitchd/default-config.json'
 # is section [global], key default_action. 1 is ACTION_ALLOW_IDX, 0 is deny (the UI's
 # own default when the key is absent, verified against python3-opensnitch-ui 1.6.9
 # opensnitch/config.py). While the UI is connected it, not the daemon, decides.
+# QSettings puts it under $XDG_CONFIG_HOME when that is set (ui_settings_path).
 UI_SETTINGS = '.config/opensnitch/settings.conf'
 UI_ALLOW = 1
 STATE_KEY = 'firewall'
 UNREADABLE = 'recorded-firewall-unreadable; pass --allow-ssh or --no-allow-ssh'
+# The UFW application profile `ufw allow OpenSSH` needs; openssh-server ships it.
+OPENSSH_PROFILE = '/etc/ufw/applications.d/openssh-server'
+NEEDS_CHOICE = 'ssh-session-needs-an-explicit-choice; pass --allow-ssh or --no-allow-ssh'
+NEEDS_OPENSSH = 'allow-ssh-needs-openssh-server; install openssh-server or pass --no-allow-ssh'
 
 
 def recorded_allow_ssh():
@@ -70,6 +82,22 @@ def resolve_allow_ssh(flag):
     return False, 'default'
 
 
+def require_ssh_choice(allow_ssh, source, environ=None, profile=None):
+    """Refuse an apply that would decide about SSH by default, or could not open it.
+
+    Over SSH (SSH_CONNECTION set) with no flag and no record, the default closes
+    SSH to new logins on the machine the operator is using, so the operator
+    decides first. An explicit --no-allow-ssh, or a recorded choice, proceeds.
+    An effective allow needs openssh-server's UFW profile, or the stage would
+    fail after the packages stage. Checked before anything changes.
+    """
+    environ = os.environ if environ is None else environ
+    if source == 'default' and environ.get('SSH_CONNECTION'):
+        raise InputError(NEEDS_CHOICE)
+    if allow_ssh and not Path(OPENSSH_PROFILE if profile is None else profile).is_file():
+        raise InputError(NEEDS_OPENSSH)
+
+
 def record_allow_ssh(value):
     current = state.get(STATE_KEY)
     merged = dict(current) if isinstance(current, dict) else {}
@@ -86,13 +114,23 @@ def _flag(key):
     return value.get(key) is True
 
 
-def opensnitch_seeded():
-    """Whether the daemon's allow default was already seeded on this machine."""
-    return _flag('opensnitch_seeded')
-
-
 def opensnitch_ui_seeded():
+    """Whether the UI's allow default was already seeded for this user."""
     return _flag('opensnitch_ui_seeded')
+
+
+def ui_settings_path(home, environ=None):
+    """The OpenSnitch UI's settings file, where QSettings looks for it.
+
+    $XDG_CONFIG_HOME/opensnitch/settings.conf when that is set to an absolute
+    path (the XDG specification ignores a relative one), else
+    <home>/.config/opensnitch/settings.conf.
+    """
+    environ = os.environ if environ is None else environ
+    base = environ.get('XDG_CONFIG_HOME', '')
+    if base and os.path.isabs(base):
+        return Path(base) / 'opensnitch' / 'settings.conf'
+    return Path(home) / UI_SETTINGS
 
 
 def record_flag(key):
@@ -168,16 +206,36 @@ def ssh_notice(allow_ssh, environ=None):
                       'new-logins-are-refused-pass---allow-ssh-to-keep-them'}
 
 
+# A rule line: the To column, then the action and its direction (absent in plain
+# `ufw status`), then From. ALLOW and LIMIT both let a connection in.
+_RULE = re.compile(r'^(?P<to>\S.*?)\s+(?P<action>ALLOW|LIMIT|DENY|REJECT)'
+                   r'(?:\s+(?P<direction>IN|OUT|FWD))?(?:\s|$)')
+# The To column of a rule for SSH: the OpenSSH profile, the ssh service or port 22
+# (any v6 or interface suffix after it), or a port shown with the profile name.
+_SSH_TO = re.compile(r'^(?:OpenSSH|ssh|22|22/tcp)(?:\s|$)|\(OpenSSH\b')
+
+
+def _lets_ssh_in(line):
+    match = _RULE.match(line)
+    return bool(match and match.group('action') in ('ALLOW', 'LIMIT')
+                and match.group('direction') in (None, 'IN')
+                and _SSH_TO.search(match.group('to')))
+
+
 def parse_ufw(text):
-    """What `ufw status verbose` says: active, default policies, the OpenSSH rule."""
+    """What `ufw status verbose` says: active, default policies, an incoming SSH rule.
+
+    Any rule that lets SSH in counts, v4 or v6: the OpenSSH profile, the ssh
+    service, port 22 or 22/tcp, with ALLOW or LIMIT. A rule added by hand under
+    another name must not pass as "SSH not allowed".
+    """
     active = re.search(r'^Status:\s*active\s*$', text, re.M) is not None
     defaults = re.search(r'^Default:\s*(.+)$', text, re.M)
     policies = {}
     if defaults:
         for policy, direction in re.findall(r'(\w+)\s*\((\w+)\)', defaults.group(1)):
             policies[direction] = policy
-    ssh = any(re.match(r'(OpenSSH\b|\S+\s+\(OpenSSH\))', line) and 'ALLOW' in line
-              for line in text.splitlines())
+    ssh = any(_lets_ssh_in(line) for line in text.splitlines())
     return {'active': active, 'incoming': policies.get('incoming'),
             'outgoing': policies.get('outgoing'), 'ssh': ssh}
 
@@ -222,10 +280,10 @@ def verify(allow_ssh, desktop=False, run=_run, which=shutil.which,
                                  'default-outgoing-is-' + str(ufw['outgoing'])))
             if allow_ssh:
                 checks.append(_check('ufw-ssh', ufw['ssh'], 'ssh-allowed-as-chosen',
-                                     'ssh-chosen-but-no-openssh-rule'))
+                                     'ssh-chosen-but-no-ssh-rule'))
             else:
                 checks.append(_check('ufw-ssh', not ufw['ssh'], 'ssh-not-allowed-as-chosen',
-                                     'openssh-rule-present-but-ssh-not-chosen'))
+                                     'ssh-rule-present-but-ssh-not-chosen'))
     packages = [('opensnitch', 'opensnitch')] + ([('opensnitch-ui', UI_PACKAGE)] if desktop else [])
     for name, package in packages:
         ok = _installed(run, package)
@@ -246,7 +304,7 @@ def verify(allow_ssh, desktop=False, run=_run, which=shutil.which,
     if desktop:
         base = Path(home) if home else Path.home()
         checks.append({'id': 'firewall:opensnitch-ui-mode', 'status': 'notice',
-                       'reason': 'ui-default-action-' + ui_mode(base / UI_SETTINGS)})
+                       'reason': 'ui-default-action-' + ui_mode(ui_settings_path(base))})
     if which('docker'):
         checks.append({'id': 'firewall:docker-bypass', 'status': 'notice',
                        'reason': 'docker-published-ports-bypass-ufw-filter-them-in-the-docker-user-chain'})

@@ -145,10 +145,11 @@ def verify():
 
 
 def verify_firewall():
-    """UFW on with SSH kept open, OpenSnitch running and seeded in allow mode.
+    """UFW on with SSH kept open, OpenSnitch running in allow mode.
 
-    Allow mode is a first-install default the operator may change later; nobody
-    changes it in the guest, so here it must read allow.
+    Allow mode is a first-install default the operator may change later (the
+    daemon's from Ubuntu's package, the UI's seeded once); nobody changes it in
+    the guest, so here it must read allow.
     """
     if 'firewall' not in PROFILES:
         return
@@ -163,7 +164,6 @@ def verify_firewall():
         report(check['status'] == 'passed', f"{check['id']}: {check['status']} — {check['reason']}")
     recorded = state.get('firewall') or {}
     report(recorded.get('allow_ssh') is True, 'state.json firewall.allow_ssh is true')
-    report(recorded.get('opensnitch_seeded') is True, 'state.json firewall.opensnitch_seeded')
     if SELECTION['desktop']:
         report(recorded.get('opensnitch_ui_seeded') is True,
                'state.json firewall.opensnitch_ui_seeded')

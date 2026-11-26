@@ -77,8 +77,10 @@ def main(argv=None):
         ssh = parser.add_mutually_exclusive_group()
         ssh.add_argument('--allow-ssh', dest='allow_ssh', action='store_const', const=True,
                          default=None,
-                         help='firewall profile: allow incoming SSH (UFW OpenSSH); recorded '
-                              'in per-user state and kept on later runs')
+                         help='firewall profile: allow incoming SSH (UFW OpenSSH profile, '
+                              'port 22 only; needs openssh-server); recorded in per-user '
+                              'state and kept on later runs. Over SSH, apply needs this, '
+                              '--no-allow-ssh or a recorded choice')
         ssh.add_argument('--no-allow-ssh', dest='allow_ssh', action='store_const', const=False,
                          help='firewall profile: do not allow incoming SSH; removes the '
                               'rule and records the choice')
@@ -130,7 +132,8 @@ def main(argv=None):
         # Resolved before anything changes: an unreadable record stops the run
         # rather than defaulting to "no SSH" on a machine reached over SSH.
         allow_ssh, ssh_source = False, 'default'
-        if 'firewall' in selection['stages'] and command in ('apply', 'verify'):
+        firewall_selected = 'firewall' in selection['stages']
+        if firewall_selected and command in ('plan', 'apply', 'verify'):
             from . import firewall
             allow_ssh, ssh_source = firewall.resolve_allow_ssh(args.allow_ssh)
 
@@ -148,6 +151,14 @@ def main(argv=None):
                 e = context['entries'][i]
                 state = 'blocked-source' if e['delivery']['status'] == 'unverified' else 'planned'
                 checks.append({'id': i, 'status': state, 'reason': e['owner'] + ':' + (e['delivery']['channel'] or e['boundary'])})
+            if firewall_selected:
+                # The SSH decision apply would make, and where it came from.
+                checks.append({'id': 'firewall:ssh', 'status': 'planned',
+                               'reason': f'allow-ssh-{str(allow_ssh).lower()}-{ssh_source}'})
+                try:
+                    firewall.require_ssh_choice(allow_ssh, ssh_source)
+                except InputError as refusal:
+                    print(f'warning: apply would refuse: {refusal}', file=sys.stderr)
             checks.extend(stage_checks(
                 selection,
                 None if args.no_handoff else (args.linux_ref, args.cli_profiles, identity)))
@@ -161,6 +172,10 @@ def main(argv=None):
             raise InputError('example-input-not-operational')
         if command == 'apply' and os.geteuid() == 0:
             raise InputError('whole-bootstrap-root-forbidden')
+        if command == 'apply' and firewall_selected:
+            # Over SSH with no choice, or SSH to open without openssh-server: refused
+            # here, before the first stage, not discovered after the packages stage.
+            firewall.require_ssh_choice(allow_ssh, ssh_source)
         if command == 'apply' and not args.no_handoff:
             # Before the host stages, while interrupting costs nothing; the
             # handoff prints it again just before setup-dev-linux-wsl starts.
@@ -174,7 +189,7 @@ def main(argv=None):
         checks.extend(prerequisite_checks)
         code = code or prerequisite_code
         groups = selection['groups']
-        if 'firewall' in selection['stages'] and command in ('apply', 'verify'):
+        if firewall_selected and command in ('apply', 'verify'):
             notice = firewall.ssh_notice(allow_ssh)
             if notice:
                 checks.append(notice)
@@ -213,8 +228,9 @@ def main(argv=None):
             if 'desktop' in chosen:
                 from .desktop import verify as verify_desktop
                 package_checks.extend(verify_desktop())
-            if 'firewall' in selection['stages']:
-                package_checks.append({'id': 'firewall:ssh-choice', 'status': 'passed',
+            if firewall_selected:
+                # What was decided and where it came from: a record, not a check.
+                package_checks.append({'id': 'firewall:ssh-choice', 'status': 'notice',
                                        'reason': f'allow-ssh-{str(allow_ssh).lower()}-{ssh_source}'})
                 package_checks.extend(firewall.verify(
                     allow_ssh, desktop=selection['desktop'],

@@ -89,14 +89,46 @@ class PlaybookTest(unittest.TestCase):
         index = PLAYBOOK.index(firewall.UI_PACKAGE)
         self.assertIn('host_desktop', PLAYBOOK[index - 300:index + 300])
 
-    def test_opensnitch_allow_mode_is_seeded_once_not_enforced(self):
-        self.assertIn('/etc/opensnitchd/default-config.json', PLAYBOOK)
+    def test_the_daemon_configuration_is_never_written(self):
+        """RB19: Ubuntu's package already ships "DefaultAction": "allow"; a seed could
+        only ever undo an operator's deny, and the file is system-wide."""
         self.assertEqual(firewall.OPENSNITCH_CONFIG, '/etc/opensnitchd/default-config.json')
-        seed = self.task('Seed OpenSnitch allow mode on first install')
-        self.assertIn('"DefaultAction"', seed)
-        self.assertIn('\\1"allow"', seed)
-        self.assertIn('firewall_seed_opensnitch | default(false) | bool', seed)
-        self.assertEqual(PLAYBOOK.count('ansible.builtin.replace:'), 1, 'no unconditional rewrite remains')
+        for text in ('ansible.builtin.replace', 'ansible.builtin.lineinfile',
+                     'ansible.builtin.copy', 'ansible.builtin.template',
+                     'default-config.json', 'firewall_seed_opensnitch', 'restarted'):
+            self.assertNotIn(text, PLAYBOOK)
+
+    def test_the_controller_passes_no_daemon_seed_and_records_no_daemon_flag(self):
+        source = (ROOT / 'script/workstation/controller.py').read_text()
+        self.assertNotIn('firewall_seed_opensnitch', source)
+        self.assertNotIn('opensnitch_seeded()', source)
+        self.assertNotIn("record_flag('opensnitch_seeded')", source)
+        self.assertFalse(hasattr(firewall, 'opensnitch_seeded'))
+
+    def test_lab_opens_libvirt_guest_dhcp_dns_and_routing_on_virbr0(self):
+        """RB20: UFW's default deny would otherwise drop libvirt guests' DHCP, DNS
+        and NAT on the default network."""
+        task = self.task('Let libvirt guests use DHCP, DNS and NAT on virbr0 with lab')
+        for rule in ("[/usr/sbin/ufw, allow, in, 'on', virbr0, to, any, port, '67', proto, udp]",
+                     "[/usr/sbin/ufw, allow, in, 'on', virbr0, to, any, port, '53']",
+                     "[/usr/sbin/ufw, route, allow, in, 'on', virbr0]",
+                     "[/usr/sbin/ufw, route, allow, out, 'on', virbr0]"):
+            self.assertIn(rule, task)
+        self.assertIn("when: \"'lab' in (host_profiles | default([]))\"", task)
+        # ufw skips a rule that exists; only an added one is a change.
+        self.assertIn("changed_when: ufw_libvirt.stdout is search('Rules? (added|updated)')", task)
+        self.assertLess(PLAYBOOK.index('virbr0'), PLAYBOOK.index('--force, enable'))
+
+    def test_no_argv_word_is_a_bare_yaml_boolean(self):
+        """YAML 1.1 reads a bare on/off/yes/no as true/false: ufw would get 'True'."""
+        for line in PLAYBOOK.splitlines():
+            if '[/usr/sbin/ufw' in line:
+                self.assertNotRegex(line, r'[\[,]\s*(?i:on|off|yes|no|y|n|true|false)\s*[,\]]',
+                                    line)
+
+    def test_virbr0_rules_are_never_removed(self):
+        """Nothing is uninstalled on deselection: the rules stay when lab goes."""
+        self.assertNotRegex(PLAYBOOK, r'delete[^\n]*virbr0')
 
     def test_the_service_is_enabled_and_started(self):
         self.assertRegex(PLAYBOOK, r'name: opensnitch\n\s+enabled: true\n\s+state: started')
@@ -116,6 +148,25 @@ class ParseTest(unittest.TestCase):
 
     def test_port_rule_with_the_profile_name_counts_as_the_openssh_rule(self):
         self.assertTrue(firewall.parse_ufw(ACTIVE + PORT_RULE)['ssh'])
+
+    def test_every_form_of_an_incoming_ssh_rule_counts(self):
+        """RB22: a port rule, the ssh service, LIMIT and v6 all let SSH in."""
+        for to, action in (('22/tcp', 'ALLOW IN'), ('22', 'ALLOW IN'), ('22', 'ALLOW'),
+                           ('ssh', 'ALLOW IN'), ('OpenSSH', 'LIMIT IN'),
+                           ('22/tcp', 'LIMIT IN'), ('OpenSSH', 'LIMIT'),
+                           ('22/tcp (v6)', 'ALLOW IN'), ('OpenSSH (v6)', 'LIMIT IN'),
+                           ('22/tcp (OpenSSH (v6))', 'ALLOW IN'),
+                           ('22/tcp on eth0', 'ALLOW IN')):
+            line = f'{to:<27}{action:<12}Anywhere\n'
+            self.assertTrue(firewall.parse_ufw(ACTIVE + line)['ssh'], line)
+
+    def test_rules_that_do_not_let_ssh_in_do_not_count(self):
+        for to, action in (('2222/tcp', 'ALLOW IN'), ('22/udp', 'ALLOW IN'),
+                           ('22/tcp', 'DENY IN'), ('OpenSSH', 'REJECT IN'),
+                           ('22/tcp', 'ALLOW OUT'), ('Anywhere on virbr0', 'ALLOW FWD'),
+                           ('sshd', 'ALLOW IN'), ('8022', 'ALLOW IN')):
+            line = f'{to:<27}{action:<12}Anywhere\n'
+            self.assertFalse(firewall.parse_ufw(ACTIVE + line)['ssh'], line)
 
     def test_inactive(self):
         parsed = firewall.parse_ufw(INACTIVE)
@@ -185,6 +236,14 @@ class VerifyTest(TempState):
         self.assertEqual(checks['firewall:ufw-ssh']['status'], 'failed')
         self.assertIn('not-chosen', checks['firewall:ufw-ssh']['reason'])
 
+    def test_a_port_rule_fails_ssh_not_chosen_and_a_limit_rule_passes_ssh_chosen(self):
+        port = ACTIVE + '22/tcp                     ALLOW IN    Anywhere\n'
+        self.assertEqual(self.verify(allow_ssh=False, ufw=port)['firewall:ufw-ssh']['status'],
+                         'failed')
+        limit = ACTIVE + 'OpenSSH                    LIMIT IN    Anywhere\n'
+        self.assertEqual(self.verify(allow_ssh=True, ufw=limit)['firewall:ufw-ssh']['status'],
+                         'passed')
+
     def test_ufw_status_needing_sudo_is_deferred_not_passed(self):
         checks = self.verify(ufw='', ufw_rc=1)
         self.assertEqual(checks['firewall:ufw-status']['status'], 'deferred')
@@ -219,6 +278,16 @@ class VerifyTest(TempState):
                                        run=runner(ui=True), config_path=self.config,
                                        home=self.temp))
         self.assertEqual(checks['firewall:opensnitch-ui-mode']['status'], 'notice')
+        self.assertIn('deny', checks['firewall:opensnitch-ui-mode']['reason'])
+
+    def test_the_ui_mode_follows_an_absolute_xdg_config_home(self):
+        config = self.temp / 'xdg'
+        (config / 'opensnitch').mkdir(parents=True)
+        (config / 'opensnitch/settings.conf').write_text('[global]\ndefault_action=0\n')
+        with patch.dict(os.environ, {'XDG_CONFIG_HOME': str(config)}):
+            checks = by_id(firewall.verify(False, desktop=True, which=lambda n: None,
+                                           run=runner(ui=True), config_path=self.config,
+                                           home=self.temp / 'home'))
         self.assertIn('deny', checks['firewall:opensnitch-ui-mode']['reason'])
 
     def test_the_ui_is_demanded_only_with_the_desktop_set(self):
@@ -322,6 +391,17 @@ class UiSeedTest(TempState):
         firewall.seed_ui_settings(self.file)
         self.assertEqual(self.file.read_text(), '[other]\nx=y\n\n[global]\ndefault_action=1\n')
 
+    def test_the_settings_path_follows_xdg_config_home_when_absolute(self):
+        """RB22: QSettings follows XDG_CONFIG_HOME; a relative value is ignored, per XDG."""
+        home = Path('/home/op')
+        self.assertEqual(firewall.ui_settings_path(home, {}),
+                         home / '.config/opensnitch/settings.conf')
+        self.assertEqual(firewall.ui_settings_path(home, {'XDG_CONFIG_HOME': '/x/cfg'}),
+                         Path('/x/cfg/opensnitch/settings.conf'))
+        for value in ('', 'relative/cfg'):
+            self.assertEqual(firewall.ui_settings_path(home, {'XDG_CONFIG_HOME': value}),
+                             home / '.config/opensnitch/settings.conf', value)
+
     def test_the_same_key_in_another_section_is_not_the_global_one(self):
         self.assertEqual(firewall.ui_mode(self.file), 'unset')
         self.file.parent.mkdir(parents=True)
@@ -341,6 +421,7 @@ class SeedOnceTest(TempState):
         self.addCleanup(patcher.stop)
         self.selection = profiles.resolve(['desktop', 'firewall'], profiles.load())
         self.ui = self.home / firewall.UI_SETTINGS
+        os.environ.pop('XDG_CONFIG_HOME', None)  # TempState's patch.dict restores it
 
     def stage(self):
         ran = []
@@ -348,11 +429,19 @@ class SeedOnceTest(TempState):
         return ran
 
     def test_first_run_seeds_and_records(self):
-        self.assertFalse(firewall.opensnitch_seeded())
+        self.assertFalse(firewall.opensnitch_ui_seeded())
         self.stage()
         self.assertEqual(self.ui.read_text(), '[global]\ndefault_action=1\n')
-        self.assertTrue(firewall.opensnitch_seeded())
         self.assertTrue(firewall.opensnitch_ui_seeded())
+        self.assertEqual(state.get('firewall'), {'opensnitch_ui_seeded': True})
+
+    def test_the_ui_seed_goes_under_an_absolute_xdg_config_home(self):
+        config = self.temp / 'xdg'
+        os.environ['XDG_CONFIG_HOME'] = str(config)
+        self.stage()
+        self.assertEqual((config / 'opensnitch/settings.conf').read_text(),
+                         '[global]\ndefault_action=1\n')
+        self.assertFalse(self.ui.exists())
 
     def test_an_operator_set_deny_survives_a_re_run(self):
         self.stage()
@@ -367,17 +456,12 @@ class SeedOnceTest(TempState):
         self.stage()
         self.assertFalse(self.ui.exists())
 
-    def test_the_playbook_is_told_to_seed_only_before_the_first_run(self):
-        source = (ROOT / 'script/workstation/controller.py').read_text()
-        self.assertIn("'firewall_seed_opensnitch': seed_opensnitch", source)
-        self.assertIn('seed_opensnitch = not firewall.opensnitch_seeded()', source)
-
     def test_headless_seeds_no_ui_file(self):
         self.selection = profiles.resolve(['firewall'], profiles.load())
         self.stage()
         self.assertFalse(self.ui.exists())
-        self.assertTrue(firewall.opensnitch_seeded())
         self.assertFalse(firewall.opensnitch_ui_seeded())
+        self.assertIsNone(state.get('firewall'))
 
     def test_a_later_desktop_run_seeds_the_ui_once(self):
         self.selection = profiles.resolve(['firewall'], profiles.load())
@@ -404,8 +488,21 @@ def context():
             'provenance': {}, 'selected': [], 'entries': {}, 'approved': {}}
 
 
+OVER_SSH = {'SSH_CONNECTION': '1.2.3.4 5 6.7.8.9 22'}
+
+
 class CliTest(TempState):
-    def run_cli(self, args):
+    def setUp(self):
+        super().setUp()
+        # openssh-server's UFW application profile; tests remove it to show the refusal.
+        self.openssh = self.temp / 'openssh-server'
+        self.openssh.write_text('[OpenSSH]\nports=22/tcp\n')
+        profile = patch('workstation.firewall.OPENSSH_PROFILE', str(self.openssh))
+        profile.start()
+        self.addCleanup(profile.stop)
+
+    def run_cli(self, args, environ=None):
+        """Not over SSH unless environ says so."""
         stdout = io.StringIO()
         targets = {
             'workstation.cli.load_context': context(),
@@ -429,6 +526,9 @@ class CliTest(TempState):
             self.mocks = {t: stack.enter_context(patch(t, return_value=v))
                           for t, v in targets.items()}
             # os.geteuid stays real: the state file's owner check uses it.
+            stack.enter_context(patch.dict(os.environ))
+            os.environ.pop('SSH_CONNECTION', None)
+            os.environ.update(environ or {})
             stack.enter_context(contextlib.redirect_stdout(stdout))
             self.stderr = io.StringIO()
             stack.enter_context(contextlib.redirect_stderr(self.stderr))
@@ -439,24 +539,130 @@ class CliTest(TempState):
         return self.mocks['workstation.controller.apply_foundation'].call_args.kwargs
 
     def run_stderr(self, args, environ):
-        with patch.dict(os.environ, environ):
-            if not environ:
-                os.environ.pop('SSH_CONNECTION', None)
-            code, out = self.run_cli(args)
+        code, out = self.run_cli(args, environ)
         return out, self.stderr.getvalue()
 
     def test_the_ssh_warning_appears_only_over_ssh_with_ssh_closed(self):
         args = ['apply', '--config', 'x.json', '--profiles', 'firewall', '--format', 'json']
-        env = {'SSH_CONNECTION': '1.2.3.4 5 6.7.8.9 22'}
-        out, err = self.run_stderr(args, env)
+        out, err = self.run_stderr(args + ['--no-allow-ssh'], OVER_SSH)
         self.assertIn('--allow-ssh', err)
         self.assertIn('firewall:ssh-closing', out)
-        out, err = self.run_stderr(args + ['--allow-ssh'], env)
+        out, err = self.run_stderr(args + ['--allow-ssh'], OVER_SSH)
         self.assertNotIn('warning', err)
         self.assertNotIn('firewall:ssh-closing', out)
         out, err = self.run_stderr(args, {})
         self.assertNotIn('warning', err)
         self.assertNotIn('firewall:ssh-closing', out)
+
+    # RB18: over SSH, apply with the firewall needs a decision about SSH.
+    def apply_over_ssh(self, *extra, profiles='firewall'):
+        return self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                             '--profiles', profiles, *extra], OVER_SSH)
+
+    def test_over_ssh_with_no_choice_apply_refuses_before_anything_changes(self):
+        code, out = self.apply_over_ssh()
+        self.assertEqual(code, 2)
+        report = json.loads(out)
+        self.assertEqual(report['outcome'], 'invalid')
+        self.assertEqual(report['checks'], [{
+            'id': 'input', 'status': 'failed',
+            'reason': 'ssh-session-needs-an-explicit-choice; pass --allow-ssh or --no-allow-ssh'}])
+        self.mocks['workstation.controller.apply_foundation'].assert_not_called()
+        self.mocks['workstation.storage.preflight'].assert_not_called()
+        self.mocks['workstation.handoff.run_handoff'].assert_not_called()
+
+    def test_over_ssh_the_default_profile_set_refuses_too(self):
+        code, out = self.run_cli(['apply', '--config', 'x.json', '--format', 'json'], OVER_SSH)
+        self.assertEqual(code, 2)
+        self.assertIn('ssh-session-needs-an-explicit-choice', out)
+
+    def test_over_ssh_an_explicit_no_allow_ssh_proceeds_with_the_warning(self):
+        code, out = self.apply_over_ssh('--no-allow-ssh')
+        self.assertNotEqual(code, 2)
+        self.assertFalse(self.apply_kwargs()['allow_ssh'])
+        self.assertIn('firewall:ssh-closing', out)
+        self.assertIn('warning: connected over SSH', self.stderr.getvalue())
+
+    def test_over_ssh_an_explicit_allow_ssh_proceeds(self):
+        code, _ = self.apply_over_ssh('--allow-ssh')
+        self.assertNotEqual(code, 2)
+        self.assertTrue(self.apply_kwargs()['allow_ssh'])
+
+    def test_over_ssh_a_recorded_choice_proceeds(self):
+        for value in (True, False):
+            firewall.record_allow_ssh(value)
+            code, _ = self.apply_over_ssh()
+            self.assertNotEqual(code, 2, value)
+            self.assertEqual(self.apply_kwargs()['allow_ssh'], value)
+            self.assertFalse(self.apply_kwargs()['allow_ssh_explicit'])
+
+    def test_over_ssh_without_the_firewall_nothing_is_refused(self):
+        code, _ = self.apply_over_ssh(profiles='gpu')
+        self.assertNotEqual(code, 2)
+        self.mocks['workstation.controller.apply_foundation'].assert_called_once()
+
+    def test_over_ssh_verify_is_not_refused(self):
+        code, _ = self.run_cli(['verify', '--config', 'x.json', '--format', 'json',
+                                '--profiles', 'firewall'], OVER_SSH)
+        self.assertNotEqual(code, 2)
+
+    def test_the_plan_shows_the_ssh_decision_and_its_source(self):
+        def plan_check(*extra, environ=None):
+            _, out = self.run_cli(['plan', '--config', 'x.json', '--format', 'json',
+                                   '--profiles', 'firewall', *extra], environ)
+            return {c['id']: c for c in json.loads(out)['checks']}['firewall:ssh']
+        self.assertEqual(plan_check(), {'id': 'firewall:ssh', 'status': 'planned',
+                                        'reason': 'allow-ssh-false-default'})
+        self.assertEqual(plan_check('--allow-ssh')['reason'], 'allow-ssh-true-explicit')
+        self.assertEqual(plan_check('--no-allow-ssh')['reason'], 'allow-ssh-false-explicit')
+        firewall.record_allow_ssh(True)
+        self.assertEqual(plan_check()['reason'], 'allow-ssh-true-recorded')
+
+    def test_the_plan_over_ssh_with_no_choice_says_apply_will_refuse(self):
+        _, out = self.run_cli(['plan', '--config', 'x.json', '--format', 'json',
+                               '--profiles', 'firewall'], OVER_SSH)
+        self.assertIn('ssh-session-needs-an-explicit-choice', self.stderr.getvalue())
+        self.assertEqual(json.loads(out)['outcome'], 'passed')
+
+    def test_the_plan_without_the_firewall_shows_no_ssh_line(self):
+        _, out = self.run_cli(['plan', '--config', 'x.json', '--format', 'json',
+                               '--profiles', 'gpu'])
+        self.assertNotIn('firewall:ssh', {c['id'] for c in json.loads(out)['checks']})
+
+    def test_the_plan_text_names_the_ssh_line(self):
+        _, out = self.run_cli(['plan', '--config', 'x.json', '--profiles', 'firewall',
+                               '--allow-ssh'])
+        self.assertIn('firewall:ssh: planned — allow-ssh-true-explicit', out)
+
+    # RB22: --allow-ssh needs openssh-server's UFW profile, checked before any change.
+    def test_allow_ssh_without_openssh_server_refuses_before_anything_changes(self):
+        self.openssh.unlink()
+        code, out = self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                                  '--profiles', 'firewall', '--allow-ssh'])
+        self.assertEqual(code, 2)
+        self.assertIn('allow-ssh-needs-openssh-server; install openssh-server or pass '
+                      '--no-allow-ssh', out)
+        self.mocks['workstation.controller.apply_foundation'].assert_not_called()
+        self.mocks['workstation.storage.preflight'].assert_not_called()
+
+    def test_a_recorded_allow_ssh_without_openssh_server_refuses_too(self):
+        firewall.record_allow_ssh(True)
+        self.openssh.unlink()
+        code, out = self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                                  '--profiles', 'firewall'])
+        self.assertEqual(code, 2)
+        self.assertIn('allow-ssh-needs-openssh-server', out)
+
+    def test_no_ssh_needs_no_openssh_server(self):
+        self.openssh.unlink()
+        code, _ = self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                                '--profiles', 'firewall', '--no-allow-ssh'])
+        self.assertNotEqual(code, 2)
+        self.mocks['workstation.controller.apply_foundation'].assert_called_once()
+
+    def test_the_openssh_profile_is_the_one_openssh_server_ships(self):
+        source = (ROOT / 'script/workstation/firewall.py').read_text()
+        self.assertIn("OPENSSH_PROFILE = '/etc/ufw/applications.d/openssh-server'", source)
 
     def test_allow_ssh_is_passed_to_the_apply(self):
         self.run_cli(['apply', '--config', 'x.json', '--profiles', 'firewall', '--allow-ssh'])
@@ -504,9 +710,12 @@ class CliTest(TempState):
                                '--profiles', 'firewall'])
         verify = self.mocks['workstation.firewall.verify']
         self.assertEqual(verify.call_args.args[0], True)
-        ids = {c['id'] for c in json.loads(out)['checks']}
-        self.assertIn('firewall:ufw-active', ids)
-        self.assertIn('firewall:ssh-choice', ids)
+        checks = {c['id']: c for c in json.loads(out)['checks']}
+        self.assertIn('firewall:ufw-active', checks)
+        # A record of the choice, not a check that passed (RB22).
+        self.assertEqual(checks['firewall:ssh-choice'],
+                         {'id': 'firewall:ssh-choice', 'status': 'notice',
+                          'reason': 'allow-ssh-true-recorded'})
 
     def test_verify_passes_the_desktop_flag(self):
         self.run_cli(['verify', '--config', 'x.json', '--profiles', 'firewall,gpu'])
@@ -533,10 +742,10 @@ class StageTest(TempState):
         self.assertEqual(ran, [(['firewall.yml'], 1800)])
 
     def test_seeding_flags_alone_leave_the_ssh_choice_unrecorded(self):
-        firewall.record_flag('opensnitch_seeded')
+        firewall.record_flag('opensnitch_ui_seeded')
         self.assertEqual(firewall.resolve_allow_ssh(None), (False, 'default'))
         firewall.record_allow_ssh(True)
-        self.assertEqual(state.get('firewall'), {'allow_ssh': True, 'opensnitch_seeded': True})
+        self.assertEqual(state.get('firewall'), {'allow_ssh': True, 'opensnitch_ui_seeded': True})
 
     def test_the_stage_follows_the_packages(self):
         selection = profiles.resolve(['firewall'], profiles.load())
