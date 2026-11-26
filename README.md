@@ -19,7 +19,7 @@ by an earlier version of this repository is reinstalled, not upgraded.
 
 ## Quick start
 
-On the new machine, as your own user (never root, never `sudo`):
+On the new machine, as your own user (never run `bootstrap` as root or with `sudo`):
 
 ```bash
 sudo apt install git gnupg          # preflight checks for both
@@ -96,8 +96,8 @@ warns that new SSH logins will be refused.
 ```
 
 Docker comes from setup-dev-linux-wsl, and the ports its containers publish stay
-reachable from the network: Docker's own packet-filter rules bypass UFW. `verify`
-says so whenever Docker is installed. Publish on `127.0.0.1` to keep a port private.
+reachable from the network: Docker's own packet-filter rules bypass UFW. With the
+`firewall` profile, `verify` says so whenever Docker is installed. Publish on `127.0.0.1` to keep a port private.
 
 ## The handoff to setup-dev-linux-wsl
 
@@ -124,7 +124,10 @@ then re-run.
 ```
 
 `--cli-git-name NAME --cli-git-email EMAIL` run it with `--non-interactive`, for a
-run with no terminal (the VM cycle uses them). `verify` appends setup-dev-linux-wsl's
+run with no terminal (the VM cycle uses them). The values become setup-dev-linux-wsl's
+git `user.name` and `user.email` and are recorded in its chezmoi data (`gitName`,
+`gitEmail`), so later runs must give the same values or none. This repository never
+prints them; setup-dev-linux-wsl prints both values if a later run gives different ones. `verify` appends setup-dev-linux-wsl's
 `script/verify --target linux` (skipped with `--no-handoff`). After the first `apply`,
 log out and back in: group memberships, such as the `docker` group, take effect in a
 new session.

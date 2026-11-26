@@ -428,7 +428,8 @@ By the operator's choice, ports a container publishes stay reachable from the
 network on a Linux machine (Docker's default), unlike the Mac's loopback rule.
 The consequence: Docker writes its own packet-filter rules ahead of UFW's, so a
 published port is open to the LAN whatever UFW says. `verify` adds a
-`firewall:docker-bypass` notice whenever `docker` is installed. To keep a port
+`firewall:docker-bypass` notice whenever `docker` is installed and the `firewall`
+profile is selected. To keep a port
 private, publish it on `127.0.0.1`, or filter it in Docker's `DOCKER-USER` chain.
 
 ## D028 — chezmoi belongs to setup-dev-linux-wsl
@@ -472,7 +473,10 @@ recorded it is changed in `[data] profiles` of that chezmoi record instead.
 For a run with no terminal, such as the VM cycle (D030), `--cli-git-name` and
 `--cli-git-email` (both or neither) make the bootstrap run with
 `--non-interactive --git-name NAME --git-email EMAIL`; it then takes its defaults for
-everything else it would ask. The identity is passed on but never printed.
+everything else it would ask. The values become setup-dev-linux-wsl's git `user.name`
+and `user.email` and are recorded in its chezmoi data (`gitName`, `gitEmail`), so later
+runs must give the same values or none. This repository never prints them;
+setup-dev-linux-wsl's refusal of a different value on a later run prints both.
 
 Outcomes: a failed bootstrap fails the run with its exit code (a `handoff` check,
 outcome `failed`); a refusal prints one `handoff:` line naming the cause and exits

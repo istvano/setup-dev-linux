@@ -86,7 +86,7 @@ or `just verify-static`. Guest acceptance is `just vm clean-cycle`
 (`make vm/clean-cycle`), which destroys the guest, rebuilds it from the verified
 image, applies the host and hands off to setup-dev-linux-wsl (network required),
 verifies both, reboots and applies again. It needs Linux with KVM; on any other
-host change the harness under `tests/test_vm_harness.py` and say the guest run is
+host, test harness changes with `tests/test_vm_harness.py` and say the guest run is
 still owed. The manual checklist is in docs/TESTING.md.
 
 When the manifest changes, re-run `script/check-manifest`: it is what stops a

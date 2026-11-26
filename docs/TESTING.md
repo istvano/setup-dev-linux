@@ -127,8 +127,9 @@ Automated by the cycle above:
 - [ ] OpenSnitch allow mode seeded once: daemon `DefaultAction` `allow`, UI
   `default_action=1`, both flags in `state.json`.
 - [ ] UFW enabled, default deny incoming, allow outgoing, SSH allowed as chosen.
-- [ ] A second `apply` after the reboot is idempotent and passes no conflicting
-  `--profiles` to setup-dev-linux-wsl.
+- [ ] A second `apply` after the reboot completes (exit 0 or 3, `handoff` passed)
+  without a profile conflict: it passes no `--profiles` to setup-dev-linux-wsl. Whether
+  it changed nothing is not checked automatically; read the log.
 
 By hand, in the same guest after the cycle (`./script/vm ssh`, or the desktop fixture
 for a session):

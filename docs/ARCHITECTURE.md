@@ -58,7 +58,7 @@ UFW: deny incoming, allow outgoing, enabled; SSH only with `--allow-ssh`, record
 kept. OpenSnitch: daemon always with `firewall`, UI with the desktop set, allow mode
 seeded once and never rewritten (D026). Docker, installed by setup-dev-linux-wsl, writes
 its own packet-filter rules ahead of UFW's, so published ports stay reachable (D027);
-`verify` notes it when `docker` is present.
+`verify` notes it when `docker` is present and the `firewall` profile is selected.
 
 ## Handoff
 

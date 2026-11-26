@@ -40,8 +40,8 @@ only with `--allow-ssh`. The choice is recorded as `firewall.allow_ssh` in the p
 turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose` through
 `sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker comes from
 setup-dev-linux-wsl and its published ports stay reachable from the network (D027): Docker's own
-packet-filter rules bypass UFW, and `verify` prints a `firewall:docker-bypass` notice when
-`docker` is present. Publish on `127.0.0.1`, or filter in the `DOCKER-USER` chain, to keep a port
+packet-filter rules bypass UFW, and with the `firewall` profile `verify` prints a
+`firewall:docker-bypass` notice when `docker` is present. Publish on `127.0.0.1`, or filter in the `DOCKER-USER` chain, to keep a port
 private. Switching OpenSnitch to deny is
 a later, manual decision.
 
@@ -54,8 +54,11 @@ or commit) with `git rev-parse --verify`, checks it out once with `checkout --de
 With `--cli-git-name NAME --cli-git-email EMAIL` (both or neither, checked before anything
 changes) it runs `--non-interactive --git-name NAME --git-email EMAIL` instead and prompts for
 nothing, taking setup-dev-linux-wsl's defaults for everything else; for a run with no terminal,
-such as the VM cycle. The identity is never printed: `plan` and the `handoff: running` line
-show `<given>`. On a re-run with a recorded identity, give the same values or none.
+such as the VM cycle. The values become setup-dev-linux-wsl's git `user.name` and
+`user.email` and are recorded in its chezmoi data (`gitName`, `gitEmail`), so later runs must
+give the same values or none. This repository never prints them: `plan` and the
+`handoff: running` line show `<given>`. If a later run gives different values,
+setup-dev-linux-wsl refuses and its message prints both.
 It stops, naming the directory and changing nothing, when that directory is not a git clone,
 when its `remote.origin.url` is another repository, or when tracked files have local changes;
 an unknown ref stops with `unknown ref`. `--profiles LIST` is passed only with
@@ -78,11 +81,11 @@ JSON mode its programs' output goes to standard error so the report stays the on
 output. `apply` does not run `cli:verify` itself: that bootstrap ends with its own verify.
 
 `apply` currently **cannot report full success for the selected workstation**.
-Controller success followed by exit 1 identifies selected source approvals still
-missing; approved selected packages may have installed successfully. A private selection
+Selected capabilities that no role delivers or verifies yet are reported as `deferred`
+and give exit 3 (incomplete) even when the host stages succeeded; a failed package,
+delivery or verification check gives exit 1. A private selection
 containing only implemented capabilities with their required private settings can pass its operation, while `workstation_ready` remains
-false because whole-workstation acceptance is unfinished. Other missing role
-implementation is incomplete (exit 3). Invalid inputs use exit 2. Never run apply
+false because whole-workstation acceptance is unfinished. Invalid inputs use exit 2. Never run apply
 on the physical workstation merely to see what happens; use pure plan/preflight.
 
 Use private, non-example configuration copied from a declared storage layout. Supply
