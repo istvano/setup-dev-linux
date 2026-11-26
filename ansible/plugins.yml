@@ -1,5 +1,5 @@
 ---
-- name: Install declared editor extensions and kubectl plugins
+- name: Install the declared VS Code extensions
   hosts: localhost
   connection: local
   gather_facts: false
@@ -7,9 +7,8 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
   tasks:
-    # Runs as the target user: extensions live in the user's VS Code directory
-    # and krew installs into the user's KREW_ROOT.
-    - name: Install extensions and plugins
+    # Runs as the target user: extensions live in the user's VS Code directory.
+    - name: Install extensions
       ansible.builtin.command:
         argv:
           - /usr/bin/python3

@@ -50,8 +50,10 @@
         label: "{{ item.id }}"
       become: true
 
-    # A key is normalised to binary .gpg and checked against the recorded
-    # fingerprint before any source trusts it. See workstation/repository_keys.py.
+    # A key is checked against the recorded fingerprint before any source
+    # trusts it, then normalised to binary .gpg. A source naming its own .asc
+    # keyring shares that file with setup-dev-linux-wsl and keeps the armoured
+    # bytes unchanged. See workstation/repository_keys.py.
     - name: Place and verify every signing key
       ansible.builtin.command:
         argv:
@@ -60,7 +62,7 @@
           - "{{ workstation_root }}/script/apply-repository-key"
         stdin: >-
           {{ {'source': staging ~ '/' ~ item.id ~ '.key',
-              'destination': keyring_dir ~ '/' ~ item.id ~ '.gpg',
+              'destination': item.keyring | default(keyring_dir ~ '/' ~ item.id ~ '.gpg'),
               'fingerprint': item.key_fingerprint | default(None)} | to_json }}
       register: key_placement
       changed_when: (key_placement.stdout | from_json).changed
@@ -106,7 +108,7 @@
         uris: "{{ item.uri }}"
         suites: "{{ [item.suite | replace('{codename}', codename)] }}"
         components: "{{ item.components }}"
-        signed_by: "{{ keyring_dir }}/{{ item.id }}.gpg"
+        signed_by: "{{ item.keyring | default(keyring_dir ~ '/' ~ item.id ~ '.gpg') }}"
         enabled: true
         state: present
       loop: "{{ manifest.repositories }}"

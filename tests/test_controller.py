@@ -106,7 +106,6 @@ class ControllerIntegrity(unittest.TestCase):
              patch('workstation.desktop.verify', return_value=[]), \
              patch('workstation.delivery.verify', return_value=[]), \
              patch('workstation.plugins.verify', return_value=[]), \
-             patch('workstation.npm_cli.verify', return_value=[]), \
              patch('workstation.controller.apply_foundation') as apply, contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(['verify', '--config', 'fixture', '--format', 'json']), 3)
             apply.assert_not_called()

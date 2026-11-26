@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Editor extensions and kubectl plugins.",
+  "description": "Editor extensions for the host VS Code.",
   "vscode_extensions": [
     "anthropic.claude-code",
     "openai.chatgpt",
@@ -20,13 +20,5 @@
     "eamodio.gitlens",
     "vscode-icons-team.vscode-icons"
   ],
-  "vscode_note": "Seventeen extensions observed on this machine plus saoudrizwan.claude-dev (Cline). Dependency packs install their own children; they are not listed.",
-  "krew_plugins": [
-    "neat",
-    "sniff",
-    "tree",
-    "view-secret",
-    "whoami",
-    "images"
-  ]
+  "vscode_note": "Seventeen extensions observed on this machine plus saoudrizwan.claude-dev (Cline). Dependency packs install their own children; they are not listed."
 }

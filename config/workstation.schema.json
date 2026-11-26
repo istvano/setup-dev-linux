@@ -254,10 +254,6 @@
           }
         }
       }
-    },
-    "user_settings_file": {
-      "type": "string",
-      "minLength": 1
     }
   }
 }

@@ -20,22 +20,21 @@ class RouteTest(unittest.TestCase):
     def test_every_route_names_how_it_installs(self):
         for name, route in self.routes.items():
             self.assertTrue(
-                route.startswith('apt:') or route in ('snap', 'binary', 'agent', 'runtime'),
+                route.startswith('apt:') or route in ('snap', 'binary'),
                 f'{name} has an unrecognised route {route}')
 
     def test_archive_packages_are_distinguished_from_third_party(self):
-        self.assertEqual(self.routes['bat'], 'apt:archive')
-        self.assertEqual(self.routes['docker-ce'], 'apt:docker')
+        self.assertEqual(self.routes['ffmpeg'], 'apt:archive')
+        self.assertEqual(self.routes['code'], 'apt:vscode')
 
     def test_capability_spelled_differently_is_still_covered(self):
-        self.assertTrue(covers(self.routes, 'fd'), 'fd is packaged as fd-find')
-        self.assertTrue(covers(self.routes, 'aws-cli'), 'aws-cli is packaged as awscli')
+        self.assertTrue(covers(self.routes, 'dbeaver'), 'dbeaver is packaged as dbeaver-ce')
         self.assertTrue(covers(self.routes, 'vscode'), 'vscode is packaged as code')
 
     def test_something_the_manifest_does_not_install_is_not_covered(self):
         self.assertFalse(covers(self.routes, 'emacs'))
-        self.assertFalse(covers(self.routes, 'go'), 'go was deliberately omitted')
-        self.assertFalse(covers(self.routes, 'rust'), 'rust was deliberately omitted')
+        self.assertFalse(covers(self.routes, 'kubectl'), 'kubectl belongs to setup-dev-linux-wsl')
+        self.assertFalse(covers(self.routes, 'docker-ce'), 'Docker belongs to setup-dev-linux-wsl')
 
     def test_every_alias_target_is_actually_delivered(self):
         for source, target in ALIASES.items():
@@ -85,16 +84,8 @@ class CoverageCommandTest(unittest.TestCase):
     def test_every_kept_selection_has_a_delivery(self):
         curation = json.loads((ROOT / 'catalogue/curation.json').read_text())
         routes = delivered(load(ROOT))
-        provided_elsewhere = {
-            'corepack', 'plugin-git', 'zsh-autosuggestions', 'zsh-syntax-highlighting',
-            'oh-my-zsh', 'proxy-helpers', 'node-22.21.0', 'nvm', 'sdkman',
-            'maven-3.9.11', 'java-21-tem', 'java-25-tem', 'java-21-ms', 'java-25-ms',
-            'java-mandrel-25', 'theme-agnoster',
-        }
         undelivered = [item['id'] for item in curation['items']
-                       if item['proposal'] == 'keep'
-                       and item['id'].split('/')[-1] not in provided_elsewhere
-                       and not covers(routes, item['id'])]
+                       if item['proposal'] == 'keep' and not covers(routes, item['id'])]
         self.assertEqual(undelivered, [])
 
 

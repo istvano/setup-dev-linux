@@ -187,6 +187,18 @@ class RepositoryVerificationTest(unittest.TestCase):
         with patch.object(delivery, 'key_fingerprint', return_value='A' * 40):
             self.assertEqual(failures(verify_repositories(self.root)), [])
 
+    def test_an_explicit_keyring_is_checked_where_it_is_declared(self):
+        """claude-desktop shares /etc/apt/keyrings/anthropic.asc with
+        setup-dev-linux-wsl rather than using <id>.gpg."""
+        shared = self.keyring / 'anthropic.asc'
+        self.write(keyring=str(shared), self_registers_source=True)
+        self.assertEqual(failures(verify_repositories(self.root))[0]['reason'],
+                         'keyring-missing')
+        shared.write_bytes(b'key')
+        with patch.object(delivery, 'key_fingerprint', return_value='A' * 40) as probe:
+            self.assertEqual(failures(verify_repositories(self.root)), [])
+        probe.assert_called_with(shared)
+
 
 class RealManifestTest(unittest.TestCase):
     """The repository's own manifest must be verifiable at all."""

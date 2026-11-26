@@ -103,22 +103,15 @@ def verify():
                               + (': missing ' + ', '.join(missing_snaps) if missing_snaps else ''))
 
     # A tool that installs but cannot run is not installed in any useful sense.
-    runnable = {'helm': ['version', '--short'], 'k9s': ['version', '--short'],
-                'yq': ['--version'], 'sops': ['--version'], 'kubeconform': ['-v'],
-                'actionlint': ['--version'], 'd2': ['--version'],
-                'chezmoi': ['--version'], 'hadolint': ['--version']}
+    # zed is the one pinned archive binary; obsidian is a vendor .deb.
+    runnable = {'zed': ['--version']}
     broken = []
     for name, invocation in runnable.items():
         binary = next((b for b in wanted if b['id'] == name), None)
-        if binary is None:
-            continue
-        target = str(install_dir / name) if binary['kind'] != 'deb' else name
-        # Absence is already reported above; running a missing binary would only
-        # turn a clear finding into a traceback.
-        if name in absent:
+        if binary is None or name in absent:
             continue
         try:
-            result = subprocess.run([target, *invocation], capture_output=True,
+            result = subprocess.run([str(install_dir / name), *invocation], capture_output=True,
                                     text=True, check=False, timeout=60)
         except (OSError, subprocess.SubprocessError) as exc:
             broken.append(f'{name}({type(exc).__name__})')
@@ -151,7 +144,7 @@ def verify_desktop():
 
 
 def verify_new_deliveries():
-    """Extensions, kubectl plugins and the pinned agent CLIs, read from the
+    """Repositories, snaps, binaries, extensions and groups, read from the
     installed system rather than from the installer's own report."""
     sys.path.insert(0, str(ROOT / 'script'))
     import pwd
@@ -162,10 +155,10 @@ def verify_new_deliveries():
         if check['id'].startswith('manifest-'):
             report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
-    if {'dev', 'kubernetes'} & set(GROUPS):
+    if 'dev-gui' in GROUPS:
         from workstation.plugins import verify as verify_plugins
         for check in verify_plugins(home, ROOT, groups=GROUPS):
-            if check['id'] in ('vscode-extensions', 'krew-plugins'):
+            if check['id'] == 'vscode-extensions':
                 report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
     from workstation.system import verify as verify_system
@@ -173,15 +166,6 @@ def verify_new_deliveries():
     for check in verify_system(getpass.getuser(), ROOT, groups=GROUPS):
         report(check['status'] in ('passed', 'deferred'),
                f"system {check['id']}: {check['status']} — {check['reason']}")
-
-    if 'ai' in GROUPS:
-        from workstation.npm_cli import verify as verify_agent
-        agents = json.loads((ROOT / 'manifest/runtimes.json').read_text())['agents']
-        for agent in agents:
-            if agent.get('delivery') == 'npm-pinned':
-                for check in verify_agent(home, agent['lock_id'], ROOT):
-                    report(check['status'] == 'passed',
-                           f"agent {check['id']}: {check['reason']}")
 
 
 def install(config):

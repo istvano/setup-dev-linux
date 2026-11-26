@@ -1,7 +1,7 @@
 """Independent verification of manifest delivery beyond APT packages.
 
 `bootstrap verify` reads the installed system and reports drift. Until now it
-covered packages, user tools, runtimes and desktop settings, so a clean verify
+covered packages and desktop settings, so a clean verify
 did not mean the machine matched the manifest: the pinned binaries, the snaps
 and the repositories they come from were checked only by the VM fixture.
 
@@ -140,7 +140,9 @@ def verify_repositories(root=ROOT):
     checks, failures = [], 0
     for repository in sorted(repositories, key=lambda r: r['id']):
         identifier = f"repository:{repository['id']}"
-        keyring = KEYRING_DIR / f"{repository['id']}.gpg"
+        # A keyring shared with setup-dev-linux-wsl is named explicitly.
+        keyring = (Path(repository['keyring']) if repository.get('keyring')
+                   else KEYRING_DIR / f"{repository['id']}.gpg")
         if not keyring.is_file():
             checks.append({'id': identifier, 'status': 'failed', 'reason': 'keyring-missing'})
             failures += 1

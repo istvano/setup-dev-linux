@@ -83,7 +83,6 @@ def validate_schema(value, schema):
 def validate_semantics(config, entries, selected):
     require(len(selected) == len(set(selected)), 'duplicate selected ID')
     require(set(selected) <= entries.keys(), 'unknown selected capability')
-    require('python' not in selected or 'uv' in selected, 'python-requires-selected-uv')
     require(all(entries[i]['decision'] not in ('pending', 'omit') for i in selected), 'pending/omitted capability selected')
     require(all(not (set(entries[i]['conflicts']) & set(selected)) for i in selected), 'conflicting selected capabilities')
     storage = config['storage']
@@ -123,36 +122,7 @@ def load_context(path):
     validate_semantics(config, entries, selection['capability_ids'])
     from .packages import approved_registry
     approved = approved_registry(entries)
-    from .artifacts import registry
-    user_tools = registry(entries)
-    from .node_runtime import node_lock
-    node_lock(entries)
-    from .sdkman_runtime import manager_lock
-    manager_lock(entries)
-    from .java_runtime import java_lock
-    java_lock(entries)
-    from .jvm_tools import tool_lock
-    tool_lock(entries)
-    from .mandrel_runtime import mandrel_lock
-    mandrel_lock(entries)
-    from .go_runtime import go_lock
-    go_lock(entries)
-    from .rust_runtime import rust_lock
-    rust_lock(entries)
-    from .python_user import python_lock
-    python_lock(entries)
-    from .opencode_runtime import opencode_lock
-    opencode_lock(entries)
-    from .codex_runtime import codex_lock
-    codex_lock(entries)
-    from .cline_runtime import cline_lock
-    cline_lock(entries)
-    from .prerequisites import registry as prerequisite_registry
-    prerequisite_map = prerequisite_registry(entries)
-    from .user_environment import settings
-    private = settings(path.parent / config['user_settings_file']) if config.get('user_settings_file') else {}
     return {'config': config, 'entries': entries, 'selected': selection['capability_ids'],
-            'approved': approved, 'prerequisites': prerequisite_map, 'user_tools': user_tools, 'user_settings': private,
+            'approved': approved,
             'provenance': {'config_sha256': config_hash, 'selection_sha256': selection_hash,
-                           'catalogue_revision': catalogue['revision'],
-                           'user_settings_sha256': hashlib.sha256(json.dumps(private, sort_keys=True).encode()).hexdigest() if private else None}}
+                           'catalogue_revision': catalogue['revision']}}

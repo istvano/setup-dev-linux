@@ -111,8 +111,8 @@ class MakefileBehaviourTest(unittest.TestCase):
             self.assertIn('CONFIG is required', result.stdout + result.stderr)
 
     def test_group_selection_is_passed_through_only_when_given(self):
-        with_groups = self.make('-n', 'install', 'CONFIG=x.json', 'GROUPS=core,dev')
-        self.assertIn('--manifest-groups core,dev', with_groups.stdout)
+        with_groups = self.make('-n', 'install', 'CONFIG=x.json', 'GROUPS=desktop,dev-gui')
+        self.assertIn('--manifest-groups desktop,dev-gui', with_groups.stdout)
         without = self.make('-n', 'install', 'CONFIG=x.json')
         self.assertNotIn('--manifest-groups', without.stdout)
 

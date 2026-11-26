@@ -33,18 +33,13 @@ class CatalogueContracts(unittest.TestCase):
     def test_confirmed_selection_passes(self):
         self.check_catalogue()
 
-    def test_python_selection_requires_explicit_uv(self):
-        selected = [i for i in self.target['capability_ids'] if i != 'uv']
-        with self.assertRaisesRegex(ValueError, 'python-requires-selected-uv'):
-            qa['validate_semantics'](self.config('standard-split'), self.entries, selected)
-
-    def test_openhands_deferred_from_both_profiles(self):
-        self.assertEqual(self.entries['openhands']['decision'], 'optional')
-        self.assertNotIn('openhands', self.target['capability_ids'])
-        self.assertNotIn('openhands', self.default['capability_ids'])
+    def test_command_line_capabilities_are_not_catalogued_here(self):
+        """setup-dev-linux-wsl owns the command line (docs/MOVED.md)."""
+        for name in ('git', 'node', 'docker-engine', 'openhands', 'fish', 'uv'):
+            self.assertNotIn(name, self.entries)
 
     def test_missing_keep_rejected(self):
-        self.target['capability_ids'].remove('git')
+        self.target['capability_ids'].remove('vscode')
         with self.assertRaisesRegex(ValueError, 'every KEEP'):
             self.check_catalogue()
 
@@ -54,12 +49,12 @@ class CatalogueContracts(unittest.TestCase):
             self.check_catalogue()
 
     def test_pending_leak_rejected(self):
-        self.target['capability_ids'].append('fish')
+        self.target['capability_ids'].append('aviatrix')
         with self.assertRaisesRegex(ValueError, 'no optional/pending/omit'):
             self.check_catalogue()
 
     def test_duplicate_ids_rejected(self):
-        self.target['capability_ids'].append('git')
+        self.target['capability_ids'].append('vscode')
         with self.assertRaises(ValueError):
             self.check_catalogue()
 
@@ -69,15 +64,16 @@ class CatalogueContracts(unittest.TestCase):
             self.check_catalogue()
 
     def test_unverified_pin_cannot_claim_readiness(self):
-        self.entries['node']['delivery']['status'] = 'unverified'
-        self.entries['node']['delivery']['blocker'] = 'Fixture source remains unverified'
-        self.entries['node']['delivery']['version'] = 'unverified-release'
+        self.entries['vscode']['delivery']['status'] = 'unverified'
+        self.entries['vscode']['delivery']['blocker'] = 'Fixture source remains unverified'
+        self.entries['vscode']['delivery']['version'] = 'unverified-release'
         with self.assertRaisesRegex(ValueError, 'unverified pin claimed'):
             self.check_catalogue()
 
     def test_verified_source_requires_licence(self):
-        self.entries['node']['delivery']['status'] = 'verified'
-        self.entries['node']['licence']['status'] = 'unreviewed'
+        self.entries['vscode']['delivery'].update(
+            status='verified', candidate_url='https://packages.microsoft.com/repos/code')
+        self.entries['vscode']['licence']['status'] = 'unreviewed'
         with self.assertRaisesRegex(ValueError, 'licence not reviewed'):
             self.check_catalogue()
 
@@ -130,14 +126,13 @@ class CatalogueContracts(unittest.TestCase):
     def test_private_selection_cannot_enable_pending(self):
         config = self.config('standard-single')
         with self.assertRaisesRegex(ValueError, 'pending/omitted'):
-            qa['check_config'](config, self.entries, self.default['capability_ids'] + ['fish'])
+            qa['check_config'](config, self.entries, self.default['capability_ids'] + ['aviatrix'])
 
 
 class ReviewContracts(unittest.TestCase):
     def setUp(self):
         self.catalogue = qa['read_json'](ROOT / 'catalogue/capabilities.json')
         self.review = qa['read_json'](ROOT / 'catalogue/source-review.json')
-        self.preferences = qa['read_json'](ROOT / 'profiles/user-environment.json')
 
     def check_review(self):
         qa['check_source_review'](self.catalogue, self.review)
@@ -193,42 +188,14 @@ class ReviewContracts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'manifest version'):
             self.check_review()
 
-    def test_confirmed_environment_passes(self):
-        qa['check_user_environment'](self.catalogue, self.preferences)
-
-    def test_java_default_cannot_revert_to_21(self):
-        self.preferences['java']['default_major'] = 21
-        with self.assertRaises(ValueError):
-            qa['check_user_environment'](self.catalogue, self.preferences)
-
-    def test_version_policy_cannot_silently_revert(self):
-        self.preferences['version_policy'] = 'preserve-old-major-versions'
-        with self.assertRaises(ValueError):
-            qa['check_user_environment'](self.catalogue, self.preferences)
-
-    def test_existing_project_validation_cannot_be_assumed(self):
-        self.preferences['compatibility_validation'] = 'existing-projects-validated'
-        with self.assertRaises(ValueError):
-            qa['check_user_environment'](self.catalogue, self.preferences)
-
-    def test_confirmed_plugin_cannot_disappear(self):
-        self.preferences['shell']['plugins'].remove('zsh-autosuggestions')
-        with self.assertRaises(ValueError):
-            qa['check_user_environment'](self.catalogue, self.preferences)
-
-    def test_proxy_values_cannot_enter_preferences(self):
-        self.preferences['shell']['proxy_url'] = 'https://private-proxy.example'
-        with self.assertRaises(ValueError):
-            qa['check_user_environment'](self.catalogue, self.preferences)
-
     def test_wrong_mac_mapping_detected(self):
-        self.catalogue['mac_profile_mappings'][0]['capability_ids'] = ['git']
+        self.catalogue['mac_profile_mappings'][0]['capability_ids'] = ['vscode']
         self.catalogue['mac_profile_mappings'][0]['note'] = 'Wrong mapping'
         with self.assertRaisesRegex(ValueError, 'matrix differs'):
             qa['check_matrix'](self.catalogue)
 
     def test_wrong_extension_family_detected(self):
-        self.catalogue['linux_extension_families'][0]['capability_ids'] = ['git']
+        self.catalogue['linux_extension_families'][0]['capability_ids'] = ['vscode']
         with self.assertRaisesRegex(ValueError, 'matrix differs'):
             qa['check_matrix'](self.catalogue)
 

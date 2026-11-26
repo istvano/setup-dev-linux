@@ -131,8 +131,9 @@ Proxy settings come from private local input with no committed endpoint, usernam
 password. Missing settings must produce an actionable failure; never assume a public
 proxy. Define how proxyoff restores prior environment values and test repeated on/off
 cycles without exposing credentials in output. Do not copy shell history or old secret
-function bodies. [User environment](../profiles/user-environment.json) records these
-confirmed preferences for implementation review; it is not a workstation command input.
+function bodies. `profiles/user-environment.json` recorded these confirmed preferences
+for implementation review (removed 2026-11-26 with the command line, which
+setup-dev-linux-wsl now owns; see [MOVED.md](MOVED.md)).
 
 ## D013 — Reviewed current stable versions
 

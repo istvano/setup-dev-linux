@@ -15,17 +15,10 @@ from .config import ROOT
 # Capability identifiers whose manifest entry is spelled differently, because
 # Debian names the package differently or one entry delivers another.
 ALIASES = {
-    'aws-cli': 'awscli',
     'vscode': 'code',
     'google-chrome': 'google-chrome-stable',
     'slack': 'slack-desktop',
     'dbeaver': 'dbeaver-ce',
-    'midnight-commander': 'mc',
-    'mcedit': 'mc',
-    'docker-engine': 'docker-ce',
-    'docker-compose': 'docker-compose-plugin',
-    'docker-buildx': 'docker-buildx-plugin',
-    'containerd': 'containerd.io',
     'nvidia-driver': 'nvidia-driver-595-open',
     'font-inconsolata': 'fonts-inconsolata',
     'font-powerline': 'fonts-powerline',
@@ -35,18 +28,9 @@ ALIASES = {
     'networkmanager-openvpn': 'network-manager-openvpn-gnome',
     'gnome-extension-manager': 'gnome-shell-extension-manager',
     'gnome-text-editor': 'gedit',
-    'delta': 'git-delta',
-    'fd': 'fd-find',
-    'opentofu': 'tofu',
-    'claude-code': 'claude',
-    'python': 'uv',
-    'git-lfs-filters': 'git-lfs',
-    'gcloud-cli': 'google-cloud-cli',
-    'gpg': 'gnupg',
-    'uvx': 'uv',
 }
 
-FILES = ('packages', 'repositories', 'snaps', 'binaries', 'runtimes', 'shell')
+FILES = ('packages', 'repositories', 'snaps', 'binaries')
 
 
 def load(root=None):
@@ -64,16 +48,6 @@ def delivered(manifest):
         routes[snap['name']] = 'snap'
     for binary in manifest['binaries']['binaries']:
         routes[binary['id']] = 'binary'
-    for agent in manifest['runtimes']['agents']:
-        routes[agent['id']] = 'agent'
-    # The runtime managers are declared deliveries in their own right: nvm
-    # installs Node, SDKMAN installs the JVM toolchain, uv installs Python.
-    for section in ('node', 'jvm', 'python'):
-        manager = manifest['runtimes'].get(section, {}).get('manager')
-        if manager:
-            routes[manager] = 'runtime'
-    for name in (manifest['shell']['prompt']['name'], manifest['shell']['history']['name']):
-        routes.setdefault(name, 'apt:archive')
     return routes
 
 

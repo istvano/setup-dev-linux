@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / 'script'))
 from workstation.repository_keys import (  # noqa: E402
     KeyError_, fingerprint, install_key, is_armoured, to_binary)
 
-VENDORED = ROOT / 'manifest/keys/claude-desktop.asc'
+VENDORED = ROOT / 'manifest/keys/anthropic.asc'
 
 
 @unittest.skipIf(shutil.which('gpg') is None, 'gpg is not installed')
@@ -75,6 +75,49 @@ class KeyVerificationTest(unittest.TestCase):
         self.destination.symlink_to(self.dir / 'elsewhere')
         with self.assertRaises(KeyError_):
             install_key(self.source, self.destination, self.expected)
+
+
+@unittest.skipIf(shutil.which('gpg') is None, 'gpg is not installed')
+class SharedArmouredKeyringTest(unittest.TestCase):
+    """A .asc keyring shared with setup-dev-linux-wsl keeps the committed bytes.
+
+    That repository installs apt/keys/anthropic.asc verbatim and rewrites the
+    keyring whenever the bytes differ; a dearmoured copy here would make the two
+    repositories rewrite one file back and forth.
+    """
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.dir, ignore_errors=True)
+        self.source = self.dir / 'anthropic.key'
+        self.source.write_bytes(VENDORED.read_bytes())
+        self.expected = fingerprint(to_binary(VENDORED.read_bytes()))
+        self.destination = self.dir / 'anthropic.asc'
+
+    def test_armoured_bytes_are_written_unchanged(self):
+        self.assertTrue(install_key(self.source, self.destination, self.expected))
+        self.assertEqual(self.destination.read_bytes(), VENDORED.read_bytes())
+        self.assertFalse(install_key(self.source, self.destination, self.expected))
+
+    def test_wrong_fingerprint_is_refused_before_writing(self):
+        with self.assertRaises(KeyError_):
+            install_key(self.source, self.destination, 'A' * 40)
+        self.assertFalse(self.destination.exists())
+
+    def test_binary_material_is_refused_for_an_asc_keyring(self):
+        """APT reads a .asc keyring as armour; binary bytes there are ignored."""
+        self.source.write_bytes(to_binary(VENDORED.read_bytes()))
+        with self.assertRaises(KeyError_):
+            install_key(self.source, self.destination, self.expected)
+        self.assertFalse(self.destination.exists())
+
+    def test_a_second_key_riding_along_is_refused(self):
+        other = self.dir / 'two.asc'
+        chatgpt = (ROOT / 'manifest/keys/chatgpt.asc').read_bytes()
+        other.write_bytes(VENDORED.read_bytes() + chatgpt)
+        with self.assertRaises(KeyError_):
+            install_key(other, self.destination, self.expected)
+        self.assertFalse(self.destination.exists())
 
 
 class ManifestKeyTest(unittest.TestCase):

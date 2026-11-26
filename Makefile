@@ -2,7 +2,7 @@
 # including a new one, before `just` itself is on it.
 #
 # Targets that act on a machine take variables rather than positional
-# arguments:  make install CONFIG=config/mine.json GROUPS=core,dev
+# arguments:  make install CONFIG=config/mine.json GROUPS=desktop,dev-gui
 #
 # Grouped subcommands use a slash:  make vm/up, make vm/status. They are .PHONY,
 # so make does not look for a file of that name inside the vm directory.
@@ -101,7 +101,7 @@ preflight: ## Check the live machine before any write (CONFIG=)
 	$(BOOTSTRAP) preflight --config $(CONFIG)
 
 .PHONY: install
-install: ## Install the manifest (CONFIG=, optional GROUPS=core,dev)
+install: ## Install the manifest (CONFIG=, optional GROUPS=desktop,dev-gui)
 	$(call require,CONFIG,install,config/mine.json)
 	$(BOOTSTRAP) install --config $(CONFIG) \
 		$(if $(strip $(GROUPS)),--manifest-groups $(GROUPS),)

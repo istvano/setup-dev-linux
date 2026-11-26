@@ -1,5 +1,5 @@
 #!/usr/bin/python3 -B
-"""Internal Ansible worker: install declared editor extensions and kubectl plugins."""
+"""Internal Ansible worker: install the declared VS Code extensions."""
 import json
 import os
 import pwd

@@ -44,13 +44,17 @@ bootstrap as root.
 
 It configures the signed third-party APT sources, installs the manifest's
 packages and snaps, installs each pinned release binary after verifying its
-SHA-256, then sets up the user runtimes. Re-running it is safe: the second run
-changes nothing that is already correct.
+SHA-256, then the VS Code extensions and the GNOME settings. Re-running it is
+safe: the second run changes nothing that is already correct.
+
+Command-line tools, runtimes, the shell, dotfiles and Docker are not installed
+here: setup-dev-linux-wsl installs them on a Linux machine too
+(`./bootstrap apply --target linux` in that repository; see [MOVED.md](MOVED.md)).
 
 To install part of the manifest, name the groups:
 
 ```bash
-just install config/your-machine.json core,dev,kubernetes
+just install config/your-machine.json desktop,dev-gui,lab
 ```
 
 ## 4. Verify
@@ -66,59 +70,13 @@ An `incomplete` result names what has no verification yet; it is not a pass.
 
 These are deliberately not automated:
 
-- **Authenticate** every tool that needs it: `gh auth login`, cloud CLIs, the
-  agent CLIs, Bitwarden, Slack, Thunderbird.
+- **Authenticate** the desktop applications that need it: Bitwarden, Slack,
+  Thunderbird. Command-line tools (`gh`, cloud CLIs, agent CLIs) and the Git
+  identity belong to setup-dev-linux-wsl.
 - **VPN profiles** and their certificates.
 - **Backup destination and schedule** on the new machine.
 - **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot
   is on, enrol the module signing key. A reboot is required.
-- **Docker group**: log out and back in before the group membership applies.
-
-## Private Git identities
-
-Optionally add `"user_settings_file": "user-settings.local.json"` to the explicit
-machine configuration. The path resolves relative to that machine file. The settings
-file must be owned by the invoking user, with no group/other access (for example,
-mode 0600). It uses the committed [schema](../config/user-settings.schema.json):
-
-```json
-{
-  "schema_version": 1,
-  "identities": [
-    {
-      "scope": "personal",
-      "directory": "/absolute/path/to/personal/projects",
-      "name": "Your personal Git name",
-      "email": "your-personal-address@example.invalid"
-    },
-    {
-      "scope": "work",
-      "directory": "/absolute/path/to/work/projects",
-      "name": "Your work Git name",
-      "email": "your-work-address@example.invalid"
-    }
-  ]
-}
-```
-
-Supply actual private values locally. Directories must not overlap or use glob
-patterns. Missing identity settings are reported as incomplete; no identity is guessed.
-Verification reports contain a settings digest, never the identity values.
-
-## Private proxy settings
-
-`proxyon` reads `~/.config/linux-os-setup/proxy.local.json`, or an explicit
-`WORKSTATION_PROXY_SETTINGS` path. This runtime JSON file must be owned by the current
-user, have no group/other access and be a regular file rather than a symlink. It
-contains exactly four string keys: `http_proxy`, `https_proxy`, `all_proxy`, `no_proxy`.
-Nonempty proxy URLs use http, https, socks5 or socks5h. Empty strings explicitly clear
-that proxy during activation. Control characters and duplicate/unknown keys fail.
-The helpers export both lowercase and uppercase forms and never evaluate shell code.
-
-The first `proxyon` saves prior values, unset state and export attributes. Repeated
-activation retains that original snapshot. `proxyoff` restores it; repeated deactivation
-is harmless. Missing/invalid settings leave the environment unchanged. Do not put
-proxy credentials in the repository or copy old secret-bearing shell function bodies.
 
 ## What this cannot tell you
 

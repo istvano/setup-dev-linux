@@ -1,24 +1,7 @@
 {
   "schema_version": 1,
-  "description": "Third-party APT sources. Every entry declares a signing key, either a fetchable key_url or a vendored key_file with its recorded fingerprint. The Ubuntu archive needs no entry here.",
+  "description": "Third-party APT sources. Every entry declares a signing key, either a fetchable key_url or a vendored key_file with its recorded fingerprint. The Ubuntu archive needs no entry here. A source may name an explicit keyring path when the key is shared with another repository; otherwise the key is placed at /etc/apt/keyrings/<id>.gpg.",
   "repositories": [
-    {
-      "id": "docker",
-      "uri": "https://download.docker.com/linux/ubuntu",
-      "suite": "{codename}",
-      "components": [
-        "stable"
-      ],
-      "key_url": "https://download.docker.com/linux/ubuntu/gpg",
-      "provides": [
-        "docker-ce",
-        "docker-ce-cli",
-        "containerd.io",
-        "docker-buildx-plugin",
-        "docker-compose-plugin"
-      ],
-      "key_fingerprint": "9DC858229FC7DD38854AE2D88D81803C0EBFCD88"
-    },
     {
       "id": "vscode",
       "uri": "https://packages.microsoft.com/repos/code",
@@ -31,33 +14,6 @@
         "code"
       ],
       "key_fingerprint": "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
-    },
-    {
-      "id": "azure-cli",
-      "uri": "https://packages.microsoft.com/repos/azure-cli",
-      "suite": "{codename}",
-      "components": [
-        "main"
-      ],
-      "key_url": "https://packages.microsoft.com/keys/microsoft.asc",
-      "provides": [
-        "azure-cli"
-      ],
-      "note": "Falls back to the newest supported Ubuntu suite when the current codename has no build; recorded explicitly rather than silently.",
-      "key_fingerprint": "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
-    },
-    {
-      "id": "github-cli",
-      "uri": "https://cli.github.com/packages",
-      "suite": "stable",
-      "components": [
-        "main"
-      ],
-      "key_url": "https://cli.github.com/packages/githubcli-archive-keyring.gpg",
-      "provides": [
-        "gh"
-      ],
-      "key_fingerprint": "2C6106201985B60E6C7AC87323F3D4EA75716059"
     },
     {
       "id": "google-chrome",
@@ -99,28 +55,6 @@
       "key_fingerprint": "BDFB19F681514B43875D16FA132C13A8A330F403"
     },
     {
-      "id": "kubernetes",
-      "uri": "https://pkgs.k8s.io/core:/stable:/v1.34/deb/",
-      "suite": "/",
-      "components": [],
-      "key_url": "https://pkgs.k8s.io/core:/stable:/v1.34/deb/Release.key",
-      "provides": [
-        "kubectl"
-      ],
-      "key_fingerprint": "DE15B14486CD377B9E876E1A234654DA9A296436"
-    },
-    {
-      "id": "nvidia-container-toolkit",
-      "uri": "https://nvidia.github.io/libnvidia-container/stable/deb/$(ARCH)",
-      "suite": "/",
-      "components": [],
-      "key_url": "https://nvidia.github.io/libnvidia-container/gpgkey",
-      "provides": [
-        "nvidia-container-toolkit"
-      ],
-      "key_fingerprint": "C95B321B61E88C1809C4F759DDCAE044F796ECB0"
-    },
-    {
       "id": "claude-desktop",
       "uri": "https://downloads.claude.ai/claude-desktop/apt/stable",
       "suite": "stable",
@@ -130,7 +64,9 @@
       "provides": [
         "claude-desktop"
       ],
-      "key_file": "manifest/keys/claude-desktop.asc",
+      "key_file": "manifest/keys/anthropic.asc",
+      "keyring": "/etc/apt/keyrings/anthropic.asc",
+      "keyring_note": "Shared with setup-dev-linux-wsl, whose claude-code source (https://downloads.claude.ai/claude-code/apt/stable) names the same keyring: one Anthropic key file on the machine, byte-identical to that repository's apt/keys/anthropic.asc and kept armoured, so neither repository rewrites it.",
       "key_fingerprint": "31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE",
       "key_uid": "Anthropic Claude Code Release Signing <security@anthropic.com>",
       "key_note": "This vendor publishes no fetchable key; its installer places the keyring locally. The public key is vendored here with its fingerprint, taken from the vendor installation on 2026-09-16.",
@@ -153,46 +89,6 @@
       "key_note": "This vendor publishes no fetchable key; its installer places the keyring locally. The public key is vendored here with its fingerprint, taken from the vendor installation on 2026-09-16.",
       "self_registers_source": true,
       "self_registers_note": "The vendor package installs its own source file pointing at the same URI with its own keyring. Two source files for one URI with different Signed-By values make APT refuse to read its source list, so this repository is configured only to obtain the package and removed once the vendor manages it."
-    },
-    {
-      "id": "opentofu",
-      "uri": "https://packages.opentofu.org/opentofu/tofu/any/",
-      "suite": "any",
-      "components": [
-        "main"
-      ],
-      "key_url": "https://packages.opentofu.org/opentofu/tofu/gpgkey",
-      "provides": [
-        "tofu"
-      ],
-      "key_fingerprint": "F4AF70F66EAC4337EEECC97407D3DFCD4C61499F",
-      "key_note": "The repository is signed by subkey 70DF59811A8B9109 of this key. get.opentofu.org publishes a different key, for the standalone binary releases, which cannot verify this repository."
-    },
-    {
-      "id": "google-cloud-cli",
-      "uri": "https://packages.cloud.google.com/apt",
-      "suite": "cloud-sdk",
-      "components": [
-        "main"
-      ],
-      "key_url": "https://packages.cloud.google.com/apt/doc/apt-key.gpg",
-      "provides": [
-        "google-cloud-cli"
-      ],
-      "key_fingerprint": "35BAA0B33E9EB396F59CA838C0BA5CE6DC6315A3"
-    },
-    {
-      "id": "trivy",
-      "uri": "https://aquasecurity.github.io/trivy-repo/deb",
-      "suite": "generic",
-      "components": [
-        "main"
-      ],
-      "key_url": "https://aquasecurity.github.io/trivy-repo/deb/public.key",
-      "provides": [
-        "trivy"
-      ],
-      "key_fingerprint": "825AD9036F7C850E6A6FED4935B8ACA44FD9CA9F"
     },
     {
       "id": "ppa-obs",

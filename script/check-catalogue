@@ -143,12 +143,6 @@ def check_source_review(catalogue, review):
             require(origins and all(o['origin'] == 'Ubuntu' and o['trusted'] and o['suite'] in ('resolute', 'resolute-updates', 'resolute-security') for o in origins), f'{id}: unsupported Ubuntu source observation')
 
 
-def check_user_environment(catalogue, preferences):
-    check_schema(preferences, 'profiles/user-environment.schema.json')
-    keep = {e['id'] for e in catalogue['capabilities'] if e['decision'] == 'keep'}
-    require(set(preferences['shell']['plugins']) | {'oh-my-zsh', 'java', 'sdkman', 'mandrel'} <= keep, 'confirmed environment missing selected provider')
-
-
 def check_links():
     for path in ROOT.rglob('*.md'):
         if any(part in ('.git', '.agents', '.codex', '.venv', '.workstation') for part in path.relative_to(ROOT).parts):
@@ -197,41 +191,6 @@ def main():
     default = read_json(ROOT / 'profiles/default.json')
     entries = check_catalogue(catalogue, target, default)
     approved_registry(entries)
-    from workstation.artifacts import registry
-    registry(entries)
-    from workstation.node_runtime import node_lock
-    node_lock(entries)
-    from workstation.sdkman_runtime import manager_lock
-    manager_lock(entries)
-    from workstation.java_runtime import java_lock
-    java_lock(entries)
-    from workstation.jvm_tools import tool_lock
-    tool_lock(entries)
-    from workstation.mandrel_runtime import mandrel_lock
-    mandrel_lock(entries)
-    from workstation.go_runtime import go_lock
-    go_lock(entries)
-    from workstation.rust_runtime import rust_lock
-    rust_lock(entries)
-    from workstation.python_user import python_lock
-    python_lock(entries)
-    from workstation.opencode_runtime import opencode_lock
-    opencode_lock(entries)
-    from workstation.codex_runtime import codex_lock
-    codex_lock(entries)
-    from workstation.cline_runtime import cline_lock
-    cline_lock(entries)
-    from workstation.prerequisites import registry as prerequisite_registry
-    prerequisite_map = prerequisite_registry(entries)
-    sdkman_review = read_json(ROOT / 'locks/sdkman-review.json')
-    check_schema(sdkman_review, 'locks/user-tools.schema.json')
-    require([r['id'] for r in sdkman_review['artifacts']] == ['sdkman-cli', 'sdkman-native'],
-            'SDKMAN source review must include CLI and native helper')
-    java_review = read_json(ROOT / 'locks/java-review.json')
-    check_schema(java_review, 'locks/user-tools.schema.json')
-    require([r['id'] for r in java_review['artifacts']] ==
-            ['temurin-25', 'temurin-21', 'microsoft-25', 'microsoft-21'],
-            'Java source review must include the four selected vendor/major variants')
     paths = sorted((ROOT / 'config').glob('*.example.json'))
     require(len(paths) == 2, 'expected the single-disk and split storage examples')
     for path in paths:
@@ -242,13 +201,12 @@ def main():
     check_matrix(catalogue)
     review = read_json(ROOT / 'catalogue/source-review.json')
     check_source_review(catalogue, review)
-    check_user_environment(catalogue, read_json(ROOT / 'profiles/user-environment.json'))
     require((ROOT / 'docs/SOURCE-REVIEW.md').read_text() == render_source_review(review), 'source review document differs from ledger; run python3 -B script/render-source-review --write')
     check_links()
     if args.mac_source:
         check_mac(catalogue, args.mac_source)
     print(f'PASS: {len(entries)} capabilities; {len(target["capability_ids"])} target selections; {len(paths)} storage examples; schemas, mappings, raw review and links.')
-    print(f'PASS: {len(review["records"])} selected delivery review records; user preferences and generated review document.')
+    print(f'PASS: {len(review["records"])} selected delivery review records and generated review document.')
     if args.mac_source:
         print('PASS: Mac profile, extension and configuration/helper coverage at recorded commit.')
     print('Remaining delivery gates are explicit. This is static catalogue validation, not an installation or workstation-readiness test.')
