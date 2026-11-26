@@ -420,6 +420,10 @@ class CliTest(TempState):
                                              'reason': 'fixture'}],
             'workstation.controller.apply_foundation': {
                 'id': 'controller-foundation', 'status': 'passed', 'reason': 'fixture'},
+            # The handoff has its own tests (tests/test_handoff.py).
+            'workstation.handoff.run_handoff': 0,
+            'workstation.handoff.verify_cli': [],
+            'workstation.handoff.first_run_hint': None,
         }
         with contextlib.ExitStack() as stack:
             self.mocks = {t: stack.enter_context(patch(t, return_value=v))

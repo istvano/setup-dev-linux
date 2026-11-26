@@ -48,8 +48,26 @@ SHA-256, then the VS Code extensions and the GNOME settings. Re-running it is
 safe: the second run changes nothing that is already correct.
 
 Command-line tools, runtimes, the shell, dotfiles and Docker are not installed
-here: setup-dev-linux-wsl installs them on a Linux machine too
-(`./bootstrap apply --target linux` in that repository; see [MOVED.md](MOVED.md)).
+here: setup-dev-linux-wsl installs them on a Linux machine too, and `apply` ends
+by handing off to it. It clones `~/workspace/setup-dev-linux-wsl` and runs that
+repository's `./bootstrap apply --target linux` as you, interactively: it asks for
+your git name and email (see [MOVED.md](MOVED.md)).
+
+setup-dev-linux-wsl records its profile choice on its first run and refuses a
+different list afterwards, so choose it on the first run. For the command-line
+set this repository used to install, give that list:
+
+```bash
+./bootstrap apply --config config/your-machine.json \
+  --cli-profiles core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp
+```
+
+Add `,gpu-nvidia` when you selected the `gpu` host profile. Without
+`--cli-profiles` it uses its own default, and apply prints one `hint:` line with
+this list. Later runs need no `--cli-profiles`. `--linux-ref REF` checks out
+another branch, tag or commit of setup-dev-linux-wsl; `--no-handoff` stops after
+the host. If `~/workspace/setup-dev-linux-wsl` already exists but is a clone of
+something else or has local changes, apply stops and leaves it untouched.
 
 To install part of the host, name the profiles (a server leaves out the desktop
 ones; `firewall` can be selected on its own):
@@ -71,6 +89,8 @@ just verify config/your-machine.json
 ```
 
 Verification reads the installed system and reports drift. It never repairs.
+It ends with setup-dev-linux-wsl's own `script/verify --target linux`
+(`cli:verify`; `--no-handoff` skips it).
 An `incomplete` result names what has no verification yet; it is not a pass.
 
 ## 5. Finish by hand

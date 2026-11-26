@@ -74,7 +74,23 @@ is installed).
 Command-line tools, runtimes, the shell, dotfiles, kubectl plugins and Docker are
 installed by [setup-dev-linux-wsl](https://github.com/istvano/setup-dev-linux-wsl)
 (`--target linux`), not here. [docs/MOVED.md](docs/MOVED.md) says where each item
-this repository used to install went.
+this repository used to install went. `apply` ends by handing off to it, as
+setup-dev-win does: it clones or updates `~/workspace/setup-dev-linux-wsl` (a clone
+of anything else, or one with local changes, stops the run and is never
+overwritten), checks out `--linux-ref` (default `main`) and runs its
+`./bootstrap apply --target linux` as you, interactively. It passes `--profiles`
+only when you give `--cli-profiles`; otherwise setup-dev-linux-wsl uses its recorded
+choice, or on its first run its own default. On that first run apply prints one
+`hint:` line with the list matching what this repository used to install:
+
+```bash
+./bootstrap apply --config config/your-machine.json \
+  --cli-profiles core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp   # add ,gpu-nvidia with the gpu profile
+./bootstrap apply --config config/your-machine.json --no-handoff   # host only
+```
+
+`verify` appends setup-dev-linux-wsl's `script/verify --target linux` (skipped with
+`--no-handoff`).
 
 ## How the manifest was decided
 

@@ -356,6 +356,10 @@ class CliTest(unittest.TestCase):
             'workstation.plugins.verify': [],
             'workstation.controller.apply_foundation': {
                 'id': 'controller-foundation', 'status': 'passed', 'reason': 'fixture'},
+            # The handoff has its own tests (tests/test_handoff.py).
+            'workstation.handoff.run_handoff': 0,
+            'workstation.handoff.verify_cli': [],
+            'workstation.handoff.first_run_hint': None,
         }
         with contextlib.ExitStack() as stack:
             self.mocks = {target: stack.enter_context(patch(target, return_value=value))

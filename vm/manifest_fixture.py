@@ -178,8 +178,10 @@ def verify_new_deliveries():
 
 
 def install(config):
+    # Host delivery only: the handoff to setup-dev-linux-wsl is interactive and
+    # is exercised by the two-repository cycle (plan Task 7).
     command = [str(ROOT / 'bootstrap'), 'apply', '--config', str(config),
-               '--format', 'json', '--profiles', ','.join(PROFILES)]
+               '--format', 'json', '--profiles', ','.join(PROFILES), '--no-handoff']
     result = subprocess.run(command, capture_output=True, text=True)
     try:
         outcome = json.loads(result.stdout)['outcome']

@@ -84,9 +84,13 @@ class NoCliModulesTest(unittest.TestCase):
         # The one permitted mention: check-catalogue's optional audit of the Mac
         # checkout's layout, whose chezmoi/ directory is provenance, not something run.
         mac_audit = "path.startswith(('chezmoi/', 'script/'))"
+        # And the handoff's first-run hint, which only tests whether
+        # setup-dev-linux-wsl's record file exists (controller ruling RB3).
+        handoff_record = "RECORD = ('chezmoi', 'chezmoi.toml')"
         for path in list((ROOT / 'script').rglob('*')) + list((ROOT / 'ansible').rglob('*.yml')):
             if path.is_file() and '__pycache__' not in path.parts:
                 text = path.read_text(errors='replace').replace(mac_audit, '')
+                text = text.replace(handoff_record, '')
                 self.assertFalse('chezmoi' in text.lower(), f'{path.relative_to(ROOT)} mentions chezmoi')
 
 

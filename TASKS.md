@@ -63,6 +63,12 @@ Ordered by what it blocks, not by subsystem.
   default and the controller calls its stage (`apply_firewall_stage`), but UFW
   and OpenSnitch are not configured: `plan` reports the stage as unimplemented
   and `verify` reports the firewall as deferred.
+- [ ] **The handoff to setup-dev-linux-wsl has no guest evidence.** Its clone,
+  origin, local-change and ref checks run against a local bare repository with a
+  stub bootstrap (`tests/test_handoff.py`); no guest has run the real
+  `./bootstrap apply --target linux` after a host apply, and
+  `vm/guest-foundation.py --controller` still runs `install` with the handoff
+  (plan Task 7 covers both).
 - [ ] **Headless selections have no guest evidence.** `--profiles gpu,firewall`
   runs no desktop, snap or VS Code stage in the unit tests; no guest cycle has
   run a headless selection.

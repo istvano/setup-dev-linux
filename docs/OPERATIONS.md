@@ -9,10 +9,10 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 
 | Command | Current behavior |
 |---|---|
-| `./bootstrap plan --config PATH [--profiles LIST] --format json` | Prints the `Profiles:` line and the stages the selection runs. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
+| `./bootstrap plan --config PATH [--profiles LIST] [--no-handoff \| --cli-profiles LIST] [--linux-ref REF] --format json` | Prints the `Profiles:` line and the stages the selection runs, ending with `stage:handoff`, and the first-run `hint:` line when setup-dev-linux-wsl has recorded no profile choice. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
-| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
-| `./bootstrap verify --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
+| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--linux-ref REF] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures; then the handoff to setup-dev-linux-wsl unless `--no-handoff` |
+| `./bootstrap verify --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps, then setup-dev-linux-wsl's `script/verify --target linux` as `cli:verify` unless `--no-handoff`; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
@@ -33,6 +33,23 @@ turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose`
 `sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker's published ports
 bypass UFW; `verify` prints a notice when `docker` is present. Switching OpenSnitch to deny is
 a later, manual decision.
+
+Handoff: the last apply stage, run only when the host stages succeeded (host verify findings
+are reported but do not hold it back). As the target user, never root, it clones
+`https://github.com/istvano/setup-dev-linux-wsl` into `~/workspace/setup-dev-linux-wsl` or
+updates that clone, fetches, resolves `--linux-ref` (default `main`; `origin/<ref>`, else a tag
+or commit) with `git rev-parse --verify`, checks it out once with `checkout --detach`, then runs
+`./bootstrap apply --target linux` attached to the terminal (it prompts for the git identity).
+It stops, naming the directory and changing nothing, when that directory is not a git clone,
+when its `remote.origin.url` is another repository, or when tracked files have local changes;
+an unknown ref stops with `unknown ref`. `--profiles LIST` is passed only with
+`--cli-profiles LIST`: setup-dev-linux-wsl refuses a list that disagrees with its recorded
+choice, so re-runs pass none. When it has recorded no choice and `--cli-profiles` is absent,
+plan and apply print one `hint:` line naming `core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp` (plus `gpu-nvidia` with the `gpu`
+profile), the set this repository installed before. A failed handoff fails the run with
+setup-dev-linux-wsl's exit code (a `handoff` check, outcome `failed`); re-running is safe. In
+JSON mode its programs' output goes to standard error so the report stays the only standard
+output. `apply` does not run `cli:verify` itself: that bootstrap ends with its own verify.
 
 `apply` currently **cannot report full success for the selected workstation**.
 Controller success followed by exit 1 identifies selected source approvals still

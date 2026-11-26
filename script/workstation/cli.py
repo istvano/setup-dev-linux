@@ -37,8 +37,11 @@ def emit(result, fmt):
         print('This result does not establish full workstation readiness.')
 
 
-def stage_checks(selection):
-    """What apply would run for this selection, stage by stage."""
+def stage_checks(selection, handoff_args=None):
+    """What apply would run for this selection, stage by stage.
+
+    handoff_args: (ref, cli_profiles) when apply ends with the handoff.
+    """
     from .controller import host_stages
     checks = []
     for stage, playbooks, _ in host_stages(selection):
@@ -46,6 +49,12 @@ def stage_checks(selection):
             continue
         checks.append({'id': 'stage:' + stage, 'status': 'planned',
                        'reason': ','.join(playbooks)})
+    if handoff_args is not None:
+        from . import handoff
+        ref, cli_profiles = handoff_args
+        checks.append({'id': 'stage:handoff', 'status': 'planned',
+                       'reason': f'{handoff.NAME}@{ref}: '
+                                 + ' '.join(handoff.bootstrap_command(cli_profiles))})
     return checks
 
 
@@ -73,8 +82,25 @@ def main(argv=None):
         ssh.add_argument('--no-allow-ssh', dest='allow_ssh', action='store_const', const=False,
                          help='firewall profile: do not allow incoming SSH; removes the '
                               'rule and records the choice')
+        parser.add_argument('--no-handoff', action='store_true',
+                            help='apply: stop after the host stages instead of handing the '
+                                 'command line to setup-dev-linux-wsl; verify: skip its verify')
+        parser.add_argument('--cli-profiles',
+                            help='setup-dev-linux-wsl profiles for the handoff (default: its '
+                                 'recorded choice, else its default; passed only when given)')
+        parser.add_argument('--linux-ref', default='main',
+                            help='setup-dev-linux-wsl branch, tag or commit (default: main)')
         args = parser.parse_args(argv)
         command, fmt = args.command, args.format
+        # Checked before anything changes: a typo must not fail after the host stages.
+        from . import handoff
+        require(handoff.valid_ref(args.linux_ref), 'invalid-linux-ref')
+        if args.cli_profiles is not None:
+            require(not args.no_handoff, 'cli-profiles-needs-the-handoff')
+            require(handoff.valid_cli_profiles(args.cli_profiles), 'invalid-cli-profiles')
+        # In JSON mode the report is the only standard output; what the handoff's
+        # programs print goes to standard error (file descriptor 2).
+        child_stdout = 2 if fmt == 'json' else None
         if command == 'install':
             print('install is now apply; running apply', file=sys.stderr)
             command = 'apply'
@@ -109,7 +135,12 @@ def main(argv=None):
                 e = context['entries'][i]
                 state = 'blocked-source' if e['delivery']['status'] == 'unverified' else 'planned'
                 checks.append({'id': i, 'status': state, 'reason': e['owner'] + ':' + (e['delivery']['channel'] or e['boundary'])})
-            checks.extend(stage_checks(selection))
+            checks.extend(stage_checks(
+                selection, None if args.no_handoff else (args.linux_ref, args.cli_profiles)))
+            if not args.no_handoff:
+                hint = handoff.first_run_hint(args.cli_profiles, selection['profiles'])
+                if hint:
+                    print(hint, file=sys.stderr)
             emit(report(command, 'passed', checks, context, summary), fmt)
             return 0
         if context['config']['example_only']:
@@ -131,12 +162,14 @@ def main(argv=None):
                     print('warning: connected over SSH and SSH is not allowed; UFW will refuse '
                           'new SSH logins after this run. Pass --allow-ssh to keep them.',
                           file=sys.stderr)
+        host_stages_passed = False
         if not code and command == 'apply':
             from .controller import apply_foundation
             try:
                 checks.append(apply_foundation(
                     context['config'], selection=selection, allow_ssh=allow_ssh,
                     allow_ssh_explicit=args.allow_ssh is not None))
+                host_stages_passed = True
             except (OSError, subprocess.SubprocessError, tarfile.TarError):
                 checks.append({'id': 'controller-foundation', 'status': 'failed', 'reason': 'controller-operation-failed-see-private-log'})
                 code = 1
@@ -166,6 +199,10 @@ def main(argv=None):
                 package_checks.extend(firewall.verify(
                     allow_ssh, desktop=selection['desktop'],
                     home=pwd.getpwnam(context['config']['target']['user']).pw_dir))
+            # apply does not: setup-dev-linux-wsl's bootstrap ends with its own verify.
+            if command == 'verify' and not args.no_handoff:
+                package_checks.extend(handoff.verify_cli(context['config']['target']['user'],
+                                                         stdout=child_stdout))
             checks.extend(package_checks)
             # The manifest is the delivery authority: what it installs is approved
             # by its own pinning and signing rules, checked by script/check-manifest.
@@ -187,7 +224,30 @@ def main(argv=None):
             missing = [i for i in selected if i not in context.get('approved', {}) and i not in blocked and not covers(routes, i)]
             checks.extend({'id': i, 'status': 'deferred', 'reason': 'capability-role-verification-not-yet-implemented'} for i in missing)
             code = 1 if any(c['status'] == 'failed' for c in package_checks) else (3 if blocked or missing or any(c['status'] == 'deferred' for c in package_checks) or not context['selected'] else 0)
-        outcome = {0: 'passed', 1: 'failed', 2: 'invalid', 3: 'incomplete'}[code]
+        # The last stage, once the host stages succeeded. Host verification
+        # findings do not hold it back: they are reported either way, and the
+        # command line does not depend on them. A failed handoff fails the run
+        # with setup-dev-linux-wsl's exit code.
+        if host_stages_passed and not args.no_handoff:
+            try:
+                handoff_code = handoff.run_handoff(
+                    context['config']['target']['user'], args.linux_ref, args.cli_profiles,
+                    host_profiles=selection['profiles'], stdout=child_stdout)
+            except (OSError, subprocess.SubprocessError):
+                # Keep the host report: the host stages did run.
+                print('handoff: could not run git or the bootstrap', file=sys.stderr)
+                handoff_code = 1
+            if handoff_code:
+                checks.append({'id': 'handoff', 'status': 'failed',
+                               'reason': f'setup-dev-linux-wsl-bootstrap-exit-{handoff_code}'})
+                code = handoff_code
+            else:
+                checks.append({'id': 'handoff', 'status': 'passed',
+                               'reason': 'setup-dev-linux-wsl-bootstrap-passed'})
+        outcome = {0: 'passed', 1: 'failed', 2: 'invalid', 3: 'incomplete'}.get(code, 'failed')
+        if any(c['id'] == 'handoff' and c['status'] == 'failed' for c in checks):
+            # Its exit code is setup-dev-linux-wsl's, not one of this table's.
+            outcome = 'failed'
         emit(report(command, outcome, checks, context, summary), fmt)
         return code
     except InputError as exc:
