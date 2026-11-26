@@ -7,8 +7,16 @@ Clones or updates ~/workspace/setup-dev-linux-wsl, then runs its
 program:
 
 - one fixed git program from the system path, argument lists only, no shell;
+- git and the bootstrap run with every GIT_* variable removed from the
+  environment (child_environment), so a GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE
+  or GIT_CONFIG_* the operator's shell happens to carry cannot point them at
+  another repository or another configuration;
 - an existing clone's origin is read with `git config --get remote.origin.url`,
-  not `remote get-url`, so an insteadOf rewrite cannot hide a foreign origin;
+  which returns the URL as configured, before any url.<base>.insteadOf
+  rewrite. That is chosen so a legitimate insteadOf setup (a mirror, or the
+  tests' local bare repository) still matches; it is not a defence against a
+  rewrite, which it hides rather than exposes. ~/.gitconfig belongs to the
+  operator and is outside the threat model;
 - a directory that is not a clone, a clone of anything else and a clone with
   local changes to tracked files stop the run with a message naming the
   directory; nothing is ever overwritten;
@@ -143,10 +151,16 @@ def _git():
     return shutil.which('git', path=SYSTEM_PATH)
 
 
+def child_environment(environ=None):
+    """This process's environment without any GIT_* variable, for git and the bootstrap."""
+    environ = os.environ if environ is None else environ
+    return {k: v for k, v in environ.items() if not k.startswith('GIT_')}
+
+
 def _origin(git, directory):
     """The configured origin URL, '' when none is configured."""
     result = subprocess.run([git, '-C', str(directory), 'config', '--get', 'remote.origin.url'],
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, env=child_environment())
     return result.stdout.strip() if result.returncode == 0 else ''
 
 
@@ -184,7 +198,8 @@ def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), identi
         _say('git missing; install the git package')
         return 1
     directory = clone_directory()
-    output = {'stdout': stdout, 'stderr': stderr}
+    environment = child_environment()
+    output = {'stdout': stdout, 'stderr': stderr, 'env': environment}
     if os.path.lexists(directory):
         if not (directory / '.git').exists():
             _say(f'{directory} exists but is not a git clone; move it aside, then re-run')
@@ -195,7 +210,8 @@ def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), identi
                  'move it aside, then re-run')
             return 1
         status = subprocess.run([git, '-C', str(directory), 'status', '--porcelain',
-                                 '--untracked-files=no'], capture_output=True, text=True)
+                                 '--untracked-files=no'], capture_output=True, text=True,
+                                env=environment)
         if status.returncode != 0:
             _say(f'cannot read the state of {directory}; repair or move it aside, then re-run')
             return status.returncode
@@ -218,7 +234,7 @@ def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), identi
     target = None
     for candidate in (f'origin/{ref}^{{commit}}', f'{ref}^{{commit}}'):
         result = subprocess.run([git, '-C', str(directory), 'rev-parse', '--verify', '--quiet',
-                                 candidate], capture_output=True, text=True)
+                                 candidate], capture_output=True, text=True, env=environment)
         if result.returncode == 0:
             target = result.stdout.strip()
             break
@@ -266,7 +282,8 @@ def verify_cli(user, *, stdout=None, stderr=None):
     if not _same_repository(_origin(git, directory)):
         return check('failed', 'setup-dev-linux-wsl-clone-has-another-origin')
     result = subprocess.run([str(directory / 'script' / 'verify'), '--target', 'linux'],
-                            cwd=directory, stdout=stdout, stderr=stderr)
+                            cwd=directory, stdout=stdout, stderr=stderr,
+                            env=child_environment())
     if result.returncode == 0:
         return check('passed', 'setup-dev-linux-wsl-script-verify-passed')
     return check('failed', f'setup-dev-linux-wsl-script-verify-exit-{result.returncode}')

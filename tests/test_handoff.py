@@ -48,19 +48,23 @@ class GitFixture(unittest.TestCase):
         self.bare = work / 'upstream.git'
         self.seed = work / 'seed'
         self.clone = self.home / 'workspace' / 'setup-dev-linux-wsl'
-        gitconfig = work / 'gitconfig'
+        # In the fake home, not GIT_CONFIG_GLOBAL: the handoff runs git with every
+        # GIT_* variable removed (RB22), and must still see this rewrite.
+        gitconfig = self.home / '.gitconfig'
         gitconfig.write_text(
             '[user]\n    name = Test\n    email = test@example.invalid\n'
             '[init]\n    defaultBranch = main\n'
             '[advice]\n    detachedHead = false\n'
             f'[url "{self.bare}"]\n    insteadOf = {URL}\n')
         environment = patch.dict(os.environ, {'HOME': str(self.home),
-                                              'GIT_CONFIG_GLOBAL': str(gitconfig),
                                               'GIT_CONFIG_NOSYSTEM': '1'})
         environment.start()
         self.addCleanup(environment.stop)
         for name in ('XDG_CONFIG_HOME', 'XDG_STATE_HOME'):
             os.environ.pop(name, None)
+        for name in [n for n in os.environ if n.startswith('GIT_') and n != 'GIT_CONFIG_NOSYSTEM']:
+            os.environ.pop(name)
+        self.work = work
         self.git('init', '--quiet', '--bare', str(self.bare))
         self.git('clone', '--quiet', str(self.bare), str(self.seed))
         (self.seed / 'bootstrap').write_text(BOOTSTRAP)
@@ -247,6 +251,51 @@ class HandoffTest(GitFixture):
         self.assertFalse(self.clone.exists())
 
 
+class GitEnvironmentTest(GitFixture):
+    """RB22: git variables in the caller's environment never steer the handoff."""
+
+    def setUp(self):
+        super().setUp()
+        self.other = self.work / 'other'
+        self.git('init', '--quiet', str(self.other))
+        self.foreign = {
+            'GIT_DIR': str(self.other / '.git'), 'GIT_WORK_TREE': str(self.other),
+            'GIT_INDEX_FILE': str(self.other / '.git' / 'index'),
+            'GIT_OBJECT_DIRECTORY': str(self.other / '.git' / 'objects'),
+            'GIT_CONFIG_COUNT': '1', 'GIT_CONFIG_KEY_0': 'remote.origin.url',
+            'GIT_CONFIG_VALUE_0': 'https://example.invalid/foreign'}
+
+    def test_a_first_clone_ignores_them(self):
+        with patch.dict(os.environ, self.foreign):
+            code, out = self.handoff()
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.ran(), f'{self.first} apply --target linux')
+        self.assertTrue((self.clone / '.git').is_dir())
+
+    def test_an_update_ignores_them_and_so_does_the_bootstrap(self):
+        self.assertEqual(self.handoff()[0], 0)
+        second = self.commit_upstream('second')
+        with patch.dict(os.environ, self.foreign):
+            code, out = self.handoff()
+        self.assertEqual(code, 0, out)
+        # The stub's own `git rev-parse HEAD` would name another repository otherwise.
+        self.assertEqual(self.ran(), f'{second} apply --target linux')
+
+    def test_verify_ignores_them(self):
+        self.assertEqual(self.handoff()[0], 0)
+        with patch.dict(os.environ, self.foreign):
+            checks = handoff.verify_cli(me(), stdout=subprocess.DEVNULL,
+                                        stderr=subprocess.DEVNULL)
+        self.assertEqual(checks[0]['status'], 'passed', checks)
+
+    def test_the_bootstrap_keeps_the_rest_of_the_environment(self):
+        environment = handoff.child_environment({'GIT_DIR': '/x', 'GIT_CONFIG_GLOBAL': '/y',
+                                                 'HOME': '/h', 'PATH': '/p', 'LANG': 'C',
+                                                 'MY_GIT_DIR': 'kept'})
+        self.assertEqual(environment, {'HOME': '/h', 'PATH': '/p', 'LANG': 'C',
+                                       'MY_GIT_DIR': 'kept'})
+
+
 class HintTest(GitFixture):
     """RB3: one hint line on a run where setup-dev-linux-wsl has recorded nothing."""
 
@@ -369,6 +418,7 @@ class StartHintTest(unittest.TestCase):
         environment.start()
         self.addCleanup(environment.stop)
         os.environ.pop('XDG_CONFIG_HOME', None)
+        os.environ.pop('SSH_CONNECTION', None)  # apply would refuse over SSH (RB18)
 
     def run_apply(self, *extra):
         """(exit code, stderr at the moment the host stages started, whole stderr)."""
@@ -466,6 +516,8 @@ class CliWiringTest(unittest.TestCase):
             if handoff_effect is not None:
                 self.mocks['workstation.handoff.run_handoff'].side_effect = handoff_effect
             stack.enter_context(patch('os.geteuid', return_value=1000))
+            stack.enter_context(patch.dict(os.environ))
+            os.environ.pop('SSH_CONNECTION', None)  # apply would refuse over SSH (RB18)
             stack.enter_context(contextlib.redirect_stdout(stdout))
             stack.enter_context(contextlib.redirect_stderr(stderr))
             code = main(args)
