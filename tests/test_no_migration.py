@@ -7,6 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 PATTERN = re.compile(r'\bmigrat(e|ion)\b|rsync', re.I)
+# The disk-transfer handoff is a copy feature too: no producer, no transfer inputs.
+TRANSFER = re.compile(r'\btransfer(red)?\b|produce-transfer|transfer-witness|receipt', re.I)
 # docs/DECISIONS.md and docs/superpowers keep the history; specs and the older
 # evidence documents are records of what was built and are not live surface.
 SCANNED = ('script', 'tests', 'manifest', 'catalogue', 'profiles', 'vm',
@@ -60,9 +62,16 @@ class NoMigrationSurfaceTest(unittest.TestCase):
             if path.resolve() == me:
                 continue
             for number, line in enumerate(path.read_text(errors='replace').splitlines(), 1):
-                if PATTERN.search(line) and PROVENANCE not in line:
+                if ((PATTERN.search(line) or TRANSFER.search(line))
+                        and PROVENANCE not in line):
                     hits.append(f'{path.relative_to(ROOT)}:{number}: {line.strip()[:100]}')
         self.assertEqual(hits, [])
+
+    def test_the_transfer_producer_and_inputs_are_gone(self):
+        self.assertFalse((ROOT / 'script/produce-transfer-handoff').exists())
+        self.assertEqual(sorted(p.name for p in (ROOT / 'config').glob('*transfer*')), [])
+        schema = (ROOT / 'config/workstation.schema.json').read_text()
+        self.assertNotRegex(schema, r'(?i)transfer|receipt')
 
     def test_the_migration_files_are_gone(self):
         for name in ('script/workstation/migrate.py', 'tests/test_migrate.py',

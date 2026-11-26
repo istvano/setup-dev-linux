@@ -13,7 +13,6 @@ workstation readiness are unfinished. Feature contracts and dependency order are
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks; examples rejected; no writes |
 | `./bootstrap install --config PATH --format json` | Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
 | `./bootstrap verify --config PATH --format json` | Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
-| `sudo ./script/produce-transfer-handoff --config PATH --fresh-home PATH [--fresh-var-lib PATH] --format json` | Maintenance-only home-baseline and optional exact-`/var/lib` evidence publication; requires isolated rescue/emergency mode, exact transferred mounts and private output parents; does not enable bootstrap yet |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
@@ -34,17 +33,6 @@ on the physical workstation merely to see what happens; use pure plan/preflight.
 Use private, non-example configuration copied from a declared storage layout. Supply
 real target-user and stable by-id disk identities, capacities and filesystem UUIDs.
 Do not commit that input. Standard split with /var/lib on root is implemented.
-Transferred-drive inputs remain incomplete until fresh-target evidence verification
-is implemented; a receipt path alone cannot enable installation.
-
-The handoff producer is intentionally separate from `bootstrap`. It runs only as
-root after the operator has mounted the reviewed layout, retained a fresh
-target-home baseline on the system root, retained a fresh `/var/lib` source there
-when that separate mount is selected, and isolated the installed target into
-rescue or emergency mode. It never copies, mounts, formats or stops services.
-Its successful redacted report proves evidence publication only. Do not use it
-for a production cutover until the live verifier and transferred-disk boot suite
-recorded in F02-T6c/d are complete.
 
 ## Disposable VM
 

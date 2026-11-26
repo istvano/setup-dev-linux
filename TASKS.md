@@ -127,7 +127,8 @@ Not needed to move; needed to live with the result.
 
 ## Deliberately not doing
 
-- **Automated disk transfer** (D017). Withdrawn 2026-09-16; files move by copy.
+- **Moving disks or files between machines** (D017). Withdrawn 2026-09-16 and
+  removed entirely 2026-11-26; fresh installs only.
 - **Host Go and Rust toolchains** (D019). That work runs in containers. The
   roles and locks remain in the repository, dormant.
 - **aider** (D019). Not selected; its source and licence review stays an open gate.

@@ -27,8 +27,8 @@ D001–D016 and the capability matrix supersede stale Mac/raw-review proposals.
 
 Decided 2026-09-16, in review with the operator:
 
-- **Automated disk transfer is withdrawn.** No receipts, witnesses or machine
-  binding. There is no file copy either (removed 2026-11-26).
+- **No file or disk movement.** No machine binding and no file copy (removed
+  2026-11-26).
 - **The manifest is decided by review, not inference.** `catalogue/curation.json`
   records each decision; `docs/INVENTORY-REVIEW.md` renders it.
 - **Source review applies to third-party sources only.** Ubuntu archive packages

@@ -88,8 +88,7 @@ To change what a new machine gets, change the manifest.
 
 Disk roles come from verified stable identities in private configuration.
 "System disk" and "data disk" never mean the first or second enumerated device.
-No target disk encryption is selected. Automated physical-disk transfer was
-withdrawn on 2026-09-16.
+No target disk encryption is selected.
 
 ## Keeping it current
 

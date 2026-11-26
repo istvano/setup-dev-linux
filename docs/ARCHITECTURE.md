@@ -3,18 +3,9 @@
 Status: pure bootstrap plan, live standard-layout preflight, isolated locked controller
 and initial Ansible foundation are implemented, with nine approved Ubuntu CLI/shell packages, immutable user tools, NVM/Node, Go, Rust, user uv/Python, OpenCode, Codex, Cline CLI, SDKMAN/JVM and
 chezmoi shell/Git files.
-Remaining application roles, transfer-handoff
-verification, full independent workstation verification and production OS
+Remaining application roles, full independent workstation verification and production OS
 automation remain unfinished. Feature and guest results are in TESTING.md; catalogue
 selection and foundation success are not full workstation readiness.
-
-The transfer handoff currently has strict evidence parsing, exact offline tree
-comparison, a fresh-home-baseline comparator, version-2 atomic publication and
-a read-only adapter that binds its paths to storage inventory. A separate root-only command adds strict
-rescue/emergency-state and output-parent checks, but has not run against actual
-transferred guest disks. Initial live and package-checkpoint parsing have fixtures;
-checkpoint publication, guard integration and transferred-disk boot acceptance
-remain unfinished, so transfer apply stays blocked.
 
 ## Sources of truth
 
@@ -22,7 +13,7 @@ remain unfinished, so transfer apply stays blocked.
   behavior ownership, verification requirements and source mappings.
 - `profiles/target.json`: exact confirmed personal selection, including NVIDIA.
 - `profiles/default.json`: reusable selection without GPU-specific capabilities.
-- `config/*.example.json`: deliberately non-executable single/split/transfer inputs.
+- `config/*.example.json`: deliberately non-executable single/split inputs.
 - `docs/DECISIONS.md`: user decisions and policy; later decisions supersede raw review.
 - `docs/software-review.md`: immutable original evidence, hashed in the catalogue.
 - `docs/CAPABILITY-MATRIX.md`: human-readable catalogue/mapping projection.
@@ -110,7 +101,7 @@ Development schema validation is separate from the dependency-free bootstrap pat
 Do not create a second shell parser or an independently interpreted selection list.
 
 All workstation commands require `--config PATH`. Resolve `selection_file` relative
-to the configuration file; resolve private receipt paths the same way. No environment,
+to the configuration file; No environment,
 last-run state or default config silently overrides explicit input. Parse strictly:
 reject duplicate JSON keys, unknown fields/IDs, duplicate selected IDs, contradictory
 features, and unsupported schema versions. Reject pending/omit IDs. The committed default/target selections contain no optional
@@ -125,9 +116,7 @@ capacities, non-placeholder distinct stable disk identities and verified UUIDs.
 Semantic storage rules: single requires only system disk, no separate /var/lib and
 /home on system. Split requires distinct system/data disks, /home on data and optional
 /var/lib on data. /boot/efi, /boot and / are always on system. Required mount UUIDs must
-be distinct and resolve to the configured physical role. Transfer requires split layout,
-a data disk and a private receipt for affected mounts. Standard requires no receipt.
-The personal transfer example selects separate /var/lib; split standard may omit it.
+be distinct and resolve to the configured physical role. Split standard may omit a separate /var/lib.
 GPU feature none forbids GPU-profile IDs; nvidia requires both NVIDIA capabilities.
 
 ## Bootstrap ordering and read-only boundary
@@ -136,7 +125,7 @@ GPU feature none forbids GPU-profile IDs; nvidia requires both NVIDIA capabiliti
    load/validate config and inspect platform, target user, disk identities and mounts.
    If these prerequisites are absent, return remediation; do not install them first.
 2. Before APT, environment creation, logging to managed home, or any other managed
-   write, verify every required mount and transfer handoff. On failure, report to
+   write, verify every required mount. On failure, report to
    stdout/stderr only. A matching mountpoint without physical identity is insufficient.
 3. After the guard passes, install missing venv/APT bindings through signed Ubuntu
    packages, verify pinned uv/controller inputs, sync locked controller dependencies,
@@ -151,23 +140,6 @@ Use the existing interpreter/environment directly with bytecode writes disabled;
 `uv run --locked` alone does not meet that boundary. Rich Ansible check mode may need
 temporary controller state and scoped read privilege; label those separately and never
 claim it has the pure bootstrap preview's zero-write contract.
-
-## Transfer handoff evidence
-
-The operator works offline/live, keeps independent backups, preserves the old tree,
-and copies the fresh target's own /var/lib into a clean destination. Before mounting
-it for normal boot, compare that destination to the fresh source, including dpkg state,
-permissions, ACLs/xattrs and service ownership. Record private evidence tying the
-comparison to the target installation, disk/UUID, time and intended mount roles.
-
-Before first apply, verify this evidence plus current mount identities and package
-state consistency with the fresh OS. An old /var/lib mounted at the correct UUID is
-not proof of preparation. After packages legitimately change, do not compare against a
-stale pre-install dpkg checksum: recheck current mounts and OS/package consistency,
-while retaining original handoff evidence. Never trust a done marker alone.
-Missing required filesystems must fail boot/mount activation and setup; no `nofail`
-fallback for required /home or /var/lib. Never create replacement service data on root.
-No handoff is needed for standard installs or /var/lib-on-root single-disk layouts.
 
 ## Commands and outcomes
 

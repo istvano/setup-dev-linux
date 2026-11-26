@@ -42,7 +42,6 @@ checkout; ordinary validation and all future workstation commands need no Mac ch
 | Pristine offline preview | Distribution tools only; no sudo/downloads/files/cache/venv/log writes; target selection agrees with apply |
 | Missing initial tools | Actionable exit 2; no attempt to install before mount guard |
 | Wrong/missing mounts | No APT, managed-home, environment or log writes before failure |
-| Old /var/lib mounted correctly | Reject absent/invalid fresh-target handoff evidence; matching UUID alone never passes |
 | Reordered disks / duplicate identities | Roles stay tied to physical identity; ambiguity fails before mutation |
 | Invalid JSON/config | Duplicate keys, unknown keys/IDs, conflicting choices, placeholders and example input rejected before install |
 | Noninteractive input | Closed/non-TTY stdin never hangs; missing user/privilege input is actionable |
@@ -80,9 +79,7 @@ must be observed. DDC acceptance applies only when the optional capability is en
 - Full pristine system/desktop VM install, reboot, second apply and independent verify;
   test interruption and intentional drift. Strict tooling requirements may not skip.
 - Standard single with /var/lib on root; standard split with and without separate
-  /var/lib; transferred split prepared/missing/unprepared/old-state cases.
-- P7 only: verify image and explicit disk targets in disposable VMs; populate a second
-  transfer disk and prove partitions/data remain unchanged by installer.
+  /var/lib.
 - Synthetic ordinary-file, database and VM restores; real credentials/data stay manual.
 - P8: physical target and representative development workflows; report pass/fail/
   incomplete separately and preserve old-system recovery backup through cutover.
