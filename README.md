@@ -80,8 +80,13 @@ of anything else, or one with local changes, stops the run and is never
 overwritten), checks out `--linux-ref` (default `main`) and runs its
 `./bootstrap apply --target linux` as you, interactively. It passes `--profiles`
 only when you give `--cli-profiles`; otherwise setup-dev-linux-wsl uses its recorded
-choice, or on its first run its own default. On that first run apply prints one
-`hint:` line with the list matching what this repository used to install:
+choice, or on its first run its own default, which it installs without asking and
+records. On that first run apply prints a `hint:` line before the host stages and
+again just before the handoff, with the list matching what this repository used to
+install: interrupt (Ctrl-C; apply exits 130, and re-running is safe) and re-run
+with `--cli-profiles`. Once the choice is recorded, setup-dev-linux-wsl refuses a
+different `--cli-profiles`: change `[data] profiles` in
+`${XDG_CONFIG_HOME:-~/.config}/chezmoi/chezmoi.toml` instead, then re-run.
 
 ```bash
 ./bootstrap apply --config config/your-machine.json \

@@ -75,25 +75,33 @@ def bootstrap_command(cli_profiles=None):
             *(['--profiles', cli_profiles] if cli_profiles else [])]
 
 
+def record_path():
+    """setup-dev-linux-wsl's record: ${XDG_CONFIG_HOME:-$HOME/.config}/<RECORD>."""
+    base = Path(os.environ.get('XDG_CONFIG_HOME') or str(home() / '.config'))
+    if not base.is_absolute():
+        # The bootstrap runs in the clone; a relative value resolves there.
+        base = clone_directory() / base
+    return base / RECORD[0] / RECORD[1]
+
+
 def first_run_hint(cli_profiles, host_profiles):
     """One hint line when setup-dev-linux-wsl has recorded no profile choice yet.
 
-    Its first run records the choice it makes, and it refuses a different list
-    afterwards, so the hint is worth most before that first run.
+    Its first run never asks: it installs its default and records it near the
+    end, then refuses a different list until the record is edited. So the line
+    says both what to do now and how to change the choice later. apply prints
+    it before the host stages and again just before the bootstrap.
     """
     if cli_profiles is not None:
         return None
-    base = os.environ.get('XDG_CONFIG_HOME') or str(home() / '.config')
-    record = Path(base)
-    if not record.is_absolute():
-        # The bootstrap runs in the clone; a relative value resolves there.
-        record = clone_directory() / record
-    if (record / RECORD[0] / RECORD[1]).is_file():
+    record = record_path()
+    if record.is_file():
         return None
     wanted = FORMER_CLI_PROFILES + (',gpu-nvidia' if 'gpu' in host_profiles else '')
-    return ('hint: setup-dev-linux-wsl has no recorded profile choice and will record its '
-            'own default; for the command-line tools this host installed before, run apply '
-            f'with --cli-profiles {wanted}')
+    return ('hint: setup-dev-linux-wsl has no recorded profile choice, so this run installs '
+            'and records its own default; for the command-line tools this host installed '
+            'before, interrupt now (Ctrl-C) and re-run apply with --cli-profiles '
+            f'{wanted}; once recorded, change [data] profiles in {record} instead')
 
 
 def _refusal():

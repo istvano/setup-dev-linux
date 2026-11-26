@@ -147,6 +147,12 @@ def main(argv=None):
             raise InputError('example-input-not-operational')
         if command == 'apply' and os.geteuid() == 0:
             raise InputError('whole-bootstrap-root-forbidden')
+        if command == 'apply' and not args.no_handoff:
+            # Before the host stages, while interrupting costs nothing; the
+            # handoff prints it again just before setup-dev-linux-wsl starts.
+            hint = handoff.first_run_hint(args.cli_profiles, selection['profiles'])
+            if hint:
+                print(hint, file=sys.stderr)
         from .storage import preflight
         from . import host
         checks, code = preflight(context['config'])
@@ -250,6 +256,15 @@ def main(argv=None):
             outcome = 'failed'
         emit(report(command, outcome, checks, context, summary), fmt)
         return code
+    except KeyboardInterrupt:
+        # Ctrl-C reaches the running host stage or bootstrap too (same terminal
+        # process group); subprocess.run has already stopped it. One line, no
+        # traceback, the shell's 128+SIGINT.
+        print(f'{command}: interrupted; re-running is safe', file=sys.stderr)
+        emit(report(command, 'failed', [{'id': 'interrupted', 'status': 'failed',
+                                         'reason': 'interrupted-by-operator'}],
+                    context, summary), fmt)
+        return 130
     except InputError as exc:
         emit(report(command, 'invalid', [{'id': 'input', 'status': 'failed', 'reason': str(exc)}], context, summary), fmt)
         return 2

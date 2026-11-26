@@ -63,8 +63,11 @@ set this repository used to install, give that list:
 ```
 
 Add `,gpu-nvidia` when you selected the `gpu` host profile. Without
-`--cli-profiles` it uses its own default, and apply prints one `hint:` line with
-this list. Later runs need no `--cli-profiles`. `--linux-ref REF` checks out
+`--cli-profiles` it installs its own default without asking; apply prints a
+`hint:` line with this list before the host stages and again before the handoff,
+so you can interrupt (Ctrl-C) and re-run with it. Later runs need no
+`--cli-profiles`; to change a recorded choice, edit `[data] profiles` in
+`~/.config/chezmoi/chezmoi.toml` (as the hint says), not the flag. `--linux-ref REF` checks out
 another branch, tag or commit of setup-dev-linux-wsl; `--no-handoff` stops after
 the host. If `~/workspace/setup-dev-linux-wsl` already exists but is a clone of
 something else or has local changes, apply stops and leaves it untouched.

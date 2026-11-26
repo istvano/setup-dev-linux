@@ -242,6 +242,29 @@ class HintTest(GitFixture):
         self.assertIn('--cli-profiles ' + OLD_DEFAULT, lines[0])
         self.assertNotIn('gpu-nvidia', lines[0])
 
+    def test_the_hint_says_how_to_act_now_and_how_to_recover_later(self):
+        """RB15: interrupt now to choose; once recorded, edit the record."""
+        _, out = self.handoff()
+        line = self.hint_lines(out)[0]
+        self.assertIn('interrupt now', line)
+        self.assertIn('re-run apply with --cli-profiles', line)
+        record = self.home / '.config' / handoff.RECORD[0] / handoff.RECORD[1]
+        self.assertIn(f'change [data] profiles in {record}', line)
+
+    def test_the_hint_names_the_record_under_xdg_config_home(self):
+        config = self.home / 'elsewhere'
+        with patch.dict(os.environ, {'XDG_CONFIG_HOME': str(config)}):
+            _, out = self.handoff()
+        self.assertIn(str(config / handoff.RECORD[0] / handoff.RECORD[1]),
+                      self.hint_lines(out)[0])
+
+    def test_the_hint_comes_just_before_the_bootstrap(self):
+        _, out = self.handoff()
+        lines = out.splitlines()
+        hint = next(i for i, line in enumerate(lines) if line.startswith('hint:'))
+        running = next(i for i, line in enumerate(lines) if line.startswith('handoff: running'))
+        self.assertEqual(running, hint + 1, out)
+
     def test_the_gpu_host_profile_adds_gpu_nvidia(self):
         _, out = self.handoff(host_profiles=['desktop', 'gpu'])
         self.assertIn('--cli-profiles ' + OLD_DEFAULT + ',gpu-nvidia', self.hint_lines(out)[0])
@@ -309,6 +332,77 @@ HOST_INCOMPLETE = 3
 def context():
     return {'config': {'example_only': False, 'target': {'user': me()}},
             'provenance': {}, 'selected': [], 'entries': {}, 'approved': {}}
+
+
+class StartHintTest(unittest.TestCase):
+    """RB15: apply prints the hint before the first host stage."""
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.home = Path(temp.name).resolve()
+        environment = patch.dict(os.environ, {'HOME': str(self.home)})
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop('XDG_CONFIG_HOME', None)
+
+    def run_apply(self, *extra):
+        """(exit code, stderr at the moment the host stages started, whole stderr)."""
+        stderr = io.StringIO()
+        seen = []
+
+        def foundation(*args, **kwargs):
+            seen.append(stderr.getvalue())
+            return {'id': 'controller-foundation', 'status': 'passed', 'reason': 'fixture'}
+
+        targets = {
+            'workstation.cli.load_context': context(),
+            'workstation.profiles.recorded': None,
+            'workstation.storage.preflight': ([], 0),
+            'workstation.host.check_prerequisites': ([], 0),
+            'workstation.packages.verify_packages': [],
+            'workstation.system.verify': [],
+            'workstation.delivery.verify': [],
+            'workstation.desktop.verify': [],
+            'workstation.firewall.verify': [],
+            'workstation.firewall.recorded_allow_ssh': None,
+            'workstation.plugins.verify': [],
+            'workstation.handoff.run_handoff': 0,
+        }
+        with contextlib.ExitStack() as stack:
+            for target, value in targets.items():
+                stack.enter_context(patch(target, return_value=value))
+            stack.enter_context(patch('workstation.controller.apply_foundation',
+                                      side_effect=foundation))
+            stack.enter_context(patch('os.geteuid', return_value=1000))
+            stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
+            stack.enter_context(contextlib.redirect_stderr(stderr))
+            code = main(['apply', '--config', 'x.json', '--format', 'json', *extra])
+        return code, seen[0] if seen else '', stderr.getvalue()
+
+    def hints(self, text):
+        return [line for line in text.splitlines() if line.startswith('hint:')]
+
+    def test_unrecorded_prints_the_hint_before_the_host_stages(self):
+        _, before, _ = self.run_apply()
+        self.assertEqual(len(self.hints(before)), 1, before)
+        self.assertIn(str(self.home / '.config' / handoff.RECORD[0] / handoff.RECORD[1]),
+                      self.hints(before)[0])
+
+    def test_a_recorded_choice_prints_no_hint(self):
+        record = self.home / '.config' / handoff.RECORD[0] / handoff.RECORD[1]
+        record.parent.mkdir(parents=True)
+        record.write_text('[data]\n')
+        _, _, everything = self.run_apply()
+        self.assertEqual(self.hints(everything), [])
+
+    def test_given_cli_profiles_print_no_hint(self):
+        _, _, everything = self.run_apply('--cli-profiles', 'core,dev')
+        self.assertEqual(self.hints(everything), [])
+
+    def test_no_handoff_prints_no_hint(self):
+        _, _, everything = self.run_apply('--no-handoff')
+        self.assertEqual(self.hints(everything), [])
 
 
 class CliWiringTest(unittest.TestCase):
@@ -395,6 +489,31 @@ class CliWiringTest(unittest.TestCase):
         self.assertEqual(ids['controller-foundation'], 'passed')
         self.assertEqual(ids['handoff'], 'failed')
         self.assertIn('handoff:', err)
+
+    def test_an_interrupted_host_stage_exits_130_without_a_traceback(self):
+        code, out, err = self.run_cli(['apply', '--config', 'x.json', '--format', 'json'],
+                                      foundation=KeyboardInterrupt())
+        self.assertEqual(code, 130)
+        self.assertNotIn('Traceback', err)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertIn('interrupted', err)
+        report = json.loads(out)
+        self.assertEqual(report['outcome'], 'failed')
+        self.handoff_mock().assert_not_called()
+
+    def test_an_interrupted_bootstrap_exits_130_without_a_traceback(self):
+        code, out, err = self.run_cli(['apply', '--config', 'x.json', '--format', 'json'],
+                                      handoff_effect=KeyboardInterrupt())
+        self.assertEqual(code, 130)
+        self.assertNotIn('Traceback', err)
+        self.assertEqual(len(err.strip().splitlines()), 1, err)
+        self.assertEqual(json.loads(out)['outcome'], 'failed')
+
+    def test_an_interrupt_in_text_mode_exits_130(self):
+        code, out, err = self.run_cli(['apply', '--config', 'x.json'],
+                                      foundation=KeyboardInterrupt())
+        self.assertEqual(code, 130)
+        self.assertNotIn('Traceback', err + out)
 
     def test_a_failed_host_stage_never_hands_off(self):
         code, _, _ = self.run_cli(['apply', '--config', 'x.json', '--format', 'json'],

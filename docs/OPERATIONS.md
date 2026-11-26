@@ -45,8 +45,15 @@ when its `remote.origin.url` is another repository, or when tracked files have l
 an unknown ref stops with `unknown ref`. `--profiles LIST` is passed only with
 `--cli-profiles LIST`: setup-dev-linux-wsl refuses a list that disagrees with its recorded
 choice, so re-runs pass none. When it has recorded no choice and `--cli-profiles` is absent,
-plan and apply print one `hint:` line naming `core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp` (plus `gpu-nvidia` with the `gpu`
-profile), the set this repository installed before. A failed handoff fails the run with
+plan prints a `hint:` line, and apply prints it before the host stages and again just before
+the bootstrap (whose first run installs its default without asking and records it). The line
+names `core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp` (plus `gpu-nvidia` with the `gpu`
+profile), the set this repository installed before, says to interrupt and re-run apply with
+`--cli-profiles` to get it on this run, and names the record
+(`${XDG_CONFIG_HOME:-~/.config}/chezmoi/chezmoi.toml`). Once recorded, setup-dev-linux-wsl
+refuses a different `--cli-profiles`; change `[data] profiles` in that file instead, then
+re-run. Ctrl-C during apply (a host stage or the bootstrap) prints one line, emits the report
+with an `interrupted` check and exits 130; re-running is safe. A failed handoff fails the run with
 setup-dev-linux-wsl's exit code (a `handoff` check, outcome `failed`); re-running is safe. In
 JSON mode its programs' output goes to standard error so the report stays the only standard
 output. `apply` does not run `cli:verify` itself: that bootstrap ends with its own verify.
