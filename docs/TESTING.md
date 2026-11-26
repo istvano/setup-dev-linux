@@ -15,7 +15,9 @@ python3 -B script/check-manifest      # every selection delivered; every binary 
 python3 -B -m unittest discover -s tests
 ```
 
-or `just verify-static`. Guest acceptance is `just vm clean-cycle` (`make vm/clean-cycle`).
+or `just verify-static`. Guest acceptance is `just vm clean-cycle` (`make vm/clean-cycle`),
+described below. `tests/test_vm_harness.py` pins the commands the harness runs in the guest,
+so a harness change is tested on any host; only a Linux machine with KVM can boot the guest.
 
 The optional `--mac-source PATH` argument audits provenance against the recorded Mac
 checkout; ordinary validation and all future workstation commands need no Mac checkout.
@@ -82,13 +84,77 @@ must be observed. DDC acceptance applies only when the optional capability is en
 - P8: physical target and representative development workflows; report pass/fail/
   incomplete separately and preserve old-system recovery backup through cutover.
 
+## VM acceptance cycle
+
+`just vm clean-cycle` destroys the guest, rebuilds it from the signature-verified
+Ubuntu 26.04 image and runs `script/test-manifest-vm`, which runs both repositories on
+one guest, the way the operator does (D030 in [DECISIONS.md](DECISIONS.md)):
+
+1. `apply` with every host profile except `gpu`
+   (`desktop,media,productivity,ai,network,lab,dev-gui,firewall`) and `--allow-ssh`,
+   ending with the handoff. The guest has no terminal, so this first apply passes
+   `--cli-profiles` with the former command-line set
+   (`core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp`)
+   and a throwaway identity; setup-dev-linux-wsl then runs `--non-interactive`.
+2. Verify, reading the installed system: packages, pinned binaries, snaps, repository
+   keys, VS Code extensions, GNOME settings; UFW enabled with incoming denied, outgoing
+   allowed and the `OpenSSH` rule present; OpenSnitch installed and running, its daemon
+   and UI defaults seeded to allow and the seeding recorded in `state.json`;
+   `sudo apt-get update` and `apt-get check` with no warning, error or `Signed-By`
+   conflict (claude-desktop registers its own source and setup-dev-linux-wsl adds
+   Anthropic's for Claude Code); `bootstrap verify` with no failed check and a passing
+   `cli:verify`.
+3. Reboot, verify again, then `apply` a second time with no `--cli-profiles` and no
+   identity: setup-dev-linux-wsl uses what it recorded, and the run must not conflict
+   with it.
+
+The guest needs network access: setup-dev-linux-wsl is cloned from GitHub and installs
+from Homebrew and vendor repositories. `script/test-manifest-vm --skip-handoff` keeps a
+host-only cycle; `--groups LIST` selects other host profiles (add `firewall` only with
+`--allow-ssh`, which the harness passes for you). The private log is
+`vm/state/manifest-test.log`.
+
+`script/test-vm --controller` stays controller-only: it applies the `firewall` profile
+alone with `--allow-ssh --no-handoff`, twice, and runs the pinned QA and lint.
+
+### VM acceptance checklist
+
+Automated by the cycle above:
+
+- [ ] Both repositories on one guest: `handoff` passed on the first apply, `cli:verify`
+  passed in `bootstrap verify`.
+- [ ] `apt-get update` and `apt-get check` clean with both repositories' sources.
+- [ ] OpenSnitch allow mode seeded once: daemon `DefaultAction` `allow`, UI
+  `default_action=1`, both flags in `state.json`.
+- [ ] UFW enabled, default deny incoming, allow outgoing, SSH allowed as chosen.
+- [ ] A second `apply` after the reboot is idempotent and passes no conflicting
+  `--profiles` to setup-dev-linux-wsl.
+
+By hand, in the same guest after the cycle (`./script/vm ssh`, or the desktop fixture
+for a session):
+
+- [ ] **OpenSnitch UI autostart**: after `vm/desktop-fixture.py` gives the guest a
+  GNOME session and automatic login, the OpenSnitch UI is running in that session and
+  connected to the daemon.
+- [ ] **UFW with `lab`**: start a libvirt guest on the default network inside the test
+  guest (nested KVM) and confirm it gets an address from virbr0's DHCP and resolves
+  names, with UFW enabled.
+- [ ] **Ctrl-C during the bootstrap**: from an interactive SSH session with a terminal
+  (`ssh -t`), run `apply` and press Ctrl-C while setup-dev-linux-wsl's bootstrap is
+  running. `apply` prints one `apply: interrupted; re-running is safe` line, no
+  traceback, and exits 130 (`echo $?`); a following `apply` completes.
+- [ ] **Interactive first run**: on a fresh guest, run `apply` from a terminal without
+  `--cli-profiles` or an identity: the `hint:` line appears before the host stages and
+  again before the bootstrap, and setup-dev-linux-wsl prompts for the git identity.
+
 ## Current evidence
 
 Last full cycle: **2026-09-17**, from a guest destroyed and rebuilt from the
 signature-verified Ubuntu 26.04 image. **50 checks, no failures.** That run predates
 the host refactor (2026-11-26): it still installed the command-line groups, krew
-plugins, agent CLIs and Docker that setup-dev-linux-wsl now owns. A host-only cycle
-has not been run yet.
+plugins, agent CLIs and Docker that setup-dev-linux-wsl now owns. No cycle has run
+since: the two-repository cycle, the firewall stage and the handoff have no guest
+evidence yet.
 
 | | |
 |---|---|
@@ -115,7 +181,9 @@ tests, all passing — `make verify-static`.
   are unproven until the physical machine.
 - **A rendered desktop session.** The settings are written and read back, but
   the guest runs a server image, so appearance, keybindings, dock behaviour and
-  suspend are unobserved.
+  suspend are unobserved, and so is the OpenSnitch UI without the desktop fixture.
+- **The Docker port exposure on a real network.** Published ports bypass UFW by
+  design (D027); the guest's user-mode network does not show what a LAN peer sees.
 
 ## History
 

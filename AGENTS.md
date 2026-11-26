@@ -2,22 +2,28 @@
 
 ## What this repository is
 
-A declarative record of this workstation and an installer that reproduces it on
-a fresh Ubuntu 26.04 machine. Fresh installs only: nothing is copied from another
-machine. `manifest/` is the single source of truth for what gets installed.
+The Linux host repository: a declarative record of this workstation's host and an
+installer that reproduces it on a fresh Ubuntu 26.04 machine, then hands off to
+setup-dev-linux-wsl (`--target linux`) for the command line. Fresh installs only:
+nothing is copied from another machine. `manifest/` is the single source of truth
+for what the host gets.
 
 ## Current state
 
 This repository sets up the Linux host: the OS layer, drivers, desktop
-applications, GNOME settings, snaps, VS Code and its extensions, zed and obsidian.
-The command line (CLI tools, runtimes, shell, dotfiles, chezmoi, Docker, kubectl
-plugins) belongs to setup-dev-linux-wsl; docs/MOVED.md records where each item went.
-Do not reintroduce command-line installers here; `tests/test_host_only.py` refuses them.
+applications, GNOME settings, snaps, VS Code and its extensions, zed, obsidian and
+the firewall (UFW, OpenSnitch). The command line (CLI tools, runtimes, shell,
+dotfiles, chezmoi, Docker, kubectl plugins) belongs to setup-dev-linux-wsl;
+docs/MOVED.md records where each item went. Do not reintroduce command-line
+installers here; `tests/test_host_only.py` refuses them. Decisions D022–D030 in
+docs/DECISIONS.md describe the host role, profiles, firewall and handoff.
 
-Implemented and exercised in a disposable Ubuntu 26.04 guest: the bootstrap
-plan/preflight/install/verify contract, the locked Ansible controller, third-party
-repository configuration, manifest package and snap installation and pinned
-release-binary installation with checksum verification.
+Implemented and exercised in a disposable Ubuntu 26.04 guest (before the host
+refactor): the bootstrap plan/preflight/apply/verify contract, the locked Ansible
+controller, third-party repository configuration, manifest package and snap
+installation and pinned release-binary installation with checksum verification.
+Implemented with unit-test evidence only: host profiles, the per-user state file,
+the firewall stage and the handoff; the VM cycle that exercises them has not run.
 
 Unfinished work is recorded in TASKS.md and nowhere else. Do not describe
 unfinished work as done, and never equate static or fixture success with a
@@ -77,9 +83,11 @@ python3 -B -m unittest discover -s tests
 ```
 
 or `just verify-static`. Guest acceptance is `just vm clean-cycle`
-(`make vm/clean-cycle`), which
-destroys the guest, rebuilds it from the verified image, applies the manifest,
-verifies what landed, reboots and applies again.
+(`make vm/clean-cycle`), which destroys the guest, rebuilds it from the verified
+image, applies the host and hands off to setup-dev-linux-wsl (network required),
+verifies both, reboots and applies again. It needs Linux with KVM; on any other
+host change the harness under `tests/test_vm_harness.py` and say the guest run is
+still owed. The manual checklist is in docs/TESTING.md.
 
 When the manifest changes, re-run `script/check-manifest`: it is what stops a
 reviewed selection from silently failing to reach installation.

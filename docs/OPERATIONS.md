@@ -2,21 +2,29 @@
 
 Current scope: configuration/preview, standard-layout storage preflight, isolated
 controller, Ansible foundation and the host manifest (repositories, packages, snaps,
-pinned desktop binaries, VS Code extensions, GNOME settings). Command-line tools,
-runtimes, the shell and Docker are installed by setup-dev-linux-wsl
-([MOVED.md](MOVED.md)). Remaining application roles and full workstation readiness
+pinned desktop binaries, VS Code extensions, GNOME settings), the firewall stage and the
+handoff to setup-dev-linux-wsl, which installs the command-line tools, runtimes, the shell
+and Docker ([MOVED.md](MOVED.md); decisions D022–D030 in [DECISIONS.md](DECISIONS.md)). Remaining application roles and full workstation readiness
 are unfinished. Feature contracts and dependency order are in [specs](../specs/README.md).
 
 | Command | Current behavior |
 |---|---|
-| `./bootstrap plan --config PATH [--profiles LIST] [--no-handoff \| --cli-profiles LIST] [--linux-ref REF] --format json` | Prints the `Profiles:` line and the stages the selection runs, ending with `stage:handoff`, and the first-run `hint:` line when setup-dev-linux-wsl has recorded no profile choice. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
+| `./bootstrap plan --config PATH [--profiles LIST] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | Prints the `Profiles:` line and the stages the selection runs, ending with `stage:handoff`, and the first-run `hint:` line when setup-dev-linux-wsl has recorded no profile choice. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
-| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--linux-ref REF] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures; then the handoff to setup-dev-linux-wsl unless `--no-handoff` |
+| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff \| --cli-profiles LIST] [--cli-git-name NAME --cli-git-email EMAIL] [--linux-ref REF] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, then the host stages of the selection (foundation, packages, system groups, VS Code extensions with `dev-gui`, GNOME settings with `desktop`, firewall with `firewall`); reports remaining source/role failures; then the handoff to setup-dev-linux-wsl unless `--no-handoff` |
 | `./bootstrap verify --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] [--no-handoff] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps, then setup-dev-linux-wsl's `script/verify --target linux` as `cli:verify` unless `--no-handoff`; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
-| `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
+| `./script/test-vm --controller` | Additionally acquire the isolated controller, apply the `firewall` profile alone twice (`--allow-ssh --no-handoff`: the base group and the firewall stage, no handoff) and run pinned QA/lint in the guest |
 | `./script/test-vm --controller --reboot` | Verify a real guest reboot and repeat the foundation acceptance |
+| `./script/test-manifest-vm [--groups LIST] [--skip-handoff] [--skip-reboot] [--skip-install]` | The acceptance cycle in a running guest: apply with every host profile but `gpu` and the handoff, verify both repositories, reboot, verify and apply again (`just vm accept`; `just vm clean-cycle` rebuilds the guest first). See [TESTING.md](TESTING.md) |
+
+`just` and `make` run the same commands: `just apply CONFIG [PROFILES] [FLAGS...]`
+(`just apply config/mine.local.json "" --no-handoff`) and
+`make apply CONFIG=... [PROFILES=...] [FLAGS='...']`; `plan` and `verify` take the
+same. `FLAGS` is any further bootstrap option: `--allow-ssh`, `--no-allow-ssh`,
+`--no-handoff`, `--cli-profiles LIST`, `--linux-ref REF`. A value containing a space
+(`--cli-git-name`) is safer given to `./bootstrap` directly.
 
 Firewall: the `firewall` profile runs `ansible/firewall.yml` (UFW default deny incoming, allow
 outgoing, enabled; OpenSnitch from the Ubuntu archive, enabled, `DefaultAction` `allow` in
@@ -30,8 +38,11 @@ modes as notices. Over SSH without `--allow-ssh`, apply warns on stderr and adds
 only with `--allow-ssh`. The choice is recorded as `firewall.allow_ssh` in the per-user
 `state.json` (not in your config file); later runs without a flag reuse it, `--no-allow-ssh`
 turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose` through
-`sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker's published ports
-bypass UFW; `verify` prints a notice when `docker` is present. Switching OpenSnitch to deny is
+`sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker comes from
+setup-dev-linux-wsl and its published ports stay reachable from the network (D027): Docker's own
+packet-filter rules bypass UFW, and `verify` prints a `firewall:docker-bypass` notice when
+`docker` is present. Publish on `127.0.0.1`, or filter in the `DOCKER-USER` chain, to keep a port
+private. Switching OpenSnitch to deny is
 a later, manual decision.
 
 Handoff: the last apply stage, run only when the host stages succeeded (host verify findings
@@ -40,6 +51,11 @@ are reported but do not hold it back). As the target user, never root, it clones
 updates that clone, fetches, resolves `--linux-ref` (default `main`; `origin/<ref>`, else a tag
 or commit) with `git rev-parse --verify`, checks it out once with `checkout --detach`, then runs
 `./bootstrap apply --target linux` attached to the terminal (it prompts for the git identity).
+With `--cli-git-name NAME --cli-git-email EMAIL` (both or neither, checked before anything
+changes) it runs `--non-interactive --git-name NAME --git-email EMAIL` instead and prompts for
+nothing, taking setup-dev-linux-wsl's defaults for everything else; for a run with no terminal,
+such as the VM cycle. The identity is never printed: `plan` and the `handoff: running` line
+show `<given>`. On a re-run with a recorded identity, give the same values or none.
 It stops, naming the directory and changing nothing, when that directory is not a git clone,
 when its `remote.origin.url` is another repository, or when tracked files have local changes;
 an unknown ref stops with `unknown ref`. `--profiles LIST` is passed only with
@@ -54,7 +70,10 @@ profile), the set this repository installed before, says to interrupt and re-run
 refuses a different `--cli-profiles`; change `[data] profiles` in that file instead, then
 re-run. Ctrl-C during apply (a host stage or the bootstrap) prints one line, emits the report
 with an `interrupted` check and exits 130; re-running is safe. A failed handoff fails the run with
-setup-dev-linux-wsl's exit code (a `handoff` check, outcome `failed`); re-running is safe. In
+setup-dev-linux-wsl's exit code (a `handoff` check, outcome `failed`), so a handoff exit of 2
+or 3 is not this repository's "invalid" or "incomplete": read the `handoff` check. A refusal
+(not a clone, another origin, local changes, unknown ref) prints one `handoff:` line naming the
+cause and exits 1. Re-running is safe. In
 JSON mode its programs' output goes to standard error so the report stays the only standard
 output. `apply` does not run `cli:verify` itself: that bootstrap ends with its own verify.
 
@@ -85,13 +104,23 @@ with use; these are fixture sizes, not generic workstation defaults.
 ./script/vm status
 ./script/vm ssh 'cloud-init status'
 ./script/test-vm --controller
+./script/test-manifest-vm          # apply with the handoff, verify, reboot, apply again
 ./script/vm screenshot
 ./script/vm stop
+./script/vm reset                  # discard the guest and its disks
 ```
+
+`just vm clean-cycle` (`make vm/clean-cycle`) is `reset`, `prepare`, `start` and
+`test-manifest-vm` in one. The guest needs network access for the handoff: it clones
+setup-dev-linux-wsl from GitHub and installs from Homebrew and vendor repositories.
+The first apply in the guest passes `--cli-profiles` with the former command-line set and
+a throwaway identity (`--cli-git-name`, `--cli-git-email`), because the guest has no
+terminal; the second passes neither. The harness reaches the guest over SSH, so it passes
+`--allow-ssh` whenever the `firewall` profile is selected.
 
 Host sandbox access may require tool approval for KVM/process visibility and loopback
 SSH. No sudo/host package installation is needed with the currently available QEMU
-tools. There is no implicit destroy/reset operation. Private VM keys, seeds, known-host
+tools. Nothing destroys the guest implicitly; `reset` is explicit. Private VM keys, seeds, known-host
 pins, serial logs and screenshots live in ignored `vm/state`; disks are in ignored
 `vm/disks`. SSH binds only 127.0.0.1:22226. No production credentials or physical disks
 are shared. The guest has a dedicated passwordless-sudo test user.

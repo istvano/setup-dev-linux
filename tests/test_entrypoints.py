@@ -4,6 +4,7 @@ Two entry points exist because a brand-new machine does not have `just` on it
 yet. That only helps if they stay in step, and the obvious failure is one
 gaining a target the other never hears about.
 """
+import os
 import re
 import subprocess
 import sys
@@ -87,6 +88,16 @@ class ParityTest(unittest.TestCase):
                     text, rf'\[doc\("[^"]+"\)\]\n{re.escape(recipe)}\b',
                     f'{name}/{recipe} has no [doc(...)] annotation')
 
+    def test_just_passes_bootstrap_flags_through(self):
+        """--no-handoff, --cli-profiles, --linux-ref, --allow-ssh reach the bootstrap."""
+        text = JUSTFILE.read_text()
+        for recipe in ('plan', 'apply', 'verify'):
+            self.assertRegex(text, rf'(?m)^{recipe} CONFIG PROFILES="" \*FLAGS:', recipe)
+            body = text.split(f'\n{recipe} CONFIG', 1)[1].split('\n\n', 1)[0]
+            self.assertIn('{{FLAGS}}', body, recipe)
+        self.assertRegex(text, r'(?m)^install CONFIG PROFILES="" \*FLAGS: \(apply CONFIG PROFILES FLAGS\)',
+                         'install keeps passing everything to apply')
+
     def test_grouped_subcommands_use_a_slash(self):
         """The vm group is addressed as vm/<recipe>, not vm-<recipe>."""
         targets = make_targets() | just_targets()
@@ -115,6 +126,20 @@ class MakefileBehaviourTest(unittest.TestCase):
         self.assertIn('apply --config x.json --profiles gpu,firewall', with_profiles.stdout)
         without = self.make('-n', 'apply', 'CONFIG=x.json')
         self.assertNotIn('--profiles', without.stdout)
+
+    def test_bootstrap_flags_are_passed_through(self):
+        for target in ('plan', 'apply', 'install', 'verify'):
+            result = self.make('-n', target, 'CONFIG=x.json', 'PROFILES=gpu',
+                               'FLAGS=--no-handoff --linux-ref v1')
+            self.assertIn(' --config x.json --profiles gpu --no-handoff --linux-ref v1',
+                          result.stdout, target)
+
+    def test_flags_from_the_environment_are_ignored(self):
+        """Only FLAGS= on the command line counts; an exported FLAGS never leaks in."""
+        result = subprocess.run(['make', '-C', str(ROOT), '-n', 'apply', 'CONFIG=x.json'],
+                                capture_output=True, text=True,
+                                env={**os.environ, 'FLAGS': '--allow-ssh'})
+        self.assertNotIn('--allow-ssh', result.stdout)
 
     def test_install_runs_apply(self):
         result = self.make('-n', 'install', 'CONFIG=x.json', 'PROFILES=lab')

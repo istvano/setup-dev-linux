@@ -14,7 +14,8 @@ TRANSFER = re.compile(r'\btransfer(red)?\b|produce-transfer|transfer-witness|rec
 SCANNED = ('script', 'tests', 'manifest', 'catalogue', 'profiles', 'vm',
            'justfile', 'Makefile', 'bootstrap', 'README.md', 'AGENTS.md',
            'docs/NEW-MACHINE.md', 'docs/ARCHITECTURE.md', 'docs/TESTING.md',
-           'docs/OPERATIONS.md', 'docs/README.md', 'docs/CAPABILITY-MATRIX.md')
+           'docs/OPERATIONS.md', 'docs/README.md', 'docs/CAPABILITY-MATRIX.md',
+           'docs/TOOL-SELECTION.md')
 # docs/software-review.md is hash-verified by check-catalogue and must not be
 # edited; its Remmina row ("... and migrate profiles") is carried verbatim into the
 # catalogue as provenance and into the generated matrix. That is source text, not a

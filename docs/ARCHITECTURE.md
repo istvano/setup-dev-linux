@@ -2,15 +2,80 @@
 
 Status: pure bootstrap plan, live standard-layout preflight, isolated locked controller
 and initial Ansible foundation are implemented, with the host manifest (signed third-party
-APT sources, packages, snaps, pinned desktop binaries, VS Code extensions, GNOME settings).
-The command line — CLI tools, runtimes, shell, dotfiles, chezmoi, Docker — moved to
-setup-dev-linux-wsl on 2026-11-26 ([MOVED.md](MOVED.md)).
-Remaining application roles, full independent workstation verification and production OS
-automation remain unfinished. Feature and guest results are in TESTING.md; catalogue
-selection and foundation success are not full workstation readiness.
+APT sources, packages, snaps, pinned desktop binaries, VS Code extensions, GNOME settings),
+host profiles, the firewall stage and the handoff to setup-dev-linux-wsl. The command
+line — CLI tools, runtimes, shell, dotfiles, chezmoi, Docker — moved to
+setup-dev-linux-wsl on 2026-11-26 ([MOVED.md](MOVED.md)). The firewall stage and the
+handoff have unit-test evidence only; the guest cycle that runs them is in
+[TESTING.md](TESTING.md). Remaining application roles, full independent workstation
+verification and production OS automation remain unfinished. Catalogue selection and
+foundation success are not full workstation readiness.
+
+## Two repositories per Linux machine
+
+This repository sets up the host; setup-dev-linux-wsl (`--target linux`) sets up the
+command line, the same split as setup-dev-win and setup-dev-linux-wsl on Windows
+(D022–D030 in [DECISIONS.md](DECISIONS.md)). Each file and package has one owner:
+
+| Owner | Owns |
+|---|---|
+| setup-dev-linux (Ansible and the controller) | Third-party APT sources and keys for host applications, the NVIDIA driver, desktop packages, snaps, pinned desktop binaries, GNOME settings, VS Code extensions, UFW, OpenSnitch, the per-user state file |
+| setup-dev-linux-wsl | CLI tools, runtimes (mise, uv), the shell, dotfiles and chezmoi, Docker and the `docker` group, the NVIDIA container toolkit, Claude Code's APT source |
+
+The one shared file is `/etc/apt/keyrings/anthropic.asc`, byte-identical in both
+repositories, so claude-desktop's and Claude Code's sources carry one `Signed-By`.
+
+A run of `./bootstrap apply` is, in order:
+
+| Stage | Runs when | What |
+|---|---|---|
+| `foundation` | always | Distribution assertions (`foundation.yml`) |
+| `record-selection` | always | The host profiles (and an explicit SSH choice) into per-user state, before anything installs |
+| `packages` | always | `repositories.yml`, `manifest-packages.yml`, `snaps.yml` with the desktop set, `binaries.yml` when a selected group has binaries |
+| `system-groups` | always | `system-groups.yml` |
+| `plugins` | `dev-gui` | VS Code extensions (`plugins.yml`) |
+| `desktop` | `desktop` | GNOME settings (`desktop.yml`) |
+| `firewall` | `firewall` | UFW and OpenSnitch (`firewall.yml`), then the UI default as the target user |
+| `handoff` | not `--no-handoff`, host stages passed | Clone or update `~/workspace/setup-dev-linux-wsl`, run its `./bootstrap apply --target linux` |
+
+`plan` lists the same stages as `stage:<id>` checks without running any.
+
+## Host profiles and per-user state
+
+`profiles/host.json` maps each host profile to manifest groups (`base` always); the
+desktop set (`desktop,media,productivity,ai,network,dev-gui`) decides whether a run is
+headless (D025). Selection order: `--profiles`, else the recorded choice, else the
+default; every report carries `Profiles:` and `Profiles source:`. The record is
+`${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json`: one JSON object of
+named keys (`profiles`; `firewall` with `allow_ssh`, `opensnitch_seeded`,
+`opensnitch_ui_seeded`), directory 0700, file 0600, owner and symlink checks on every
+read and write, atomic replace. A state file that exists but fails a check stops the run;
+it is never treated as absent. The operator's configuration file is never rewritten.
+
+## Firewall
+
+UFW: deny incoming, allow outgoing, enabled; SSH only with `--allow-ssh`, recorded and
+kept. OpenSnitch: daemon always with `firewall`, UI with the desktop set, allow mode
+seeded once and never rewritten (D026). Docker, installed by setup-dev-linux-wsl, writes
+its own packet-filter rules ahead of UFW's, so published ports stay reachable (D027);
+`verify` notes it when `docker` is present.
+
+## Handoff
+
+As the target user, never root: clone or update `~/workspace/setup-dev-linux-wsl`
+(origin read with `git config --get remote.origin.url`; a foreign or dirty clone stops
+the run untouched), resolve `--linux-ref` with `rev-parse --verify`, `checkout --detach`
+once, run `./bootstrap apply --target linux` attached to the terminal. `--profiles` is
+passed only with `--cli-profiles`; `--cli-git-name`/`--cli-git-email` add
+`--non-interactive`. Its exit code becomes the run's when it fails. `verify` runs its
+`script/verify --target linux` as `cli:verify` (D029).
 
 ## Sources of truth
 
+- `manifest/`: what the host installs (packages, repositories, snaps, binaries,
+  GNOME settings, VS Code extensions, groups); the delivery authority (D018).
+- `profiles/host.json`: host profiles, their manifest groups, the default and the
+  desktop set.
 - `catalogue/capabilities.json`: normalized decisions, installation candidates,
   behavior ownership, verification requirements and source mappings.
 - `profiles/target.json`: exact confirmed personal selection, including NVIDIA.
@@ -85,13 +150,14 @@ block the initial target. Hardware checks only apply to selected features.
 
 Catalogue, selections and machine inputs use JSON; Ansible playbooks remain YAML.
 Structural schemas are included. The distribution-Python standard-library loader and
-semantic validator are shared by bootstrap plan/preflight/install/verify and static QA.
+semantic validator are shared by bootstrap plan/preflight/apply/verify and static QA.
 Development schema validation is separate from the dependency-free bootstrap path.
 Do not create a second shell parser or an independently interpreted selection list.
 
 All workstation commands require `--config PATH`. Resolve `selection_file` relative
-to the configuration file; No environment,
-last-run state or default config silently overrides explicit input. Parse strictly:
+to the configuration file. Explicit input always wins: without `--profiles` the recorded
+host profiles apply, else the default, and every report says which
+(`Profiles source:`). No environment or default config silently overrides explicit input. Parse strictly:
 reject duplicate JSON keys, unknown fields/IDs, duplicate selected IDs, contradictory
 features, and unsupported schema versions. Reject pending/omit IDs. The committed default/target selections contain no optional
 IDs; another machine may explicitly select optional IDs in its private selection file.
@@ -119,9 +185,12 @@ GPU feature none forbids GPU-profile IDs; nvidia requires both NVIDIA capabiliti
 3. After the guard passes, install missing venv/APT bindings through signed Ubuntu
    packages, verify pinned uv/controller inputs, sync locked controller dependencies,
    and invoke Ansible with distribution Python for host APT modules.
-4. Apply the selected host roles (packages, snaps, binaries, groups, VS Code extensions,
-   GNOME settings) and collect independent verification and manual/session/hardware
-   outcomes.
+4. Check the host prerequisites `gpg` and `git` on the system path; a missing one
+   fails with `prerequisite:<program>` before any write.
+5. Run the selection's host stages (packages, snaps, binaries, groups, VS Code
+   extensions, GNOME settings, firewall) and collect independent verification and
+   manual/session/hardware outcomes.
+6. Hand off to setup-dev-linux-wsl, unless `--no-handoff`, once the host stages passed.
 
 `bootstrap plan` never downloads, invokes sudo, installs, writes caches/logs, or creates
 an environment. It reports unreadable/unassessed hardware instead of acquiring privilege.
@@ -133,7 +202,7 @@ claim it has the pure bootstrap preview's zero-write contract.
 
 ## Commands and outcomes
 
-Plan, install, rich preview, verify, desktop apply, update-report, update and snapshot
+Plan, apply, rich preview, verify, desktop apply, update-report, update and snapshot
 all consume the same explicit config. Test-suite commands are repository-scoped;
 test-install additionally requires test-target identity and guest configuration.
 Text output is default; `--format json` writes a versioned redacted report to stdout.
@@ -147,6 +216,11 @@ secrets, private identities and disk serials. No implicit report-file writes for
 | 1 | Failed operation or required verification, including selected delivery failure |
 | 2 | Invalid/missing input, unsupported platform/schema or missing bootstrap prerequisite |
 | 3 | Incomplete manual/session/reboot/hardware requirement or required unassessed check |
+| 130 | Interrupted (Ctrl-C) during a host stage or the handoff; one line, no traceback; re-running is safe |
+
+A missing host prerequisite (`gpg`, `git`) fails preflight with exit 1. When the handoff
+fails, the run exits with setup-dev-linux-wsl's exit code and outcome `failed`; the
+`handoff` check carries it, so an exit of 2 or 3 there is not this table's meaning.
 
 Invalid input stops before execution (2). For collected outcomes, failures take
 precedence over incomplete; optional-disabled is not a failure. Successful preview
@@ -154,8 +228,10 @@ never means installed readiness. Reports retain passed, failed, deferred and
 skipped-optional distinctions. Noninteractive commands never wait on prompts; supplied
 config/privilege must suffice, otherwise return missing-input or incomplete status.
 
-After preflight, managed outputs use the target user's XDG state directory under
-`linux-os-setup` (default `~/.local/state/linux-os-setup`), directories 0700, files 0600.
+Recorded choices live in the target user's
+`${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json` (directory 0700, file
+0600). The controller environment and its private log are under the clone's ignored
+`.workstation/` (0700; the log 0600).
 Backups may contain sensitive configuration: private locally, never committed. Snapshot
 is an explicit private output operation, redacted by default, never secret extraction.
 

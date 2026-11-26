@@ -59,19 +59,18 @@ Ordered by what it blocks, not by subsystem.
 
 ### 1. Blocks trusting the result
 
-- [ ] **The firewall stage does nothing yet.** The `firewall` profile is in the
-  default and the controller calls its stage (`apply_firewall_stage`), but UFW
-  and OpenSnitch are not configured: `plan` reports the stage as unimplemented
-  and `verify` reports the firewall as deferred.
-- [ ] **The handoff to setup-dev-linux-wsl has no guest evidence.** Its clone,
-  origin, local-change and ref checks run against a local bare repository with a
-  stub bootstrap (`tests/test_handoff.py`); no guest has run the real
-  `./bootstrap apply --target linux` after a host apply, and
-  `vm/guest-foundation.py --controller` still runs `install` with the handoff
-  (plan Task 7 covers both).
+- [ ] **Run the two-repository VM cycle.** `just vm clean-cycle` now applies the
+  host with the firewall and hands off to setup-dev-linux-wsl
+  (`tests/test_vm_harness.py` pins what it runs), but it has not run: it needs a
+  Linux machine with KVM and network access. Then walk the manual items of the
+  checklist in [TESTING.md](docs/TESTING.md#vm-acceptance-checklist): OpenSnitch UI
+  autostart, UFW with a libvirt guest on virbr0, Ctrl-C during the bootstrap (exit
+  130), and an interactive first run. Until then the firewall stage and the handoff
+  have unit-test evidence only.
 - [ ] **Headless selections have no guest evidence.** `--profiles gpu,firewall`
   runs no desktop, snap or VS Code stage in the unit tests; no guest cycle has
-  run a headless selection.
+  run a headless selection (`script/test-manifest-vm --groups firewall,lab`
+  is one).
 - [ ] **VS Code extension versions are not pinned.** Unlike the binaries,
   extensions install at whatever version the Marketplace offers.
   Pinning them needs a resolver that does not exist yet, and a stale pin with no
@@ -88,13 +87,13 @@ No VM work can close these.
   has rendered them: the guest is a server image. Appearance, keybindings, dock
   behaviour and suspend are unobserved. The manifest only *enables* extensions,
   relying on those shipped with `ubuntu-desktop`.
-- [ ] **The move itself.** Rehearsed at 4 GB against real data shapes; the real
-  run is 167.6 GB across 389,518 files. First boot, credential restoration and
-  the [NEW-MACHINE.md](docs/NEW-MACHINE.md) checklist have not been walked.
+- [ ] **The first real install.** A fresh Ubuntu 26.04 install on the physical
+  machine, `apply` with the handoff, and the [NEW-MACHINE.md](docs/NEW-MACHINE.md)
+  steps, including credentials and data restored by hand, have not been walked.
 
 ### 3. Operational polish
 
-Not needed to move; needed to live with the result.
+Not needed to set up the machine; needed to live with the result.
 
 - [ ] **No snapshot or rollback.** `update/report` says what would change and
   `update/apply` applies what it safely can, but nothing captures the previous

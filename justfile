@@ -46,25 +46,28 @@ desktop-manifest OUT="/tmp/workstation-inventory.json":
   python3 -B script/build-desktop-manifest --inventory {{OUT}} --dropped-apps kiro
 
 # --- A new workstation ------------------------------------------------------
+# FLAGS: any further bootstrap options, after PROFILES ("" for none), e.g.
+#   just apply config/mine.json "" --no-handoff
+#   just apply config/mine.json gpu,firewall --allow-ssh --cli-profiles core,dev
 
 # Show what would be installed, changing nothing. PROFILES: host profiles, comma-separated.
-plan CONFIG PROFILES="":
-  ./bootstrap plan --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
+plan CONFIG PROFILES="" *FLAGS:
+  ./bootstrap plan --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }} {{FLAGS}}
 
 # Check the live machine before any write.
 preflight CONFIG:
   ./bootstrap preflight --config {{CONFIG}}
 
-# Set up the host. PROFILES defaults to the recorded choice, else the default set.
-apply CONFIG PROFILES="":
-  ./bootstrap apply --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
+# Set up the host, then hand off to setup-dev-linux-wsl. PROFILES defaults to the recorded choice, else the default set.
+apply CONFIG PROFILES="" *FLAGS:
+  ./bootstrap apply --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }} {{FLAGS}}
 
 # Former name of apply.
-install CONFIG PROFILES="": (apply CONFIG PROFILES)
+install CONFIG PROFILES="" *FLAGS: (apply CONFIG PROFILES FLAGS)
 
 # Report drift without repairing it.
-verify CONFIG PROFILES="":
-  ./bootstrap verify --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
+verify CONFIG PROFILES="" *FLAGS:
+  ./bootstrap verify --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }} {{FLAGS}}
 
 # --- Disposable test VM -----------------------------------------------------
 # See vm/mod.just: just vm --list

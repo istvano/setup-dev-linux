@@ -3,6 +3,8 @@
 #
 # Targets that act on a machine take variables rather than positional
 # arguments:  make apply CONFIG=config/mine.json PROFILES=desktop,dev-gui
+# FLAGS carries any further bootstrap options to plan, apply and verify:
+#   make apply CONFIG=config/mine.json FLAGS='--allow-ssh --cli-profiles core,dev'
 #
 # Grouped subcommands use a slash:  make vm/up, make vm/status. They are .PHONY,
 # so make does not look for a file of that name inside the vm directory.
@@ -19,6 +21,8 @@ MAC ?= ../mac-os-setup
 GROUPS ?=
 PROFILES ?= $(GROUPS)
 ARGS ?=
+# ':=' not '?=': only FLAGS= on the command line counts, never an exported FLAGS.
+FLAGS :=
 
 # Fail with a usable message instead of passing an empty flag to a command that
 # would then act on the wrong thing.
@@ -31,12 +35,12 @@ endef
 
 .PHONY: help
 help: ## List the available targets
-	@echo "linux-os-setup — make targets (same set as the justfile)"
+	@echo "setup-dev-linux — make targets (same set as the justfile)"
 	@echo
 	@grep -hE '^[a-zA-Z_/-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "Variables: CONFIG, PROFILES, OUT, MAC, ARGS"
+	@echo "Variables: CONFIG, PROFILES, FLAGS, OUT, MAC, ARGS"
 
 # --- Static checks ----------------------------------------------------------
 
@@ -93,9 +97,9 @@ update/keys: ## Re-record the repository signing-key fingerprints only
 # --- A new workstation ------------------------------------------------------
 
 .PHONY: plan
-plan: ## Show what would be installed, changing nothing (CONFIG=, optional PROFILES=)
+plan: ## Show what would be installed, changing nothing (CONFIG=, optional PROFILES=, FLAGS=)
 	$(call require,CONFIG,plan,config/mine.json)
-	$(BOOTSTRAP) plan --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
+	$(BOOTSTRAP) plan --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)$(if $(strip $(FLAGS)), $(FLAGS),)
 
 .PHONY: preflight
 preflight: ## Check the live machine before any write (CONFIG=)
@@ -103,17 +107,17 @@ preflight: ## Check the live machine before any write (CONFIG=)
 	$(BOOTSTRAP) preflight --config $(CONFIG)
 
 .PHONY: apply
-apply: ## Set up the host (CONFIG=, optional PROFILES=gpu,firewall)
+apply: ## Set up the host, then hand off (CONFIG=, optional PROFILES=gpu,firewall, FLAGS=)
 	$(call require,CONFIG,apply,config/mine.json)
-	$(BOOTSTRAP) apply --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
+	$(BOOTSTRAP) apply --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)$(if $(strip $(FLAGS)), $(FLAGS),)
 
 .PHONY: install
 install: apply ## Former name of apply
 
 .PHONY: verify
-verify: ## Report drift without repairing it (CONFIG=, optional PROFILES=)
+verify: ## Report drift without repairing it (CONFIG=, optional PROFILES=, FLAGS=)
 	$(call require,CONFIG,verify,config/mine.json)
-	$(BOOTSTRAP) verify --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
+	$(BOOTSTRAP) verify --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)$(if $(strip $(FLAGS)), $(FLAGS),)
 
 # --- Disposable test VM -----------------------------------------------------
 
@@ -143,7 +147,7 @@ vm/ssh: ## Run a command in the guest (ARGS='uptime')
 	$(PYTHON) script/vm ssh $(ARGS)
 
 .PHONY: vm/accept
-vm/accept: ## Apply the manifest in the guest, reboot and repeat
+vm/accept: ## Apply with the handoff in the guest, reboot and repeat
 	$(PYTHON) script/test-manifest-vm
 
 .PHONY: vm/foundation
@@ -151,5 +155,5 @@ vm/foundation: ## Run the F01-F07 guest suite: storage preflight negatives and r
 	$(PYTHON) script/test-vm $(ARGS)
 
 .PHONY: vm/clean-cycle
-vm/clean-cycle: vm/reset vm/up ## Destroy the guest, rebuild it, apply and accept
+vm/clean-cycle: vm/reset vm/up ## Destroy the guest, rebuild it, apply with the handoff and accept
 	$(PYTHON) script/test-manifest-vm

@@ -1,115 +1,152 @@
 # Setting up a new workstation
 
-This is the operator runbook for setting up a fresh machine. This repository
-installs software only; it does not copy files from another machine.
-
-Nothing here partitions disks, formats filesystems or deletes data.
+The operator runbook for a fresh machine: install Ubuntu, run `apply`, which sets up
+the host and then hands off to setup-dev-linux-wsl for the command line, log in
+again, verify. This repository installs software only; it copies nothing from
+another machine, and nothing here partitions disks, formats filesystems or deletes
+data.
 
 ## Before you start
 
-- Ubuntu 26.04 LTS amd64 installed, with a user account.
-- This repository checked out, and `just verify-static` passing.
+- Ubuntu 26.04 LTS amd64, freshly installed, with your user account. The repository
+  is for fresh installs only: a machine set up by an earlier version is reinstalled
+  (D023 in [DECISIONS.md](DECISIONS.md)).
+- Network access: `apply` downloads packages, and the handoff clones
+  setup-dev-linux-wsl from GitHub.
+- `git` and `gpg`, which a minimal install may lack. `preflight` and `apply` check
+  for both on the system path and stop, before changing anything, with
+  `prerequisite:git` or `prerequisite:gpg` naming the package to install:
 
-## 1. Check what will be installed
+  ```bash
+  sudo apt install git gnupg
+  ```
+
+- This repository cloned, for example into `~/workspace/setup-dev-linux`. Run the
+  commands below from its root.
+
+## 1. Describe the machine
+
+Copy the example for your disk layout, `config/standard-single.example.json` or
+`config/standard-split.example.json`, to `config/your-machine.local.json` (Git
+ignores `*.local.json`). Set `example_only` to `false`, `target.user` to your user,
+and replace every `REPLACE_` value with the real stable disk identity
+(`/dev/disk/by-id/...`), minimum size and filesystem UUID
+(`findmnt -o TARGET,UUID`). Keep the file private: it holds this machine's disk
+identities.
+
+## 2. Check what will run
 
 ```bash
-just plan config/your-machine.json
+./bootstrap plan --config config/your-machine.local.json
 ```
 
-`plan` writes nothing, downloads nothing and uses no privilege. It lists each
-selection with its delivery route and names anything blocked.
+`plan` writes nothing, downloads nothing and uses no privilege. It prints the
+`Profiles:` line and its source, each selected capability with its delivery route,
+and the stages `apply` would run, ending with `stage:handoff`. On a machine where
+setup-dev-linux-wsl has recorded no profile choice yet, it also prints the `hint:`
+line described in step 4.
 
-The set of software comes from `manifest/`, which records decisions made in
-[the inventory review](INVENTORY-REVIEW.md). To change what a new machine gets,
-change the manifest — not the machine, and then the manifest.
-
-## 2. Check the target machine
+To change the host profiles, pass `--profiles`. A server leaves out the desktop set
+(`desktop,media,productivity,ai,network,dev-gui`); `firewall` can be selected on its
+own:
 
 ```bash
-just preflight config/your-machine.json
+./bootstrap plan --config config/your-machine.local.json --profiles gpu,firewall
 ```
 
-This runs on the new machine and fails before any write if the declared disks
-and mounts do not match what is actually there.
-
-## 3. Install
+## 3. Check the target machine
 
 ```bash
-just apply config/your-machine.json
+./bootstrap preflight --config config/your-machine.local.json
 ```
+
+This fails before any write if the declared disks and mounts do not match what is
+actually there, or if `git` or `gpg` is missing.
+
+## 4. Apply: the host, then the handoff
 
 Run this **as your own user**, not as root, and not with `sudo`. The installer
-raises privilege for the system tasks that need it and refuses to run the whole
-bootstrap as root.
+raises privilege for the system tasks that need it and refuses to run as root.
 
-It configures the signed third-party APT sources, installs the manifest's
-packages and snaps, installs each pinned release binary after verifying its
-SHA-256, then the VS Code extensions and the GNOME settings. Re-running it is
-safe: the second run changes nothing that is already correct.
-
-Command-line tools, runtimes, the shell, dotfiles and Docker are not installed
-here: setup-dev-linux-wsl installs them on a Linux machine too, and `apply` ends
-by handing off to it. It clones `~/workspace/setup-dev-linux-wsl` and runs that
-repository's `./bootstrap apply --target linux` as you, interactively: it asks for
-your git name and email (see [MOVED.md](MOVED.md)).
-
-setup-dev-linux-wsl records its profile choice on its first run and refuses a
-different list afterwards, so choose it on the first run. For the command-line
-set this repository used to install, give that list:
+setup-dev-linux-wsl records its command-line profile choice on its first run and
+refuses a different list afterwards, so choose it now. For the command-line set this
+repository used to install, give that list:
 
 ```bash
-./bootstrap apply --config config/your-machine.json \
+./bootstrap apply --config config/your-machine.local.json \
   --cli-profiles core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp
 ```
 
-Add `,gpu-nvidia` when you selected the `gpu` host profile. Without
-`--cli-profiles` it installs its own default without asking; apply prints a
-`hint:` line with this list before the host stages and again before the handoff,
-so you can interrupt (Ctrl-C) and re-run with it. Later runs need no
-`--cli-profiles`; to change a recorded choice, edit `[data] profiles` in
-`~/.config/chezmoi/chezmoi.toml` (as the hint says), not the flag. `--linux-ref REF` checks out
-another branch, tag or commit of setup-dev-linux-wsl; `--no-handoff` stops after
-the host. If `~/workspace/setup-dev-linux-wsl` already exists but is a clone of
-something else or has local changes, apply stops and leaves it untouched.
+Add `,gpu-nvidia` when you selected the `gpu` host profile. Add `--allow-ssh` if you
+reach this machine over SSH: the firewall closes incoming SSH otherwise, and a run
+over SSH without it warns that new logins will be refused. Both choices, the host
+profiles and `--allow-ssh`, are recorded in
+`${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json` and kept by later
+runs.
 
-To install part of the host, name the profiles (a server leaves out the desktop
-ones; `firewall` can be selected on its own):
+What happens, in order:
+
+1. The host stages: the distribution checks, the signed third-party APT sources,
+   the manifest's packages and snaps, each pinned release binary after its SHA-256 is
+   verified, the VS Code extensions (with `dev-gui`), the GNOME settings (with
+   `desktop`), then the firewall: UFW enabled with incoming denied, and OpenSnitch
+   running in allow mode, which you switch to deny later.
+2. The handoff: `~/workspace/setup-dev-linux-wsl` is cloned (or updated) and its
+   `./bootstrap apply --target linux` runs as you, interactively. It asks for your
+   git name and email, then installs the command line: CLI tools, runtimes, the
+   shell, dotfiles and, with `runtime-docker`, Docker and the `docker` group.
+
+Without `--cli-profiles`, setup-dev-linux-wsl installs its own default without
+asking. `apply` prints a `hint:` line with the list above before the host stages and
+again just before the handoff, so you can interrupt (Ctrl-C; `apply` exits 130) and
+re-run with `--cli-profiles`. Later runs need no `--cli-profiles`; to change a
+recorded choice, edit `[data] profiles` in `~/.config/chezmoi/chezmoi.toml` (as the
+hint says), not the flag.
+
+Other options: `--linux-ref REF` checks out another branch, tag or commit of
+setup-dev-linux-wsl; `--no-handoff` stops after the host. If
+`~/workspace/setup-dev-linux-wsl` already exists but is not a clone of
+setup-dev-linux-wsl, or has local changes, `apply` stops and leaves it untouched.
+
+Re-running `apply` is safe at any point: the second run changes nothing that is
+already correct, and the handoff updates the clone and passes no profile list.
+
+## 5. Log out and back in
+
+Group memberships added during `apply`, such as the `docker` group, take effect only
+in a new login session. Log out and back in (or reboot) before using Docker without
+`sudo`.
+
+## 6. Verify
 
 ```bash
-just apply config/your-machine.json desktop,dev-gui,lab
+./bootstrap verify --config config/your-machine.local.json
 ```
 
-The choice is recorded in `${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json`
-(outside the clone, private to your user), and later runs without a profile list
-reuse it; the output's `Profiles source:` line says which applied. Pass
-`--profiles` again to change it. Deleting that file makes the next run without
-`--profiles` select the default, which includes the desktop.
+Verification reads the installed system and reports drift. It never repairs. It
+checks the recorded profiles unless you pass `--profiles`, and ends with
+setup-dev-linux-wsl's own `script/verify --target linux` (`cli:verify`;
+`--no-handoff` skips it). The UFW check needs `sudo -n`: run `sudo -v` first, or it
+is reported as deferred. An `incomplete` result names what has no verification yet;
+it is not a pass.
 
-## 4. Verify
-
-```bash
-just verify config/your-machine.json
-```
-
-Verification reads the installed system and reports drift. It never repairs.
-It ends with setup-dev-linux-wsl's own `script/verify --target linux`
-(`cli:verify`; `--no-handoff` skips it).
-An `incomplete` result names what has no verification yet; it is not a pass.
-
-## 5. Finish by hand
+## 7. Finish by hand
 
 These are deliberately not automated:
 
 - **Authenticate** the desktop applications that need it: Bitwarden, Slack,
-  Thunderbird. Command-line tools (`gh`, cloud CLIs, agent CLIs) and the Git
-  identity belong to setup-dev-linux-wsl.
+  Thunderbird. Command-line tools (`gh`, cloud CLIs, agent CLIs), the git signing
+  key and SSH keys belong to setup-dev-linux-wsl.
+- **OpenSnitch**: once your rules exist, switch the default action to deny in the
+  OpenSnitch UI. Later `apply` runs keep your choice, and may then prompt.
 - **VPN profiles** and their certificates.
 - **Backup destination and schedule** on the new machine.
-- **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot
-  is on, enrol the module signing key. A reboot is required.
+- **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot is on,
+  enrol the module signing key. A reboot is required.
+- **Your data**: restore it yourself from your own backup.
 
 ## What this cannot tell you
 
-The VM acceptance cycle exercises everything except the GPU stack, because the
-guest has no NVIDIA hardware. GPU delivery is proven only on the physical
-machine.
+The VM acceptance cycle exercises the host and the handoff, but not the GPU stack
+(the guest has no NVIDIA hardware) or a rendered desktop session (it runs a server
+image). Those are proven only on the physical machine.
