@@ -16,6 +16,8 @@ marker = Path('/etc/linux-os-setup-test-vm')
 if not marker.is_file() or marker.read_text().strip() != args.expected_vm_id:
     raise SystemExit('Refusing non-test guest')
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'vm'))
+import harness  # noqa: E402
 config = json.loads((ROOT / 'config/standard-split.example.json').read_text())
 config['example_only'] = False
 config['target']['user'] = 'ws-test'
@@ -35,9 +37,10 @@ path.write_text(json.dumps(config, indent=2) + '\n')
 path.chmod(0o600)
 
 def run(*args, expected=0):
+    """expected: one exit code, or a tuple of acceptable ones."""
     result = subprocess.run([str(ROOT / 'bootstrap'), *args, '--config', str(path), '--format', 'json'], capture_output=True, text=True)
     value = json.loads(result.stdout)
-    if result.returncode != expected:
+    if result.returncode not in (expected if isinstance(expected, tuple) else (expected,)):
         print(result.stdout)
         raise SystemExit('Guest command returned unexpected exit: ' + str(result.returncode))
     print(args[0] + ': expected exit ' + str(expected) + ', observed ' + value['outcome'])
@@ -55,17 +58,24 @@ try:
 finally:
     path.write_text(json.dumps(config, indent=2) + '\n')
 print('PASS: real Ubuntu guest config/plan/preflight and failed-guard install boundary')
+# Controller-only (RB11): a bare apply would install the default desktop
+# profiles and then hand off to setup-dev-linux-wsl, which needs a terminal.
+# This selects the firewall profile alone (the base group and the firewall
+# stage), keeps SSH open for the harness and never hands off. 0 or 3: the
+# catalogue still names capabilities with no role, which is incomplete, not
+# failed.
+CONTROLLER = (0, 3)
 if args.controller:
     tool_env = dict(os.environ, PYTHONDONTWRITEBYTECODE='1')
     tool_env['PATH'] = str(ROOT / '.workstation/venv/bin') + ':' + tool_env['PATH']
     for attempt in range(2):
-        result = run('install', expected=1)
+        result = run(*harness.CONTROLLER_ONLY_ARGS, expected=CONTROLLER)
         if not any(c['id'] == 'controller-foundation' and c['status'] == 'passed' for c in result['checks']):
             raise SystemExit('Controller foundation failed')
     subprocess.run([str(ROOT / '.workstation/venv/bin/python'), '-B', str(ROOT / 'script/test')], cwd=ROOT, env=tool_env, check=True)
     subprocess.run([str(ROOT / '.workstation/venv/bin/ansible-lint'), '--offline', *[str(p) for p in sorted((ROOT / 'ansible').glob('*.yml'))]], cwd=ROOT, env=tool_env, check=True)
-    result = run('install', expected=1)
+    result = run(*harness.CONTROLLER_ONLY_ARGS, expected=CONTROLLER)
     if not any(c['id'] == 'controller-foundation' and c['status'] == 'passed' for c in result['checks']):
         raise SystemExit('Controller did not remain intact after QA/lint')
-    print('PASS: locked controller, two Ansible foundation applies, pinned QA and Ansible lint')
-    print('Application source/role gates remain failed; no full workstation success claimed.')
+    print('PASS: locked controller, two host applies (base group and firewall), pinned QA and Ansible lint')
+    print('No desktop profile and no handoff ran; no full workstation success claimed.')

@@ -20,6 +20,11 @@ program:
 A profile list is passed only when the operator gave --cli-profiles: the
 bootstrap refuses a list that disagrees with its recorded choice, so passing
 one on every run would break re-runs.
+
+A git identity (--cli-git-name and --cli-git-email) makes the bootstrap run
+with --non-interactive: it then prompts for nothing and takes its defaults for
+everything else it would ask. That is for a run with no terminal, such as the
+VM acceptance cycle. The identity is passed to the bootstrap but never printed.
 """
 import os
 import pwd
@@ -45,6 +50,10 @@ FORMER_CLI_PROFILES = ('core,dev,security,kubernetes,backup,runtime-docker,ai-ag
 
 _REF = re.compile(r'[A-Za-z0-9._/-]{1,200}')
 _PROFILES = re.compile(r'[a-z0-9][a-z0-9-]*(,[a-z0-9][a-z0-9-]*)*')
+# setup-dev-linux-wsl's bootstrap passes the identity on as one comma-separated
+# key=value list, which cannot carry ',', '=' or '"'; it refuses them, and so
+# does this, before anything changes. No control characters, no leading '-'.
+_IDENTITY = re.compile(r'[^\x00-\x1f\x7f,="-][^\x00-\x1f\x7f,="]{0,199}')
 
 
 def valid_ref(ref):
@@ -55,6 +64,14 @@ def valid_ref(ref):
 def valid_cli_profiles(text):
     """A comma-separated list of profile names; setup-dev-linux-wsl checks the names."""
     return isinstance(text, str) and len(text) <= 1000 and bool(_PROFILES.fullmatch(text))
+
+
+def valid_identity(identity):
+    """None, or a (git name, git email) pair the bootstrap can take as flags."""
+    if identity is None:
+        return True
+    return (isinstance(identity, tuple) and len(identity) == 2
+            and all(isinstance(v, str) and _IDENTITY.fullmatch(v) for v in identity))
 
 
 def home():
@@ -69,10 +86,17 @@ def clone_directory():
     return home() / WORKSPACE / NAME
 
 
-def bootstrap_command(cli_profiles=None):
-    """The command the handoff runs in the clone, for plan and apply alike."""
-    return ['./bootstrap', 'apply', '--target', 'linux',
-            *(['--profiles', cli_profiles] if cli_profiles else [])]
+def bootstrap_command(cli_profiles=None, identity=None, redact=False):
+    """The command the handoff runs in the clone, for plan and apply alike.
+
+    redact: show '<given>' for the identity, for anything that is printed.
+    """
+    command = ['./bootstrap', 'apply', '--target', 'linux',
+               *(['--profiles', cli_profiles] if cli_profiles else [])]
+    if identity:
+        name, email = ('<given>', '<given>') if redact else identity
+        command += ['--non-interactive', '--git-name', name, '--git-email', email]
+    return command
 
 
 def record_path():
@@ -130,19 +154,23 @@ def _same_repository(origin):
     return origin.removesuffix('.git') == REPOSITORY
 
 
-def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), stdout=None,
-                stderr=None):
+def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), identity=None,
+                stdout=None, stderr=None):
     """Clone or update setup-dev-linux-wsl and run its bootstrap; its exit code.
 
     stdout and stderr say where git's and the bootstrap's output go (None: this
     process's); the bootstrap's standard input is always this process's, so it
-    can prompt. Refusals print one line naming the cause and return 1.
+    can prompt. identity: (git name, git email) for an unattended run, or None.
+    Refusals print one line naming the cause and return 1.
     """
     if not valid_ref(ref):
         _say('invalid ref; use a branch, tag or commit name')
         return 1
     if cli_profiles is not None and not valid_cli_profiles(cli_profiles):
         _say('invalid --cli-profiles; use a comma-separated list of profile names')
+        return 1
+    if not valid_identity(identity):
+        _say('invalid --cli-git-name or --cli-git-email')
         return 1
     refusal = _refusal()
     if refusal:
@@ -205,8 +233,9 @@ def run_handoff(user, ref='main', cli_profiles=None, *, host_profiles=(), stdout
     hint = first_run_hint(cli_profiles, host_profiles)
     if hint:
         print(hint, file=sys.stderr)
-    command = bootstrap_command(cli_profiles)
-    print(f'handoff: running {" ".join(command)} in {directory}', file=sys.stderr)
+    command = bootstrap_command(cli_profiles, identity)
+    shown = bootstrap_command(cli_profiles, identity, redact=True)
+    print(f'handoff: running {" ".join(shown)} in {directory}', file=sys.stderr)
     # Absolute, so the program never depends on how the platform searches cwd.
     code = subprocess.run([str(directory / 'bootstrap'), *command[1:]], cwd=directory,
                           **output).returncode

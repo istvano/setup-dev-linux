@@ -15,8 +15,12 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--expected-vm-id', required=True)
-parser.add_argument('--groups', required=True, help='comma-separated manifest groups')
+parser.add_argument('--groups', required=True, help='comma-separated host profiles')
 parser.add_argument('--verify-only', action='store_true')
+parser.add_argument('--handoff', choices=['first', 'again'],
+                    help='apply ends with the handoff to setup-dev-linux-wsl: first '
+                         '(non-interactive, with the former command-line set) or again '
+                         '(its recorded choice); absent, the run is host only')
 args = parser.parse_args()
 
 marker = Path('/etc/linux-os-setup-test-vm')
@@ -25,6 +29,8 @@ if not marker.is_file() or marker.read_text().strip() != args.expected_vm_id:
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'script'))
+sys.path.insert(0, str(ROOT / 'vm'))
+import harness  # noqa: E402
 from workstation import profiles  # noqa: E402
 
 # --groups names host profiles; they resolve to manifest groups (the base group
@@ -133,6 +139,69 @@ def verify():
 
     verify_new_deliveries()
     verify_desktop()
+    verify_firewall()
+    verify_apt()
+    verify_bootstrap()
+
+
+def verify_firewall():
+    """UFW on with SSH kept open, OpenSnitch running and seeded in allow mode.
+
+    Allow mode is a first-install default the operator may change later; nobody
+    changes it in the guest, so here it must read allow.
+    """
+    if 'firewall' not in PROFILES:
+        return
+    import pwd
+    from workstation import firewall, state
+    home = pwd.getpwuid(os.geteuid()).pw_dir
+    for check in firewall.verify(True, desktop=SELECTION['desktop'], home=home):
+        if check['status'] == 'notice':
+            if check['id'] in ('firewall:opensnitch-daemon-mode', 'firewall:opensnitch-ui-mode'):
+                report(check['reason'].endswith('-allow'), f"{check['id']}: {check['reason']}")
+            continue
+        report(check['status'] == 'passed', f"{check['id']}: {check['status']} — {check['reason']}")
+    recorded = state.get('firewall') or {}
+    report(recorded.get('allow_ssh') is True, 'state.json firewall.allow_ssh is true')
+    report(recorded.get('opensnitch_seeded') is True, 'state.json firewall.opensnitch_seeded')
+    if SELECTION['desktop']:
+        report(recorded.get('opensnitch_ui_seeded') is True,
+               'state.json firewall.opensnitch_ui_seeded')
+
+
+def verify_apt():
+    """APT stays clean with both repositories' sources (RB10).
+
+    claude-desktop registers its own source; setup-dev-linux-wsl adds Anthropic's
+    for Claude Code. One keyring and one Signed-By keep `apt-get update` quiet.
+    """
+    for command in (['sudo', '-n', 'apt-get', 'update'], ['apt-get', 'check']):
+        result = subprocess.run(command, capture_output=True, text=True, check=False,
+                                timeout=900)
+        findings = harness.apt_findings(result.stdout + result.stderr)
+        report(result.returncode == 0 and not findings,
+               ' '.join(command[-2:]) + (': clean' if not findings
+                                         else ': ' + ' | '.join(findings[:5]))
+               + ('' if result.returncode == 0 else f' (exit {result.returncode})'))
+
+
+def verify_bootstrap():
+    """bootstrap verify itself; with the handoff it ends with cli:verify."""
+    command = harness.verify_command(ROOT / 'bootstrap', CONFIG, ','.join(PROFILES),
+                                     handoff=args.handoff)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                            text=True)
+    try:
+        value = json.loads(result.stdout)
+    except ValueError:
+        report(False, 'bootstrap verify produced no report')
+        return
+    failed = [c['id'] for c in value['checks'] if c['status'] == 'failed']
+    report(not failed, f"bootstrap verify: {value['outcome']}"
+                       + (': failed ' + ', '.join(failed) if failed else ''))
+    if args.handoff:
+        report(harness.check_passed(value, 'cli:verify'),
+               'cli:verify (setup-dev-linux-wsl script/verify --target linux)')
 
 
 def verify_desktop():
@@ -178,27 +247,33 @@ def verify_new_deliveries():
 
 
 def install(config):
-    # Host delivery only: the handoff to setup-dev-linux-wsl is interactive and
-    # is exercised by the two-repository cycle (plan Task 7).
-    command = [str(ROOT / 'bootstrap'), 'apply', '--config', str(config),
-               '--format', 'json', '--profiles', ','.join(PROFILES), '--no-handoff']
-    result = subprocess.run(command, capture_output=True, text=True)
+    # The way the operator runs it: explicit profiles, then (with --handoff) the
+    # handoff to setup-dev-linux-wsl, non-interactive because the guest has no
+    # terminal. Standard input is closed so nothing can wait for an answer; the
+    # handoff's own output goes to standard error, which the driver logs.
+    command = harness.apply_command(ROOT / 'bootstrap', config, ','.join(PROFILES),
+                                    handoff=args.handoff)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                            text=True)
     try:
-        outcome = json.loads(result.stdout)['outcome']
+        value = json.loads(result.stdout)
+        outcome = value['outcome']
     except (ValueError, KeyError):
         print(result.stdout[-4000:])
-        print(result.stderr[-4000:], file=sys.stderr)
         raise SystemExit('install produced no report')
     # "incomplete" is the honest outcome while capability roles remain unwritten;
-    # a failure is not.
+    # a failure is not. A failed handoff fails the run with its exit code.
     report(result.returncode in (0, 3), f'install returned {outcome}')
+    if args.handoff:
+        report(harness.check_passed(value, 'handoff'),
+               f'handoff to setup-dev-linux-wsl ({args.handoff} run)')
     if result.returncode not in (0, 3):
-        print(json.dumps(json.loads(result.stdout), indent=2)[:4000])
+        print(json.dumps(value, indent=2)[:4000])
 
 
-config = build_config()
+CONFIG = build_config()
 if not args.verify_only:
-    install(config)
+    install(CONFIG)
 verify()
 
 if failures:

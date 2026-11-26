@@ -40,7 +40,7 @@ def emit(result, fmt):
 def stage_checks(selection, handoff_args=None):
     """What apply would run for this selection, stage by stage.
 
-    handoff_args: (ref, cli_profiles) when apply ends with the handoff.
+    handoff_args: (ref, cli_profiles, identity) when apply ends with the handoff.
     """
     from .controller import host_stages
     checks = []
@@ -51,10 +51,10 @@ def stage_checks(selection, handoff_args=None):
                        'reason': ','.join(playbooks)})
     if handoff_args is not None:
         from . import handoff
-        ref, cli_profiles = handoff_args
+        ref, cli_profiles, identity = handoff_args
         checks.append({'id': 'stage:handoff', 'status': 'planned',
-                       'reason': f'{handoff.NAME}@{ref}: '
-                                 + ' '.join(handoff.bootstrap_command(cli_profiles))})
+                       'reason': f'{handoff.NAME}@{ref}: ' + ' '.join(
+                           handoff.bootstrap_command(cli_profiles, identity, redact=True))})
     return checks
 
 
@@ -88,6 +88,12 @@ def main(argv=None):
         parser.add_argument('--cli-profiles',
                             help='setup-dev-linux-wsl profiles for the handoff (default: its '
                                  'recorded choice, else its default; passed only when given)')
+        parser.add_argument('--cli-git-name',
+                            help='with --cli-git-email: run setup-dev-linux-wsl with '
+                                 '--non-interactive and this git user.name (no terminal '
+                                 'needed; it takes its defaults for everything else)')
+        parser.add_argument('--cli-git-email',
+                            help='with --cli-git-name: the git user.email for that run')
         parser.add_argument('--linux-ref', default='main',
                             help='setup-dev-linux-wsl branch, tag or commit (default: main)')
         args = parser.parse_args(argv)
@@ -98,6 +104,13 @@ def main(argv=None):
         if args.cli_profiles is not None:
             require(not args.no_handoff, 'cli-profiles-needs-the-handoff')
             require(handoff.valid_cli_profiles(args.cli_profiles), 'invalid-cli-profiles')
+        identity = None
+        if args.cli_git_name is not None or args.cli_git_email is not None:
+            require(args.cli_git_name is not None and args.cli_git_email is not None,
+                    'cli-git-name-and-cli-git-email-go-together')
+            require(not args.no_handoff, 'cli-git-identity-needs-the-handoff')
+            identity = (args.cli_git_name, args.cli_git_email)
+            require(handoff.valid_identity(identity), 'invalid-cli-git-identity')
         # In JSON mode the report is the only standard output; what the handoff's
         # programs print goes to standard error (file descriptor 2).
         child_stdout = 2 if fmt == 'json' else None
@@ -136,7 +149,8 @@ def main(argv=None):
                 state = 'blocked-source' if e['delivery']['status'] == 'unverified' else 'planned'
                 checks.append({'id': i, 'status': state, 'reason': e['owner'] + ':' + (e['delivery']['channel'] or e['boundary'])})
             checks.extend(stage_checks(
-                selection, None if args.no_handoff else (args.linux_ref, args.cli_profiles)))
+                selection,
+                None if args.no_handoff else (args.linux_ref, args.cli_profiles, identity)))
             if not args.no_handoff:
                 hint = handoff.first_run_hint(args.cli_profiles, selection['profiles'])
                 if hint:
@@ -238,7 +252,8 @@ def main(argv=None):
             try:
                 handoff_code = handoff.run_handoff(
                     context['config']['target']['user'], args.linux_ref, args.cli_profiles,
-                    host_profiles=selection['profiles'], stdout=child_stdout)
+                    host_profiles=selection['profiles'], identity=identity,
+                    stdout=child_stdout)
             except (OSError, subprocess.SubprocessError):
                 # Keep the host report: the host stages did run.
                 print('handoff: could not run git or the bootstrap', file=sys.stderr)

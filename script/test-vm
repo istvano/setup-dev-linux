@@ -33,7 +33,7 @@ if actual != vm_id:
     raise SystemExit('Refusing unexpected guest')
 guest('cloud-init status --wait', timeout=180)
 guest('sudo -n cloud-init schema --system')
-files = [ROOT / n for n in ['bootstrap', 'README.md', 'AGENTS.md', 'TASKS.md', '.gitignore', 'pyproject.toml', 'uv.lock', 'justfile', 'Makefile', 'vm/mod.just', 'vm/guest-foundation.py', 'vm/desktop-fixture.py', 'vm/ubuntu-image.lock.json']]
+files = [ROOT / n for n in ['bootstrap', 'README.md', 'AGENTS.md', 'TASKS.md', '.gitignore', 'pyproject.toml', 'uv.lock', 'justfile', 'Makefile', 'vm/mod.just', 'vm/guest-foundation.py', 'vm/harness.py', 'vm/desktop-fixture.py', 'vm/ubuntu-image.lock.json']]
 # The guest runs this repository's own test suite, so it needs the inputs that
 # suite reads. Relying on a previous driver having left them behind makes the
 # result depend on run order.

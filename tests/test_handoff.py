@@ -214,6 +214,30 @@ class HandoffTest(GitFixture):
         self.assertNotEqual(code, 0)
         self.assertFalse(self.clone.exists())
 
+    def test_a_git_identity_runs_the_bootstrap_non_interactively(self):
+        """RB11: an unattended first run (the VM cycle) has no terminal to prompt on."""
+        code, out = self.handoff(cli_profiles='core,dev',
+                                 identity=('VM Test', 'ws-test@example.invalid'))
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.ran(), f'{self.first} apply --target linux --profiles core,dev '
+                                     '--non-interactive --git-name VM Test '
+                                     '--git-email ws-test@example.invalid')
+
+    def test_the_running_line_does_not_echo_the_identity(self):
+        code, out = self.handoff(identity=('VM Test', 'ws-test@example.invalid'))
+        self.assertEqual(code, 0, out)
+        self.assertIn('--non-interactive', out)
+        self.assertNotIn('VM Test', out)
+        self.assertNotIn('ws-test@example.invalid', out)
+
+    def test_an_invalid_identity_is_refused_before_anything_runs(self):
+        for identity in (('', 'a@b'), ('Name', ''), ('-n', 'a@b'), ('Doe, Jane', 'a@b'),
+                         ('Name', 'a=b@c'), ('Na"me', 'a@b'), ('Na\nme', 'a@b'),
+                         ('x' * 201, 'a@b'), ('Name',)):
+            code, _ = self.handoff(identity=identity)
+            self.assertNotEqual(code, 0, identity)
+        self.assertFalse(self.clone.exists())
+
     def test_an_invalid_ref_or_profile_list_is_refused_before_anything_runs(self):
         for kwargs in ({'ref': '--upload-pack=x'}, {'ref': 'a b'}, {'ref': '$(id)'},
                        {'ref': ''}, {'cli_profiles': '--x'}, {'cli_profiles': 'core;id'},
@@ -532,6 +556,37 @@ class CliWiringTest(unittest.TestCase):
                                    '--cli-profiles', 'core;id'])
         self.assertEqual(code, 2)
         self.mocks['workstation.controller.apply_foundation'].assert_not_called()
+
+    def test_a_git_identity_is_passed_through(self):
+        self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                      '--cli-git-name', 'VM Test', '--cli-git-email', 'ws@example.invalid'])
+        self.assertEqual(self.handoff_mock().call_args.kwargs['identity'],
+                         ('VM Test', 'ws@example.invalid'))
+
+    def test_without_an_identity_none_is_passed(self):
+        self.run_cli(['apply', '--config', 'x.json', '--format', 'json'])
+        self.assertIsNone(self.handoff_mock().call_args.kwargs['identity'])
+
+    def test_a_git_identity_needs_both_halves_and_the_handoff(self):
+        for extra in (['--cli-git-name', 'VM Test'],
+                      ['--cli-git-email', 'ws@example.invalid'],
+                      ['--cli-git-name', 'VM Test', '--cli-git-email', 'ws@example.invalid',
+                       '--no-handoff'],
+                      ['--cli-git-name', 'Doe, Jane', '--cli-git-email', 'ws@example.invalid']):
+            code, out, _ = self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
+                                         *extra])
+            self.assertEqual(code, 2, extra)
+            self.assertEqual(json.loads(out)['outcome'], 'invalid')
+            self.mocks['workstation.controller.apply_foundation'].assert_not_called()
+
+    def test_plan_shows_the_non_interactive_handoff_without_the_identity(self):
+        _, out, _ = self.run_cli(['plan', '--config', 'x.json', '--format', 'json',
+                                  '--cli-git-name', 'VM Test',
+                                  '--cli-git-email', 'ws@example.invalid'])
+        reason = {c['id']: c for c in json.loads(out)['checks']}['stage:handoff']['reason']
+        self.assertIn('--non-interactive --git-name <given> --git-email <given>', reason)
+        self.assertNotIn('VM Test', out)
+        self.assertNotIn('ws@example.invalid', out)
 
     def test_cli_profiles_with_no_handoff_is_invalid(self):
         code, _, _ = self.run_cli(['apply', '--config', 'x.json', '--format', 'json',
