@@ -129,6 +129,17 @@ def apply_firewall_stage(run_stage, config):
     return None
 
 
+def record_selection(selection):
+    """Record the chosen profiles in per-user state, outside the clone.
+
+    Verification then checks the machine this is, not the machine the manifest
+    could describe, and a re-run without --profiles keeps this selection even
+    after the clone or its .workstation directory is gone.
+    """
+    from . import state
+    state.set('profiles', list(selection['profiles']))
+
+
 def run_host_stages(selection, run_stage, record, config, root=ROOT):
     """Run each stage of the selection in order; a failing stage raises."""
     for stage, playbooks, timeout in host_stages(selection, root):
@@ -151,7 +162,7 @@ def apply_foundation(config, root=ROOT, selection=None):
     state.mkdir(mode=0o700, exist_ok=True)
     state.chmod(0o700)
     for name in ['venv', 'uv-cache', 'ansible-local', 'ansible-remote', 'foundation.log',
-                 'ansible-vars.json', 'profiles.json']:
+                 'ansible-vars.json']:
         require(not (state / name).is_symlink(), 'unsafe-controller-path')
     executables = {}
     for key, artifact in lock['artifacts'].items():
@@ -197,15 +208,5 @@ def apply_foundation(config, root=ROOT, selection=None):
                            cwd=root, check=True, env=environment,
                            stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
 
-        # Verification checks the machine this is, not the machine the manifest
-        # could describe: without the record it would report every profile the
-        # operator deliberately left out.
-        def record():
-            applied = state / 'profiles.json'
-            applied.write_text(json.dumps({'schema_version': 1,
-                                           'profiles': selection['profiles'],
-                                           'groups': selection['groups']}))
-            applied.chmod(0o600)
-
-        run_host_stages(selection, run_stage, record, config, root)
+        run_host_stages(selection, run_stage, lambda: record_selection(selection), config, root)
     return {'id': 'controller-foundation', 'status': 'passed', 'reason': 'locked-controller-and-distribution-python-assertions-passed'}

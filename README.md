@@ -46,7 +46,10 @@ The manifest is grouped by purpose, and a run selects host profiles
 `lab`, `gpu`, `dev-gui` and `firewall`. The default is
 `desktop,media,productivity,ai,network,dev-gui,firewall`; a selection without the
 desktop profiles is headless. Every run prints the selection on a `Profiles:` line,
-and a re-run without `--profiles` keeps the recorded choice:
+followed by `Profiles source: explicit|recorded|default`. `apply` records the
+choice in `${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json`,
+outside the clone, so a re-run without `--profiles` keeps it even after re-cloning
+or rebuilding `.workstation/`:
 
 ```bash
 just apply config/your-machine.json gpu,firewall     # ./bootstrap apply --config ... --profiles gpu,firewall

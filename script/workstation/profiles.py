@@ -8,7 +8,8 @@ desktop playbook, snap, GNOME setting or VS Code step, and verify demands none.
 Which profiles apply, in order: the ones given on the command line, else the
 choice the last apply recorded, else the default. Recording the choice keeps a
 headless machine headless when apply is re-run without `--profiles`, as
-setup-dev-win and setup-dev-linux-wsl keep theirs.
+setup-dev-win and setup-dev-linux-wsl keep theirs. The record is per-user state
+outside the clone (workstation/state.py), under the `profiles` key.
 """
 from pathlib import Path
 
@@ -16,7 +17,6 @@ from .config import ROOT, InputError, load_json, require, validate_schema
 
 CATALOGUE = 'profiles/host.json'
 SCHEMA = 'profiles/host.schema.json'
-RECORD = '.workstation/profiles.json'
 HINT = './bootstrap apply --config <file> --profiles <list>'
 
 
@@ -57,30 +57,30 @@ def parse(text, catalogue):
     return [n for n in valid if n in names]
 
 
-def recorded(root=ROOT):
+def recorded():
     """The profiles the last apply recorded, or None when none were.
 
-    A record that exists but cannot be read is an error, not an absence: falling
-    back to the default would install the desktop on a headless machine.
+    A record that exists but cannot be read, or fails the state file's safety
+    checks, is an error, not an absence: falling back to the default would
+    install the desktop on a headless machine.
     """
-    path = Path(root) / RECORD
-    if not path.exists():
-        return None
+    from . import state
     try:
-        value, _ = load_json(path)
-        names = value['profiles']
-        require(value.get('schema_version') == 1 and isinstance(names, list)
-                and names and all(isinstance(n, str) for n in names), 'bad-record')
-        return names
-    except (InputError, KeyError, TypeError, AttributeError):
+        names = state.get('profiles')
+    except InputError:
         raise InputError('recorded-profiles-unreadable; pass --profiles') from None
+    if names is None:
+        return None
+    if not (isinstance(names, list) and names and all(isinstance(n, str) for n in names)):
+        raise InputError('recorded-profiles-unreadable; pass --profiles')
+    return names
 
 
-def select(text, catalogue, root=ROOT):
+def select(text, catalogue):
     """(profiles, source): explicit, else recorded, else the default."""
     if text is not None:
         return parse(text, catalogue), 'explicit'
-    names = recorded(root)
+    names = recorded()
     if names is not None:
         try:
             return parse(','.join(names), catalogue), 'recorded'

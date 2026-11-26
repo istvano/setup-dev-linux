@@ -32,19 +32,24 @@ def manifest(name):
     return json.loads((ROOT / 'manifest' / f'{name}.json').read_text())
 
 
-class TempRoot(unittest.TestCase):
-    """A repository root with no recorded selection, so results never depend
-    on whatever a developer's own checkout has applied."""
+class TempState(unittest.TestCase):
+    """A per-user state directory of its own, so results never depend on what
+    the developer's own account has recorded."""
 
     def setUp(self):
-        self.root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        import os
+        self.temp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.temp, ignore_errors=True)
+        environment = patch.dict(os.environ, {'XDG_STATE_HOME': str(self.temp)})
+        environment.start()
+        self.addCleanup(environment.stop)
         self.catalogue = profiles.load()
 
     def record(self, payload):
-        (self.root / '.workstation').mkdir(exist_ok=True)
-        (self.root / '.workstation/profiles.json').write_text(
-            payload if isinstance(payload, str) else json.dumps(payload))
+        from workstation import state
+        if not state.path().exists():
+            state.set('profiles', ['lab'])  # creates the directory with safe modes
+        state.path().write_text(payload if isinstance(payload, str) else json.dumps(payload))
 
 
 class CatalogueTest(unittest.TestCase):
@@ -128,26 +133,56 @@ class ParseTest(unittest.TestCase):
         self.assertEqual(profiles.parse('firewall, gpu', self.catalogue), ['gpu', 'firewall'])
 
 
-class SelectTest(TempRoot):
+class SelectTest(TempState):
     def test_with_nothing_given_or_recorded_the_default_is_selected(self):
-        self.assertEqual(profiles.select(None, self.catalogue, self.root), (DEFAULT, 'default'))
+        self.assertEqual(profiles.select(None, self.catalogue), (DEFAULT, 'default'))
 
     def test_an_explicit_list_wins(self):
         self.record({'schema_version': 1, 'profiles': ['gpu']})
-        self.assertEqual(profiles.select('lab', self.catalogue, self.root), (['lab'], 'explicit'))
+        self.assertEqual(profiles.select('lab', self.catalogue), (['lab'], 'explicit'))
 
     def test_the_recorded_choice_holds_when_nothing_is_given(self):
         """A headless machine re-run without --profiles must stay headless."""
         self.record({'schema_version': 1, 'profiles': ['gpu', 'firewall']})
-        self.assertEqual(profiles.select(None, self.catalogue, self.root),
+        self.assertEqual(profiles.select(None, self.catalogue),
                          (['gpu', 'firewall'], 'recorded'))
 
     def test_an_unreadable_record_fails_closed(self):
         for payload in ('not json', {'schema_version': 1, 'profiles': ['nope']},
-                        {'schema_version': 1, 'profiles': []}):
+                        {'schema_version': 1, 'profiles': []},
+                        {'schema_version': 1, 'profiles': 'gpu'}):
             self.record(payload)
             with self.assertRaisesRegex(InputError, 'recorded-profiles-unreadable'):
-                profiles.select(None, self.catalogue, self.root)
+                profiles.select(None, self.catalogue)
+
+    def test_an_unsafe_record_fails_closed(self):
+        from workstation import state
+        self.record({'schema_version': 1, 'profiles': ['gpu']})
+        state.path().chmod(0o644)
+        with self.assertRaisesRegex(InputError, 'recorded-profiles-unreadable'):
+            profiles.select(None, self.catalogue)
+
+    def test_the_record_survives_losing_the_clone_state(self):
+        """Deleting .workstation (rebuilding the controller) keeps the choice."""
+        from workstation import controller, state
+        controller.record_selection(profiles.resolve(['gpu', 'firewall'], self.catalogue))
+        self.assertFalse(state.path().is_relative_to(ROOT))
+        self.assertEqual(profiles.select(None, self.catalogue), (['gpu', 'firewall'], 'recorded'))
+
+    def test_recording_keeps_other_state(self):
+        from workstation import controller, state
+        state.set('other', 1)
+        controller.record_selection(profiles.resolve(['lab'], self.catalogue))
+        self.assertEqual(state.get('other'), 1)
+        self.assertEqual(state.get('profiles'), ['lab'])
+
+
+class NoCloneRecordTest(unittest.TestCase):
+    def test_nothing_records_the_choice_inside_the_clone(self):
+        for source in ('controller.py', 'profiles.py', 'cli.py'):
+            text = (ROOT / 'script/workstation' / source).read_text()
+            self.assertNotIn("'profiles.json'", text, source)
+            self.assertNotIn('.workstation/profiles', text, source)
 
 
 class ResolveTest(unittest.TestCase):
@@ -363,6 +398,13 @@ class CliTest(unittest.TestCase):
             _, out, _ = self.run_cli([command, '--config', 'x.json', '--profiles', 'gpu,firewall'])
             self.assertEqual(out.splitlines()[0], profiles.line(['gpu', 'firewall'],
                                                                 profiles.load()), command)
+            self.assertEqual(out.splitlines()[1], 'Profiles source: explicit', command)
+
+    def test_text_output_says_where_the_selection_came_from(self):
+        _, out, _ = self.run_cli(['verify', '--config', 'x.json'])
+        self.assertEqual(out.splitlines()[1], 'Profiles source: default')
+        _, out, _ = self.run_cli(['verify', '--config', 'x.json'], recorded=['gpu'])
+        self.assertEqual(out.splitlines()[1], 'Profiles source: recorded')
 
     def test_json_output_carries_the_profiles_and_stays_one_document(self):
         _, out, _ = self.run_cli(['plan', '--config', 'x.json', '--format', 'json'])

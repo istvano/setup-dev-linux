@@ -58,6 +58,12 @@ ones; `firewall` can be selected on its own):
 just apply config/your-machine.json desktop,dev-gui,lab
 ```
 
+The choice is recorded in `${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json`
+(outside the clone, private to your user), and later runs without a profile list
+reuse it; the output's `Profiles source:` line says which applied. Pass
+`--profiles` again to change it. Deleting that file makes the next run without
+`--profiles` select the default, which includes the desktop.
+
 ## 4. Verify
 
 ```bash

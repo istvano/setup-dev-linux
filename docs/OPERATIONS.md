@@ -12,7 +12,7 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 | `./bootstrap plan --config PATH [--profiles LIST] --format json` | Prints the `Profiles:` line and the stages the selection runs. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
 | `./bootstrap apply --config PATH [--profiles LIST] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
-| `./bootstrap verify --config PATH [--profiles LIST] --format json` | Checks the recorded profiles unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
+| `./bootstrap verify --config PATH [--profiles LIST] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |

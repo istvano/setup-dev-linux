@@ -27,7 +27,10 @@ def emit(result, fmt):
         print(json.dumps(result, sort_keys=True))
     else:
         if result.get('profiles'):
+            # The line is setup-dev-win's wording; the source says whether it
+            # came from --profiles, the recorded choice or the default.
             print(result['profiles']['line'])
+            print('Profiles source: ' + result['profiles']['source'])
         print(result['command'] + ': ' + result['outcome'])
         for check in result['checks']:
             print(check['id'] + ': ' + check['status'] + ' — ' + check['reason'])
@@ -63,8 +66,9 @@ def main(argv=None):
         parser.add_argument('--config', required=True)
         parser.add_argument('--format', choices=['text', 'json'], default='text')
         parser.add_argument('--profiles',
-                            help='comma-separated host profiles (default: the recorded '
-                                 'choice, else profiles/host.json "default")')
+                            help='comma-separated host profiles (default: the choice '
+                                 'recorded in ~/.local/state/setup-dev-linux/state.json, '
+                                 'else profiles/host.json "default")')
         parser.add_argument('--manifest-groups', help='former name of --profiles')
         args = parser.parse_args(argv)
         command, fmt = args.command, args.format
