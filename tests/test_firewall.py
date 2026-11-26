@@ -89,12 +89,14 @@ class PlaybookTest(unittest.TestCase):
         index = PLAYBOOK.index(firewall.UI_PACKAGE)
         self.assertIn('host_desktop', PLAYBOOK[index - 300:index + 300])
 
-    def test_opensnitch_default_action_is_allow(self):
+    def test_opensnitch_allow_mode_is_seeded_once_not_enforced(self):
         self.assertIn('/etc/opensnitchd/default-config.json', PLAYBOOK)
         self.assertEqual(firewall.OPENSNITCH_CONFIG, '/etc/opensnitchd/default-config.json')
-        self.assertIn('"DefaultAction"', PLAYBOOK)
-        self.assertIn('"allow"', PLAYBOOK)
-        self.assertNotRegex(PLAYBOOK, r'DefaultAction[^\n]*deny')
+        seed = self.task('Seed OpenSnitch allow mode on first install')
+        self.assertIn('"DefaultAction"', seed)
+        self.assertIn('\\1"allow"', seed)
+        self.assertIn('firewall_seed_opensnitch | default(false) | bool', seed)
+        self.assertEqual(PLAYBOOK.count('ansible.builtin.replace:'), 1, 'no unconditional rewrite remains')
 
     def test_the_service_is_enabled_and_started(self):
         self.assertRegex(PLAYBOOK, r'name: opensnitch\n\s+enabled: true\n\s+state: started')
@@ -160,7 +162,7 @@ class VerifyTest(TempState):
     def test_a_correct_host_passes_every_check(self):
         checks = self.verify()
         for name in ('ufw-active', 'ufw-default-incoming', 'ufw-default-outgoing', 'ufw-ssh',
-                     'opensnitch-installed', 'opensnitch-running', 'opensnitch-default-action'):
+                     'opensnitch-installed', 'opensnitch-running'):
             self.assertEqual(checks['firewall:' + name]['status'], 'passed', name)
 
     def test_inactive_ufw_fails(self):
@@ -197,13 +199,27 @@ class VerifyTest(TempState):
         self.assertEqual(self.verify(active=False)['firewall:opensnitch-running']['status'],
                          'failed')
 
-    def test_default_action_deny_fails(self):
-        self.config.write_text('{"DefaultAction": "deny"}')
-        self.assertEqual(self.verify()['firewall:opensnitch-default-action']['status'], 'failed')
+    def test_the_daemon_mode_is_a_notice_never_a_failure(self):
+        for action in ('allow', 'deny'):
+            self.config.write_text('{"DefaultAction": "%s"}' % action)
+            check = self.verify()['firewall:opensnitch-daemon-mode']
+            self.assertEqual(check['status'], 'notice')
+            self.assertIn(action, check['reason'])
 
-    def test_unreadable_config_fails(self):
+    def test_an_unreadable_config_is_a_notice_too(self):
         self.config.write_text('{')
-        self.assertEqual(self.verify()['firewall:opensnitch-default-action']['status'], 'failed')
+        self.assertEqual(self.verify()['firewall:opensnitch-daemon-mode']['status'], 'notice')
+
+    def test_the_ui_mode_is_reported_only_with_the_desktop_set(self):
+        self.assertNotIn('firewall:opensnitch-ui-mode', self.verify())
+        settings = self.temp / firewall.UI_SETTINGS
+        settings.parent.mkdir(parents=True)
+        settings.write_text('[global]\ndefault_action=0\n')
+        checks = by_id(firewall.verify(False, desktop=True, which=lambda n: None,
+                                       run=runner(ui=True), config_path=self.config,
+                                       home=self.temp))
+        self.assertEqual(checks['firewall:opensnitch-ui-mode']['status'], 'notice')
+        self.assertIn('deny', checks['firewall:opensnitch-ui-mode']['reason'])
 
     def test_the_ui_is_demanded_only_with_the_desktop_set(self):
         self.assertNotIn('firewall:opensnitch-ui', self.verify())
@@ -272,6 +288,116 @@ class SshChoiceTest(TempState):
         self.assertIsNone(state.get('firewall'))
 
 
+class UiSeedTest(TempState):
+    def setUp(self):
+        super().setUp()
+        self.file = self.temp / 'home/.config/opensnitch/settings.conf'
+
+    def test_an_absent_file_is_created_with_allow(self):
+        self.assertEqual(firewall.seed_ui_settings(self.file), 'created')
+        self.assertEqual(self.file.read_text(), '[global]\ndefault_action=1\n')
+
+    def test_an_existing_value_is_never_rewritten(self):
+        self.file.parent.mkdir(parents=True)
+        for value in ('0', '1', '2'):
+            text = f'[global]\ndefault_timeout=30\ndefault_action={value}\n'
+            self.file.write_text(text)
+            self.assertEqual(firewall.seed_ui_settings(self.file), 'kept')
+            self.assertEqual(self.file.read_text(), text)
+        self.assertEqual(list(self.file.parent.glob('*.bak-*')), [])
+
+    def test_a_missing_key_is_added_and_the_rest_kept_after_a_backup(self):
+        self.file.parent.mkdir(parents=True)
+        original = '[global]\ndefault_timeout=30\n\n[other]\ndefault_action=0\nx=y\n'
+        self.file.write_text(original)
+        self.assertEqual(firewall.seed_ui_settings(self.file, now=lambda: 7), 'added')
+        self.assertEqual(self.file.read_text(),
+                         '[global]\ndefault_action=1\ndefault_timeout=30\n\n'
+                         '[other]\ndefault_action=0\nx=y\n')
+        self.assertEqual((self.file.parent / 'settings.conf.bak-7').read_text(), original)
+
+    def test_a_file_without_a_global_section_gets_one(self):
+        self.file.parent.mkdir(parents=True)
+        self.file.write_text('[other]\nx=y\n')
+        firewall.seed_ui_settings(self.file)
+        self.assertEqual(self.file.read_text(), '[other]\nx=y\n\n[global]\ndefault_action=1\n')
+
+    def test_the_same_key_in_another_section_is_not_the_global_one(self):
+        self.assertEqual(firewall.ui_mode(self.file), 'unset')
+        self.file.parent.mkdir(parents=True)
+        self.file.write_text('[other]\ndefault_action=0\n')
+        self.assertEqual(firewall.ui_mode(self.file), 'unset')
+
+
+class SeedOnceTest(TempState):
+    """RB13: first-install default, never enforced on a re-run."""
+
+    def setUp(self):
+        super().setUp()
+        self.home = self.temp / 'home'
+        self.home.mkdir()
+        patcher = patch('workstation.controller.pwd.getpwuid')
+        patcher.start().return_value.pw_dir = str(self.home)
+        self.addCleanup(patcher.stop)
+        self.selection = profiles.resolve(['desktop', 'firewall'], profiles.load())
+        self.ui = self.home / firewall.UI_SETTINGS
+
+    def stage(self):
+        ran = []
+        controller.apply_firewall_stage(lambda b, t: ran.append(b), {}, self.selection)
+        return ran
+
+    def test_first_run_seeds_and_records(self):
+        self.assertFalse(firewall.opensnitch_seeded())
+        self.stage()
+        self.assertEqual(self.ui.read_text(), '[global]\ndefault_action=1\n')
+        self.assertTrue(firewall.opensnitch_seeded())
+        self.assertTrue(firewall.opensnitch_ui_seeded())
+
+    def test_an_operator_set_deny_survives_a_re_run(self):
+        self.stage()
+        self.ui.write_text('[global]\ndefault_action=0\n')  # the operator switches to deny
+        self.stage()
+        self.assertEqual(self.ui.read_text(), '[global]\ndefault_action=0\n')
+        self.assertEqual(list(self.ui.parent.glob('*.bak-*')), [])
+
+    def test_a_second_run_does_not_seed_the_ui_again(self):
+        self.stage()
+        self.ui.unlink()
+        self.stage()
+        self.assertFalse(self.ui.exists())
+
+    def test_the_playbook_is_told_to_seed_only_before_the_first_run(self):
+        source = (ROOT / 'script/workstation/controller.py').read_text()
+        self.assertIn("'firewall_seed_opensnitch': seed_opensnitch", source)
+        self.assertIn('seed_opensnitch = not firewall.opensnitch_seeded()', source)
+
+    def test_headless_seeds_no_ui_file(self):
+        self.selection = profiles.resolve(['firewall'], profiles.load())
+        self.stage()
+        self.assertFalse(self.ui.exists())
+        self.assertTrue(firewall.opensnitch_seeded())
+        self.assertFalse(firewall.opensnitch_ui_seeded())
+
+    def test_a_later_desktop_run_seeds_the_ui_once(self):
+        self.selection = profiles.resolve(['firewall'], profiles.load())
+        self.stage()
+        self.selection = profiles.resolve(['desktop', 'firewall'], profiles.load())
+        self.stage()
+        self.assertTrue(self.ui.exists())
+
+
+class SshWarningTest(unittest.TestCase):
+    def test_notice_only_when_connected_over_ssh_and_ssh_is_closed(self):
+        over_ssh = {'SSH_CONNECTION': '1.2.3.4 5 6.7.8.9 22'}
+        notice = firewall.ssh_notice(False, over_ssh)
+        self.assertEqual(notice['status'], 'notice')
+        self.assertIn('--allow-ssh', notice['reason'])
+        self.assertIsNone(firewall.ssh_notice(True, over_ssh))
+        self.assertIsNone(firewall.ssh_notice(False, {}))
+        self.assertIsNone(firewall.ssh_notice(False, {'SSH_CONNECTION': ''}))
+
+
 def context():
     import getpass
     return {'config': {'example_only': False, 'target': {'user': getpass.getuser()}},
@@ -300,12 +426,33 @@ class CliTest(TempState):
                           for t, v in targets.items()}
             # os.geteuid stays real: the state file's owner check uses it.
             stack.enter_context(contextlib.redirect_stdout(stdout))
-            stack.enter_context(contextlib.redirect_stderr(io.StringIO()))
+            self.stderr = io.StringIO()
+            stack.enter_context(contextlib.redirect_stderr(self.stderr))
             code = main(args)
         return code, stdout.getvalue()
 
     def apply_kwargs(self):
         return self.mocks['workstation.controller.apply_foundation'].call_args.kwargs
+
+    def run_stderr(self, args, environ):
+        with patch.dict(os.environ, environ):
+            if not environ:
+                os.environ.pop('SSH_CONNECTION', None)
+            code, out = self.run_cli(args)
+        return out, self.stderr.getvalue()
+
+    def test_the_ssh_warning_appears_only_over_ssh_with_ssh_closed(self):
+        args = ['apply', '--config', 'x.json', '--profiles', 'firewall', '--format', 'json']
+        env = {'SSH_CONNECTION': '1.2.3.4 5 6.7.8.9 22'}
+        out, err = self.run_stderr(args, env)
+        self.assertIn('--allow-ssh', err)
+        self.assertIn('firewall:ssh-closing', out)
+        out, err = self.run_stderr(args + ['--allow-ssh'], env)
+        self.assertNotIn('warning', err)
+        self.assertNotIn('firewall:ssh-closing', out)
+        out, err = self.run_stderr(args, {})
+        self.assertNotIn('warning', err)
+        self.assertNotIn('firewall:ssh-closing', out)
 
     def test_allow_ssh_is_passed_to_the_apply(self):
         self.run_cli(['apply', '--config', 'x.json', '--profiles', 'firewall', '--allow-ssh'])
@@ -375,11 +522,17 @@ class CliTest(TempState):
                                                     'reason': 'firewall.yml'})
 
 
-class StageTest(unittest.TestCase):
+class StageTest(TempState):
     def test_the_hook_runs_the_playbook(self):
         ran = []
         controller.apply_firewall_stage(lambda books, timeout: ran.append((books, timeout)), {})
         self.assertEqual(ran, [(['firewall.yml'], 1800)])
+
+    def test_seeding_flags_alone_leave_the_ssh_choice_unrecorded(self):
+        firewall.record_flag('opensnitch_seeded')
+        self.assertEqual(firewall.resolve_allow_ssh(None), (False, 'default'))
+        firewall.record_allow_ssh(True)
+        self.assertEqual(state.get('firewall'), {'allow_ssh': True, 'opensnitch_seeded': True})
 
     def test_the_stage_follows_the_packages(self):
         selection = profiles.resolve(['firewall'], profiles.load())

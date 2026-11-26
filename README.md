@@ -56,8 +56,12 @@ just apply config/your-machine.json gpu,firewall     # ./bootstrap apply --confi
 ```
 
 The `firewall` profile enables UFW (deny incoming, allow outgoing) and installs
-OpenSnitch running in allow mode (`"DefaultAction": "allow"`, so setup and the
-handoff are never blocked; switch it to deny yourself later). SSH is closed unless
+OpenSnitch running in allow mode (the daemon's `"DefaultAction": "allow"` and, with the
+desktop set, the UI's own `default_action` in `~/.config/opensnitch/settings.conf`; both
+are seeded once on first install, so setup and the handoff are never blocked). Switch to
+deny yourself later: re-runs are not rewritten, but after that the handoff and later
+`apply` runs may prompt for git, apt and Homebrew connections. A run over SSH without
+`--allow-ssh` warns that new SSH logins will be refused. SSH is closed unless
 you pass `--allow-ssh`; the choice is recorded as `firewall.allow_ssh` in the same
 `state.json`, so later runs without the flag keep it, and `--no-allow-ssh` removes
 the rule again. Docker's published ports bypass UFW (`verify` says so when Docker

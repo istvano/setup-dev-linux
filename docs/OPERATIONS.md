@@ -20,7 +20,13 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 
 Firewall: the `firewall` profile runs `ansible/firewall.yml` (UFW default deny incoming, allow
 outgoing, enabled; OpenSnitch from the Ubuntu archive, enabled, `DefaultAction` `allow` in
-`/etc/opensnitchd/default-config.json`; its UI only with the desktop set). Incoming SSH is allowed
+`/etc/opensnitchd/default-config.json`; its UI only with the desktop set, whose per-user
+`~/.config/opensnitch/settings.conf` gets `[global] default_action=1` only when absent, with
+a backup before any edit). Allow mode is seeded once (`firewall.opensnitch_seeded` and
+`firewall.opensnitch_ui_seeded` in `state.json`) and never rewritten, so switching to deny
+sticks; after that, re-runs and the handoff may prompt. `verify` reports the daemon and UI
+modes as notices. Over SSH without `--allow-ssh`, apply warns on stderr and adds a
+`firewall:ssh-closing` notice. Incoming SSH is allowed
 only with `--allow-ssh`. The choice is recorded as `firewall.allow_ssh` in the per-user
 `state.json` (not in your config file); later runs without a flag reuse it, `--no-allow-ssh`
 turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose` through

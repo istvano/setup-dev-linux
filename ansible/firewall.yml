@@ -4,6 +4,7 @@
 #   firewall_allow_ssh  the operator's choice (--allow-ssh / --no-allow-ssh,
 #                       or the recorded one); false when absent
 #   host_desktop        true when the selection includes the desktop set
+#   firewall_seed_opensnitch  true until allow mode was seeded once
 #
 # OpenSnitch runs with "DefaultAction": "allow" on purpose: this setup and the
 # handoff to setup-dev-linux-wsl that follows it need outbound network and
@@ -98,28 +99,19 @@
       become: true
       when: "'Status: active' not in ufw_status.stdout"
 
-    # The package ships "allow" already; this keeps it so if the file was
-    # edited, and changes nothing otherwise. The file is a dpkg conffile, so
-    # only that one value is rewritten.
-    - name: Keep OpenSnitch in allow mode
+    # First-install default only (firewall_seed_opensnitch, from the controller's
+    # record of what it already seeded): the package ships "allow" already, and
+    # the operator switches to deny later, which a re-run must not undo. The
+    # file is a dpkg conffile, so only that one value is rewritten. The UI's
+    # per-user default is seeded by the controller, as the target user.
+    - name: Seed OpenSnitch allow mode on first install
       ansible.builtin.replace:
         path: "{{ opensnitch_config }}"
         regexp: '("DefaultAction"\s*:\s*)"[^"]*"'
         replace: '\1"allow"'
       become: true
       register: opensnitch_action
-
-    - name: Read the OpenSnitch configuration back
-      ansible.builtin.slurp:
-        src: "{{ opensnitch_config }}"
-      register: opensnitch_json
-      become: true
-
-    - name: Confirm the OpenSnitch default action is allow
-      ansible.builtin.assert:
-        that:
-          - (opensnitch_json.content | b64decode | from_json).DefaultAction == 'allow'
-        quiet: true
+      when: firewall_seed_opensnitch | default(false) | bool
 
     - name: Enable and start OpenSnitch
       ansible.builtin.systemd:

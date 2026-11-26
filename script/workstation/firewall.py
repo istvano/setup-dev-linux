@@ -16,10 +16,12 @@ it is present.
 Everything in verify is read-only. `ufw status` needs root, so it goes through
 `sudo -n`; where that is unavailable the check is deferred, never passed.
 """
-import json
+import os
 import re
 import shutil
 import subprocess
+import time
+from pathlib import Path
 
 from . import state
 from .config import InputError, load_json
@@ -27,6 +29,12 @@ from .config import InputError, load_json
 PACKAGES = ['ufw', 'opensnitch', 'opensnitch-ebpf-modules']
 UI_PACKAGE = 'python3-opensnitch-ui'
 OPENSNITCH_CONFIG = '/etc/opensnitchd/default-config.json'
+# The UI is a QSettings("opensnitch", "settings") INI file; key "global/default_action"
+# is section [global], key default_action. 1 is ACTION_ALLOW_IDX, 0 is deny (the UI's
+# own default when the key is absent, verified against python3-opensnitch-ui 1.6.9
+# opensnitch/config.py). While the UI is connected it, not the daemon, decides.
+UI_SETTINGS = '.config/opensnitch/settings.conf'
+UI_ALLOW = 1
 STATE_KEY = 'firewall'
 UNREADABLE = 'recorded-firewall-unreadable; pass --allow-ssh or --no-allow-ssh'
 
@@ -43,7 +51,11 @@ def recorded_allow_ssh():
         raise InputError(UNREADABLE) from None
     if value is None:
         return None
-    if not (isinstance(value, dict) and isinstance(value.get('allow_ssh'), bool)):
+    if not isinstance(value, dict):
+        raise InputError(UNREADABLE)
+    if 'allow_ssh' not in value:
+        return None  # only the seeding flags are recorded
+    if not isinstance(value['allow_ssh'], bool):
         raise InputError(UNREADABLE)
     return value['allow_ssh']
 
@@ -63,6 +75,97 @@ def record_allow_ssh(value):
     merged = dict(current) if isinstance(current, dict) else {}
     merged['allow_ssh'] = bool(value)
     state.set(STATE_KEY, merged)
+
+
+def _flag(key):
+    value = state.get(STATE_KEY)
+    if value is None:
+        return False
+    if not isinstance(value, dict):
+        raise InputError(UNREADABLE)
+    return value.get(key) is True
+
+
+def opensnitch_seeded():
+    """Whether the daemon's allow default was already seeded on this machine."""
+    return _flag('opensnitch_seeded')
+
+
+def opensnitch_ui_seeded():
+    return _flag('opensnitch_ui_seeded')
+
+
+def record_flag(key):
+    current = state.get(STATE_KEY)
+    merged = dict(current) if isinstance(current, dict) else {}
+    merged[key] = True
+    state.set(STATE_KEY, merged)
+
+
+_SECTION = re.compile(r'^\[(.*)\]\s*$')
+_KEY = re.compile(r'^default_action\s*=')
+
+
+def seed_ui_settings(path, now=time.time):
+    """Make the OpenSnitch UI default to allow, once, without touching a value.
+
+    The file belongs to the operator. It is created when absent; an existing
+    default_action under [global] is never rewritten; anything else is
+    backed up (settings.conf.bak-<epoch>) before the key is added. Returns
+    'created', 'added' or 'kept'.
+    """
+    path = Path(path)
+    if not path.exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f'[global]\ndefault_action={UI_ALLOW}\n')
+        return 'created'
+    text = path.read_text()
+    lines = text.splitlines()
+    section = None
+    insert_at = None
+    for index, line in enumerate(lines):
+        match = _SECTION.match(line.strip())
+        if match:
+            section = match.group(1)
+            if section == 'global' and insert_at is None:
+                insert_at = index + 1
+        elif section == 'global' and _KEY.match(line.strip()):
+            return 'kept'
+    backup = path.with_name(path.name + f'.bak-{int(now())}')
+    shutil.copy2(path, backup)
+    if insert_at is None:
+        lines += ['[global]'] if not lines or lines[-1] == '' else ['', '[global]']
+        lines.append(f'default_action={UI_ALLOW}')
+    else:
+        lines.insert(insert_at, f'default_action={UI_ALLOW}')
+    path.write_text('\n'.join(lines) + '\n')
+    return 'added'
+
+
+def ui_mode(path):
+    """'allow', 'deny' or 'unset' from the UI settings file, read-only."""
+    try:
+        section = None
+        for line in Path(path).read_text().splitlines():
+            match = _SECTION.match(line.strip())
+            if match:
+                section = match.group(1)
+            elif section == 'global' and _KEY.match(line.strip()):
+                value = line.split('=', 1)[1].strip()
+                return {'1': 'allow', '0': 'deny', '2': 'reject'}.get(value, 'unknown')
+    except OSError:
+        pass
+    return 'unset'
+
+
+def ssh_notice(allow_ssh, environ=None):
+    """A notice when SSH is about to be (or is) closed under an SSH session."""
+    environ = os.environ if environ is None else environ
+    if allow_ssh or not environ.get('SSH_CONNECTION'):
+        return None
+    return {'id': 'firewall:ssh-closing', 'status': 'notice',
+            'reason': 'connected-over-ssh-and-ssh-is-not-allowed-the-current-session-survives-'
+                      'new-logins-are-refused-pass---allow-ssh-to-keep-them'}
 
 
 def parse_ufw(text):
@@ -98,7 +201,7 @@ def _check(name, ok, passed, failed):
 
 
 def verify(allow_ssh, desktop=False, run=_run, which=shutil.which,
-           config_path=OPENSNITCH_CONFIG):
+           config_path=OPENSNITCH_CONFIG, home=None):
     """Read-only checks of UFW and OpenSnitch against what the stage configures."""
     checks = []
     ufw_installed = _installed(run, 'ufw')
@@ -131,14 +234,19 @@ def verify(allow_ssh, desktop=False, run=_run, which=shutil.which,
     code, _ = run(['systemctl', 'is-active', 'opensnitch'])
     checks.append(_check('opensnitch-running', code == 0, 'opensnitch-active',
                          'opensnitch-service-not-active'))
+    # Allow mode is a first-install default the operator later changes, so the
+    # current mode is reported, never judged.
     try:
         action = load_json(config_path)[0].get('DefaultAction')
     except (OSError, InputError, ValueError, AttributeError):
         action = None
-    checks.append(_check('opensnitch-default-action', action == 'allow',
-                         'default-action-allow',
-                         'default-action-is-' + (str(action) if isinstance(action, str)
-                                                 else 'unreadable')))
+    checks.append({'id': 'firewall:opensnitch-daemon-mode', 'status': 'notice',
+                   'reason': 'daemon-default-action-' + (action if isinstance(action, str)
+                                                         else 'unreadable')})
+    if desktop:
+        base = Path(home) if home else Path.home()
+        checks.append({'id': 'firewall:opensnitch-ui-mode', 'status': 'notice',
+                       'reason': 'ui-default-action-' + ui_mode(base / UI_SETTINGS)})
     if which('docker'):
         checks.append({'id': 'firewall:docker-bypass', 'status': 'notice',
                        'reason': 'docker-published-ports-bypass-ufw-filter-them-in-the-docker-user-chain'})

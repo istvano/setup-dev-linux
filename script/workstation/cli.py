@@ -123,6 +123,14 @@ def main(argv=None):
         checks.extend(prerequisite_checks)
         code = code or prerequisite_code
         groups = selection['groups']
+        if 'firewall' in selection['stages'] and command in ('apply', 'verify'):
+            notice = firewall.ssh_notice(allow_ssh)
+            if notice:
+                checks.append(notice)
+                if command == 'apply':
+                    print('warning: connected over SSH and SSH is not allowed; UFW will refuse '
+                          'new SSH logins after this run. Pass --allow-ssh to keep them.',
+                          file=sys.stderr)
         if not code and command == 'apply':
             from .controller import apply_foundation
             try:
@@ -155,7 +163,9 @@ def main(argv=None):
             if 'firewall' in selection['stages']:
                 package_checks.append({'id': 'firewall:ssh-choice', 'status': 'passed',
                                        'reason': f'allow-ssh-{str(allow_ssh).lower()}-{ssh_source}'})
-                package_checks.extend(firewall.verify(allow_ssh, desktop=selection['desktop']))
+                package_checks.extend(firewall.verify(
+                    allow_ssh, desktop=selection['desktop'],
+                    home=pwd.getpwnam(context['config']['target']['user']).pw_dir))
             checks.extend(package_checks)
             # The manifest is the delivery authority: what it installs is approved
             # by its own pinning and signing rules, checked by script/check-manifest.
