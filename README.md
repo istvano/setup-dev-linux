@@ -55,6 +55,18 @@ or rebuilding `.workstation/`:
 just apply config/your-machine.json gpu,firewall     # ./bootstrap apply --config ... --profiles gpu,firewall
 ```
 
+The `firewall` profile enables UFW (deny incoming, allow outgoing) and installs
+OpenSnitch running in allow mode (`"DefaultAction": "allow"`, so setup and the
+handoff are never blocked; switch it to deny yourself later). SSH is closed unless
+you pass `--allow-ssh`; the choice is recorded as `firewall.allow_ssh` in the same
+`state.json`, so later runs without the flag keep it, and `--no-allow-ssh` removes
+the rule again. Docker's published ports bypass UFW (`verify` says so when Docker
+is installed).
+
+```bash
+./bootstrap apply --config config/your-machine.json --allow-ssh
+```
+
 Command-line tools, runtimes, the shell, dotfiles, kubectl plugins and Docker are
 installed by [setup-dev-linux-wsl](https://github.com/istvano/setup-dev-linux-wsl)
 (`--target linux`), not here. [docs/MOVED.md](docs/MOVED.md) says where each item

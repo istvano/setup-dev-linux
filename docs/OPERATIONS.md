@@ -11,12 +11,22 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 |---|---|
 | `./bootstrap plan --config PATH [--profiles LIST] --format json` | Prints the `Profiles:` line and the stages the selection runs. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
 | `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
-| `./bootstrap apply --config PATH [--profiles LIST] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
-| `./bootstrap verify --config PATH [--profiles LIST] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
+| `./bootstrap apply --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
+| `./bootstrap verify --config PATH [--profiles LIST] [--allow-ssh \| --no-allow-ssh] --format json` | Checks the recorded profiles (`~/.local/state/setup-dev-linux/state.json`, or under `$XDG_STATE_HOME`) unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
 | `./script/test-vm --controller --reboot` | Verify a real guest reboot and repeat the foundation acceptance |
+
+Firewall: the `firewall` profile runs `ansible/firewall.yml` (UFW default deny incoming, allow
+outgoing, enabled; OpenSnitch from the Ubuntu archive, enabled, `DefaultAction` `allow` in
+`/etc/opensnitchd/default-config.json`; its UI only with the desktop set). Incoming SSH is allowed
+only with `--allow-ssh`. The choice is recorded as `firewall.allow_ssh` in the per-user
+`state.json` (not in your config file); later runs without a flag reuse it, `--no-allow-ssh`
+turns it off and removes the `OpenSSH` rule. `verify` reads `ufw status verbose` through
+`sudo -n` (run `sudo -v` first, otherwise that check is `deferred`). Docker's published ports
+bypass UFW; `verify` prints a notice when `docker` is present. Switching OpenSnitch to deny is
+a later, manual decision.
 
 `apply` currently **cannot report full success for the selected workstation**.
 Controller success followed by exit 1 identifies selected source approvals still

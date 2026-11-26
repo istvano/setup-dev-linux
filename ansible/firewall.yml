@@ -1,0 +1,136 @@
+---
+# The host firewall: UFW (default deny incoming, allow outgoing, SSH only when
+# chosen) and OpenSnitch in allow mode. Variables from the controller:
+#   firewall_allow_ssh  the operator's choice (--allow-ssh / --no-allow-ssh,
+#                       or the recorded one); false when absent
+#   host_desktop        true when the selection includes the desktop set
+#
+# OpenSnitch runs with "DefaultAction": "allow" on purpose: this setup and the
+# handoff to setup-dev-linux-wsl that follows it need outbound network and
+# there is nobody to answer a prompt. Switching to deny is the operator's
+# later decision. Docker's published ports bypass UFW; Docker is not installed
+# here, and `verify` says so when it is present.
+- name: Configure the host firewall
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    opensnitch_config: /etc/opensnitchd/default-config.json
+  tasks:
+    # Ubuntu archive packages (universe for opensnitch), signed by the archive
+    # key. Recommends are off so the Qt UI never reaches a headless host; the
+    # eBPF modules are the one recommended package the daemon's default
+    # configuration (ProcMonitorMethod ebpf) wants.
+    - name: Install UFW and OpenSnitch
+      ansible.builtin.apt:
+        name:
+          - ufw
+          - opensnitch
+          - opensnitch-ebpf-modules
+        state: present
+        install_recommends: false
+        lock_timeout: 300
+      become: true
+
+    - name: Install the OpenSnitch UI with the desktop set
+      ansible.builtin.apt:
+        name: python3-opensnitch-ui
+        state: present
+        install_recommends: false
+        lock_timeout: 300
+      become: true
+      when: host_desktop | default(false) | bool
+
+    - name: Read the UFW defaults
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, status, verbose]
+      register: ufw_status
+      changed_when: false
+      become: true
+
+    - name: Read the UFW rules that are added, enabled or not
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, show, added]
+      register: ufw_added
+      changed_when: false
+      become: true
+
+    - name: Default deny incoming
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, default, deny, incoming]
+      changed_when: true
+      become: true
+      when: "'deny (incoming)' not in ufw_status.stdout"
+
+    - name: Default allow outgoing
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, default, allow, outgoing]
+      changed_when: true
+      become: true
+      when: "'allow (outgoing)' not in ufw_status.stdout"
+
+    # Rules go in before UFW is enabled, so enabling never closes a session
+    # the operator meant to keep.
+    - name: Allow incoming SSH when chosen
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, allow, OpenSSH]
+      changed_when: true
+      become: true
+      when:
+        - firewall_allow_ssh | default(false) | bool
+        - "'allow OpenSSH' not in ufw_added.stdout"
+
+    - name: Remove the SSH rule when it is not chosen
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, delete, allow, OpenSSH]
+      changed_when: true
+      become: true
+      when:
+        - not (firewall_allow_ssh | default(false) | bool)
+        - "'allow OpenSSH' in ufw_added.stdout"
+
+    - name: Enable UFW
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, --force, enable]
+      changed_when: true
+      become: true
+      when: "'Status: active' not in ufw_status.stdout"
+
+    # The package ships "allow" already; this keeps it so if the file was
+    # edited, and changes nothing otherwise. The file is a dpkg conffile, so
+    # only that one value is rewritten.
+    - name: Keep OpenSnitch in allow mode
+      ansible.builtin.replace:
+        path: "{{ opensnitch_config }}"
+        regexp: '("DefaultAction"\s*:\s*)"[^"]*"'
+        replace: '\1"allow"'
+      become: true
+      register: opensnitch_action
+
+    - name: Read the OpenSnitch configuration back
+      ansible.builtin.slurp:
+        src: "{{ opensnitch_config }}"
+      register: opensnitch_json
+      become: true
+
+    - name: Confirm the OpenSnitch default action is allow
+      ansible.builtin.assert:
+        that:
+          - (opensnitch_json.content | b64decode | from_json).DefaultAction == 'allow'
+        quiet: true
+
+    - name: Enable and start OpenSnitch
+      ansible.builtin.systemd:
+        name: opensnitch
+        enabled: true
+        state: started
+      become: true
+
+    - name: Restart OpenSnitch when its configuration changed
+      ansible.builtin.systemd:
+        name: opensnitch
+        state: restarted
+      become: true
+      when: opensnitch_action is changed

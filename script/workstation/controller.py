@@ -75,6 +75,10 @@ def unpack(archive, destination):
     validate_tree(archive, destination)
 
 
+FIREWALL_PLAYBOOK = 'firewall.yml'
+FIREWALL_TIMEOUT = 1800
+
+
 def host_stages(selection, root=ROOT):
     """The stages a selection runs, in order: (id, playbooks, timeout).
 
@@ -112,24 +116,20 @@ def host_stages(selection, root=ROOT):
     if 'desktop' in profiles:
         stages.append(('desktop', ['desktop.yml'], 300))
     if 'firewall' in selection['stages']:
-        stages.append(('firewall', [], 0))
+        stages.append(('firewall', [FIREWALL_PLAYBOOK], FIREWALL_TIMEOUT))
     return stages
 
 
 def apply_firewall_stage(run_stage, config):
-    """The firewall stage: UFW and OpenSnitch.
+    """The firewall stage: UFW and OpenSnitch (ansible/firewall.yml).
 
-    Not implemented yet; the controller already calls it when the `firewall`
-    profile is selected. Task 5 of
-    docs/superpowers/plans/2026-11-26-linux-host-refactor.md fills it with
-    ansible/firewall.yml. Until then it changes nothing, plan reports the stage
-    as unimplemented and verify reports the firewall as deferred, so nothing
-    claims a firewall that was never configured.
+    The SSH choice and the desktop flag reach the playbook as extra variables
+    (apply_foundation writes them), so the hook needs only the playbook.
     """
-    return None
+    run_stage([FIREWALL_PLAYBOOK], FIREWALL_TIMEOUT)
 
 
-def record_selection(selection):
+def record_selection(selection, allow_ssh=None):
     """Record the chosen profiles in per-user state, outside the clone.
 
     Verification then checks the machine this is, not the machine the manifest
@@ -138,6 +138,12 @@ def record_selection(selection):
     """
     from . import state
     state.set('profiles', list(selection['profiles']))
+    # Only an explicit --allow-ssh / --no-allow-ssh is recorded, and only when
+    # the firewall is part of this selection; absent both, the recorded value
+    # keeps holding so an omitted flag never removes the SSH rule.
+    if allow_ssh is not None and 'firewall' in selection['stages']:
+        from . import firewall
+        firewall.record_allow_ssh(allow_ssh)
 
 
 def run_host_stages(selection, run_stage, record, config, root=ROOT):
@@ -151,7 +157,8 @@ def run_host_stages(selection, run_stage, record, config, root=ROOT):
             run_stage(playbooks, timeout)
 
 
-def apply_foundation(config, root=ROOT, selection=None):
+def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
+                     allow_ssh_explicit=False):
     require(selection is not None and selection['groups'], 'no-profile-selected')
     require(os.geteuid() != 0 and pwd.getpwuid(os.geteuid()).pw_name == config['target']['user'], 'controller-must-run-as-target-user')
     lock = validate_lock(root)  # Check frozen-input binding before the first write.
@@ -197,7 +204,9 @@ def apply_foundation(config, root=ROOT, selection=None):
         variables.write_text(json.dumps({'workstation_root': str(root), 'workstation_config': config,
                                          'host_profiles': selection['profiles'],
                                          'manifest_groups': selection['groups'],
-                                         'selected_repositories': selection['repositories']}))
+                                         'selected_repositories': selection['repositories'],
+                                         'firewall_allow_ssh': bool(allow_ssh),
+                                         'host_desktop': bool(selection['desktop'])}))
         variables.chmod(0o600)
         extra = ['--extra-vars', '@' + str(variables)]
 
@@ -208,5 +217,6 @@ def apply_foundation(config, root=ROOT, selection=None):
                            cwd=root, check=True, env=environment,
                            stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
 
-        run_host_stages(selection, run_stage, lambda: record_selection(selection), config, root)
+        run_host_stages(selection, run_stage, lambda: record_selection(
+            selection, allow_ssh if allow_ssh_explicit else None), config, root)
     return {'id': 'controller-foundation', 'status': 'passed', 'reason': 'locked-controller-and-distribution-python-assertions-passed'}

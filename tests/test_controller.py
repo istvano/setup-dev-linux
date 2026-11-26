@@ -111,6 +111,8 @@ class ControllerIntegrity(unittest.TestCase):
              patch('workstation.desktop.verify', return_value=[]), \
              patch('workstation.delivery.verify', return_value=[]), \
              patch('workstation.plugins.verify', return_value=[]), \
+             patch('workstation.firewall.verify', return_value=[]), \
+             patch('workstation.firewall.recorded_allow_ssh', return_value=None), \
              patch('workstation.controller.apply_foundation') as apply, contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(['verify', '--config', 'fixture', '--format', 'json']), 3)
             apply.assert_not_called()

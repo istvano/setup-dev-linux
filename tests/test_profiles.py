@@ -351,6 +351,8 @@ class CliTest(unittest.TestCase):
             'workstation.system.verify': [],
             'workstation.delivery.verify': [],
             'workstation.desktop.verify': [],
+            'workstation.firewall.verify': [],
+            'workstation.firewall.recorded_allow_ssh': None,
             'workstation.plugins.verify': [],
             'workstation.controller.apply_foundation': {
                 'id': 'controller-foundation', 'status': 'passed', 'reason': 'fixture'},
@@ -430,7 +432,7 @@ class CliTest(unittest.TestCase):
         self.assertNotIn('extension-ms-python.python', ids)
         self.assertNotIn('gnome-settings', ids)
         self.assertIn('ansible-core', ids, 'host-layer gaps are still reported')
-        self.assertIn('firewall', ids)
+        self.assertIn('firewall:ssh-choice', ids)
 
     def test_headless_verify_calls_no_desktop_or_vscode_verifier(self):
         self.run_cli(['verify', '--config', 'x.json', '--format', 'json',
@@ -497,7 +499,7 @@ class HeadlessPlanTest(unittest.TestCase):
         for capability in ('dbeaver', 'ghostty', 'gnome-settings', 'baobab', 'bitwarden'):
             self.assertNotIn(capability, checks)
         self.assertFalse([i for i in checks if i.startswith('extension-')])
-        self.assertEqual(checks['stage:firewall']['status'], 'unimplemented')
+        self.assertEqual(checks['stage:firewall']['status'], 'planned')
 
     def test_the_default_plan_names_every_desktop_step(self):
         checks = self.plan('--profiles', ','.join(DEFAULT))

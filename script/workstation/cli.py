@@ -44,11 +44,6 @@ def stage_checks(selection):
     for stage, playbooks, _ in host_stages(selection):
         if stage == 'record-selection':
             continue
-        if stage == 'firewall':
-            # Filled by the firewall stage (UFW, OpenSnitch); see controller.
-            checks.append({'id': 'stage:firewall', 'status': 'unimplemented',
-                           'reason': 'firewall-stage-not-yet-implemented'})
-            continue
         checks.append({'id': 'stage:' + stage, 'status': 'planned',
                        'reason': ','.join(playbooks)})
     return checks
@@ -70,6 +65,14 @@ def main(argv=None):
                                  'recorded in ~/.local/state/setup-dev-linux/state.json, '
                                  'else profiles/host.json "default")')
         parser.add_argument('--manifest-groups', help='former name of --profiles')
+        ssh = parser.add_mutually_exclusive_group()
+        ssh.add_argument('--allow-ssh', dest='allow_ssh', action='store_const', const=True,
+                         default=None,
+                         help='firewall profile: allow incoming SSH (UFW OpenSSH); recorded '
+                              'in per-user state and kept on later runs')
+        ssh.add_argument('--no-allow-ssh', dest='allow_ssh', action='store_const', const=False,
+                         help='firewall profile: do not allow incoming SSH; removes the '
+                              'rule and records the choice')
         args = parser.parse_args(argv)
         command, fmt = args.command, args.format
         if command == 'install':
@@ -85,6 +88,12 @@ def main(argv=None):
         selection = profiles.resolve(chosen, catalogue)
         summary = profiles.summary(chosen, source, catalogue)
         context = load_context(args.config)
+        # Resolved before anything changes: an unreadable record stops the run
+        # rather than defaulting to "no SSH" on a machine reached over SSH.
+        allow_ssh, ssh_source = False, 'default'
+        if 'firewall' in selection['stages'] and command in ('apply', 'verify'):
+            from . import firewall
+            allow_ssh, ssh_source = firewall.resolve_allow_ssh(args.allow_ssh)
 
         from .manifest import delivering_groups, load as load_manifest
         owners = delivering_groups(load_manifest())
@@ -117,7 +126,9 @@ def main(argv=None):
         if not code and command == 'apply':
             from .controller import apply_foundation
             try:
-                checks.append(apply_foundation(context['config'], selection=selection))
+                checks.append(apply_foundation(
+                    context['config'], selection=selection, allow_ssh=allow_ssh,
+                    allow_ssh_explicit=args.allow_ssh is not None))
             except (OSError, subprocess.SubprocessError, tarfile.TarError):
                 checks.append({'id': 'controller-foundation', 'status': 'failed', 'reason': 'controller-operation-failed-see-private-log'})
                 code = 1
@@ -142,11 +153,9 @@ def main(argv=None):
                 from .desktop import verify as verify_desktop
                 package_checks.extend(verify_desktop())
             if 'firewall' in selection['stages']:
-                # Deferred, not passed: the firewall stage is not implemented yet
-                # (controller.apply_firewall_stage), and a pass would claim a
-                # firewall nobody configured.
-                package_checks.append({'id': 'firewall', 'status': 'deferred',
-                                       'reason': 'firewall-stage-not-yet-implemented'})
+                package_checks.append({'id': 'firewall:ssh-choice', 'status': 'passed',
+                                       'reason': f'allow-ssh-{str(allow_ssh).lower()}-{ssh_source}'})
+                package_checks.extend(firewall.verify(allow_ssh, desktop=selection['desktop']))
             checks.extend(package_checks)
             # The manifest is the delivery authority: what it installs is approved
             # by its own pinning and signing rules, checked by script/check-manifest.
