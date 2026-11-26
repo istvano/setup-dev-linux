@@ -8,6 +8,10 @@
   vars:
     ansible_python_interpreter: /usr/bin/python3
     manifest: "{{ lookup('file', workstation_root ~ '/manifest/repositories.json') | from_json }}"
+    # Only the repositories the selected groups install from: a headless run
+    # configures no desktop vendor's source.
+    selected: >-
+      {{ manifest.repositories | selectattr('id', 'in', selected_repositories) | list }}
     codename: "{{ ansible_facts['distribution_release'] }}"
     keyring_dir: /etc/apt/keyrings
     staging: /var/tmp/workstation-keys
@@ -17,7 +21,7 @@
         that: item.key_url is defined or item.key_file is defined
         fail_msg: "{{ item.id }} declares no signing key"
         quiet: true
-      loop: "{{ manifest.repositories }}"
+      loop: "{{ selected }}"
       loop_control:
         label: "{{ item.id }}"
 
@@ -35,7 +39,7 @@
         dest: "{{ staging }}/{{ item.id }}.key"
         mode: "0644"
         force: true
-      loop: "{{ manifest.repositories | selectattr('key_url', 'defined') | list }}"
+      loop: "{{ selected | selectattr('key_url', 'defined') | list }}"
       loop_control:
         label: "{{ item.id }}"
       become: true
@@ -45,7 +49,7 @@
         src: "{{ workstation_root }}/{{ item.key_file }}"
         dest: "{{ staging }}/{{ item.id }}.key"
         mode: "0644"
-      loop: "{{ manifest.repositories | selectattr('key_file', 'defined') | list }}"
+      loop: "{{ selected | selectattr('key_file', 'defined') | list }}"
       loop_control:
         label: "{{ item.id }}"
       become: true
@@ -66,7 +70,7 @@
               'fingerprint': item.key_fingerprint | default(None)} | to_json }}
       register: key_placement
       changed_when: (key_placement.stdout | from_json).changed
-      loop: "{{ manifest.repositories }}"
+      loop: "{{ selected }}"
       loop_control:
         label: "{{ item.id }}"
       become: true
@@ -84,7 +88,7 @@
       register: vendor_managed_probe
       changed_when: false
       loop: >-
-        {{ manifest.repositories | selectattr('self_registers_source', 'defined')
+        {{ selected | selectattr('self_registers_source', 'defined')
            | selectattr('self_registers_source') | list }}
       loop_control:
         label: "{{ item.id }}"
@@ -111,7 +115,7 @@
         signed_by: "{{ item.keyring | default(keyring_dir ~ '/' ~ item.id ~ '.gpg') }}"
         enabled: true
         state: present
-      loop: "{{ manifest.repositories }}"
+      loop: "{{ selected }}"
       loop_control:
         label: "{{ item.id }}"
       when: item.id not in vendor_managed

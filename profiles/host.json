@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "description": "Host profiles: what ./bootstrap apply --profiles selects. Each profile maps to manifest groups in manifest/packages.json; firewall maps to no group and runs the firewall stage. base_groups are installed on every run, headless included. The desktop set is the desktop layer (desktop apps, GNOME settings, snaps, VS Code); a selection with none of it is headless. catalogue names the host profile that owns a catalogue capability, so verify does not report gaps for a profile that was not selected.",
+  "profiles": {
+    "desktop": ["desktop"],
+    "media": ["media"],
+    "productivity": ["productivity"],
+    "ai": ["ai"],
+    "network": ["network"],
+    "lab": ["lab"],
+    "gpu": ["gpu"],
+    "dev-gui": ["dev-gui"],
+    "firewall": []
+  },
+  "default": ["desktop", "media", "productivity", "ai", "network", "dev-gui", "firewall"],
+  "desktop_set": ["desktop", "media", "productivity", "ai", "network", "dev-gui"],
+  "base_groups": ["base"],
+  "stages": {
+    "firewall": ["firewall"]
+  },
+  "catalogue": {
+    "profiles": {
+      "desktop": "desktop",
+      "backup": "desktop",
+      "editor": "dev-gui",
+      "network": "network",
+      "lab": "lab",
+      "gpu": "gpu"
+    },
+    "capabilities": {
+      "gnome-settings": "desktop",
+      "editor-settings": "dev-gui",
+      "browser-isolation": "productivity",
+      "lab-isolation": "lab"
+    }
+  }
+}

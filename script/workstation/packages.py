@@ -53,21 +53,6 @@ def repository_sites(root=ROOT):
     return sites
 
 
-def applied_groups(root=ROOT):
-    """Manifest groups the last install applied, or None when nothing has.
-
-    Verification should describe the machine that exists. A machine installed
-    without the gpu group has not failed to install it.
-    """
-    record = Path(root) / '.workstation/applied-groups.json'
-    try:
-        value = json.loads(record.read_text())
-    except (OSError, ValueError):
-        return None
-    groups = value.get('groups')
-    return groups if isinstance(groups, list) and groups else None
-
-
 def expectations(root=ROOT, groups=None):
     """What each selected package must satisfy, keyed by package name."""
     manifest, _ = load_json(Path(root) / 'manifest/packages.json')

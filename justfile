@@ -47,21 +47,24 @@ desktop-manifest OUT="/tmp/workstation-inventory.json":
 
 # --- A new workstation ------------------------------------------------------
 
-# Show what would be installed, changing nothing.
-plan CONFIG:
-  ./bootstrap plan --config {{CONFIG}}
+# Show what would be installed, changing nothing. PROFILES: host profiles, comma-separated.
+plan CONFIG PROFILES="":
+  ./bootstrap plan --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
 
 # Check the live machine before any write.
 preflight CONFIG:
   ./bootstrap preflight --config {{CONFIG}}
 
-# Install the manifest.
-install CONFIG GROUPS="":
-  ./bootstrap install --config {{CONFIG}} {{ if GROUPS == "" { "" } else { "--manifest-groups " + GROUPS } }}
+# Set up the host. PROFILES defaults to the recorded choice, else the default set.
+apply CONFIG PROFILES="":
+  ./bootstrap apply --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
+
+# Former name of apply.
+install CONFIG PROFILES="": (apply CONFIG PROFILES)
 
 # Report drift without repairing it.
-verify CONFIG:
-  ./bootstrap verify --config {{CONFIG}}
+verify CONFIG PROFILES="":
+  ./bootstrap verify --config {{CONFIG}} {{ if PROFILES == "" { "" } else { "--profiles " + PROFILES } }}
 
 # --- Disposable test VM -----------------------------------------------------
 # See vm/mod.just: just vm --list

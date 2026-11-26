@@ -75,7 +75,73 @@ def unpack(archive, destination):
     validate_tree(archive, destination)
 
 
-def apply_foundation(config, root=ROOT, manifest_groups=None):
+def host_stages(selection, root=ROOT):
+    """The stages a selection runs, in order: (id, playbooks, timeout).
+
+    Pure: reads the manifest, runs nothing. The base groups make the package
+    stage run on every selection. Snaps are desktop software and run only with
+    the desktop set; VS Code extensions only with dev-gui; GNOME settings only
+    with desktop. A stage with no playbooks is run by the controller itself.
+    """
+    groups = set(selection['groups'])
+    profiles = set(selection['profiles'])
+    snaps, _ = load_json(Path(root) / 'manifest/snaps.json')
+    binaries, _ = load_json(Path(root) / 'manifest/binaries.json')
+    packages = ['repositories.yml', 'manifest-packages.yml']
+    if selection['desktop'] and any(s['group'] in groups for s in snaps['snaps']):
+        packages.append('snaps.yml')
+    if any(b['group'] in groups for b in binaries['binaries']):
+        packages.append('binaries.yml')
+    stages = [
+        # Distribution assertions first: nothing should be installed on a host
+        # this repository does not support.
+        ('foundation', ['foundation.yml'], 300),
+        # Recorded before anything installs, so a re-run without --profiles
+        # continues this selection even when this run stops part-way.
+        ('record-selection', [], 0),
+        # Network-bound and far slower than the rest; its timeout suits it.
+        ('packages', packages, 7200),
+        # Group membership follows the packages that create the groups. It only
+        # takes effect in a later session anyway.
+        ('system-groups', ['system-groups.yml'], 300),
+    ]
+    # Editor extensions need VS Code, which the package stage installed.
+    if 'dev-gui' in profiles:
+        stages.append(('plugins', ['plugins.yml'], 3600))
+    # Desktop settings configure packages installed above.
+    if 'desktop' in profiles:
+        stages.append(('desktop', ['desktop.yml'], 300))
+    if 'firewall' in selection['stages']:
+        stages.append(('firewall', [], 0))
+    return stages
+
+
+def apply_firewall_stage(run_stage, config):
+    """The firewall stage: UFW and OpenSnitch.
+
+    Not implemented yet; the controller already calls it when the `firewall`
+    profile is selected. Task 5 of
+    docs/superpowers/plans/2026-11-26-linux-host-refactor.md fills it with
+    ansible/firewall.yml. Until then it changes nothing, plan reports the stage
+    as unimplemented and verify reports the firewall as deferred, so nothing
+    claims a firewall that was never configured.
+    """
+    return None
+
+
+def run_host_stages(selection, run_stage, record, config, root=ROOT):
+    """Run each stage of the selection in order; a failing stage raises."""
+    for stage, playbooks, timeout in host_stages(selection, root):
+        if stage == 'record-selection':
+            record()
+        elif stage == 'firewall':
+            apply_firewall_stage(run_stage, config)
+        else:
+            run_stage(playbooks, timeout)
+
+
+def apply_foundation(config, root=ROOT, selection=None):
+    require(selection is not None and selection['groups'], 'no-profile-selected')
     require(os.geteuid() != 0 and pwd.getpwuid(os.geteuid()).pw_name == config['target']['user'], 'controller-must-run-as-target-user')
     lock = validate_lock(root)  # Check frozen-input binding before the first write.
     state = root / '.workstation'
@@ -84,7 +150,8 @@ def apply_foundation(config, root=ROOT, manifest_groups=None):
         require(state.stat().st_uid == os.geteuid(), 'controller-state-owner-mismatch')
     state.mkdir(mode=0o700, exist_ok=True)
     state.chmod(0o700)
-    for name in ['venv', 'uv-cache', 'ansible-local', 'ansible-remote', 'foundation.log', 'ansible-vars.json']:
+    for name in ['venv', 'uv-cache', 'ansible-local', 'ansible-remote', 'foundation.log',
+                 'ansible-vars.json', 'profiles.json']:
         require(not (state / name).is_symlink(), 'unsafe-controller-path')
     executables = {}
     for key, artifact in lock['artifacts'].items():
@@ -115,13 +182,13 @@ def apply_foundation(config, root=ROOT, manifest_groups=None):
                         '--project', str(root), '--python', str(executables['python'])],
                        check=True, env=environment, stdout=output, stderr=subprocess.STDOUT, timeout=300)
         require(preflight(config)[1] == 0, 'storage-changed-before-ansible')
-        extra = []
-        if manifest_groups:
-            variables = state / 'ansible-vars.json'
-            variables.write_text(json.dumps({'workstation_root': str(root), 'workstation_config': config,
-                                             'manifest_groups': manifest_groups}))
-            variables.chmod(0o600)
-            extra = ['--extra-vars', '@' + str(variables)]
+        variables = state / 'ansible-vars.json'
+        variables.write_text(json.dumps({'workstation_root': str(root), 'workstation_config': config,
+                                         'host_profiles': selection['profiles'],
+                                         'manifest_groups': selection['groups'],
+                                         'selected_repositories': selection['repositories']}))
+        variables.chmod(0o600)
+        extra = ['--extra-vars', '@' + str(variables)]
 
         def run_stage(names, timeout):
             subprocess.run([str(state / 'venv/bin/ansible-playbook'), '-i', 'localhost,',
@@ -130,35 +197,15 @@ def apply_foundation(config, root=ROOT, manifest_groups=None):
                            cwd=root, check=True, env=environment,
                            stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
 
-        # Distribution assertions first: nothing should be installed on a host
-        # this repository does not support.
-        run_stage([str(root / 'ansible/foundation.yml')], 300)
-
-        # Packages next. This stage is network-bound and far slower than the
-        # rest, so it gets a timeout that suits it.
-        if manifest_groups:
-            run_stage(['repositories.yml', 'manifest-packages.yml', 'snaps.yml',
-                       'binaries.yml'], 7200)
-
-        # Record what was applied so verification checks the machine this is,
-        # not the machine the manifest could describe. Without it, verify
-        # reports every group the operator deliberately did not install.
-        if manifest_groups:
-            applied = state / 'applied-groups.json'
+        # Verification checks the machine this is, not the machine the manifest
+        # could describe: without the record it would report every profile the
+        # operator deliberately left out.
+        def record():
+            applied = state / 'profiles.json'
             applied.write_text(json.dumps({'schema_version': 1,
-                                           'groups': sorted(manifest_groups)}))
+                                           'profiles': selection['profiles'],
+                                           'groups': selection['groups']}))
             applied.chmod(0o600)
 
-        # Group membership follows the packages that create the groups, and
-        # precedes nothing: it only takes effect in a later session anyway.
-        if manifest_groups:
-            run_stage(['system-groups.yml'], 300)
-
-        # Editor extensions need VS Code, which the package stage installed.
-        if manifest_groups and 'dev-gui' in manifest_groups:
-            run_stage(['plugins.yml'], 3600)
-
-        # Desktop settings last: they configure packages installed above.
-        if manifest_groups and 'desktop' in manifest_groups:
-            run_stage(['desktop.yml'], 300)
+        run_host_stages(selection, run_stage, record, config, root)
     return {'id': 'controller-foundation', 'status': 'passed', 'reason': 'locked-controller-and-distribution-python-assertions-passed'}

@@ -89,9 +89,11 @@ class ControllerIntegrity(unittest.TestCase):
         context = {'config': {'example_only': False, 'target': {'user': getpass.getuser()}},
                    'provenance': {}, 'selected': [], 'entries': {}}
         with patch('workstation.cli.load_context', return_value=context), patch('os.geteuid', return_value=1000), \
+             patch('workstation.profiles.recorded', return_value=None), \
+             patch('workstation.host.check_prerequisites', return_value=([], 0)), \
              patch('workstation.storage.preflight', return_value=([{'id': 'mount', 'status': 'failed', 'reason': 'fixture'}], 1)), \
              patch('workstation.controller.apply_foundation') as apply, contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(main(['install', '--config', 'fixture', '--format', 'json']), 1)
+            self.assertEqual(main(['apply', '--config', 'fixture', '--format', 'json']), 1)
             apply.assert_not_called()
 
     def test_verify_never_calls_controller(self):
@@ -102,6 +104,9 @@ class ControllerIntegrity(unittest.TestCase):
         # rather than applies, not what the live machine currently has.
         with patch('workstation.cli.load_context', return_value=context), \
              patch('workstation.storage.preflight', return_value=([], 0)), \
+             patch('workstation.host.check_prerequisites', return_value=([], 0)), \
+             patch('workstation.profiles.recorded', return_value=None), \
+             patch('workstation.system.verify', return_value=[]), \
              patch('workstation.packages.verify_packages', return_value=[]), \
              patch('workstation.desktop.verify', return_value=[]), \
              patch('workstation.delivery.verify', return_value=[]), \

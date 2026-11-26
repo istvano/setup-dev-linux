@@ -55,3 +55,22 @@ def covers(routes, capability_id):
     """True when the manifest delivers this capability under any known spelling."""
     name = capability_id.split('/')[-1]
     return name in routes or ALIASES.get(name, name) in routes
+
+
+def delivering_groups(manifest):
+    """The manifest group each delivered name belongs to."""
+    groups = {}
+    for group, entries in manifest['packages']['groups'].items():
+        for entry in entries:
+            groups[entry['name']] = group
+    for snap in manifest['snaps']['snaps']:
+        groups[snap['name']] = snap['group']
+    for binary in manifest['binaries']['binaries']:
+        groups[binary['id']] = binary['group']
+    return groups
+
+
+def group_of(groups, capability_id):
+    """The manifest group delivering this capability, or None."""
+    name = capability_id.split('/')[-1]
+    return groups.get(name) or groups.get(ALIASES.get(name, name))

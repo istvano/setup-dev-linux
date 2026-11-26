@@ -10,7 +10,7 @@ installer that reproduces it elsewhere. New machine: install the manifest, authe
 ```bash
 just verify-static                            # catalogue, manifest coverage, tests
 just plan config/your-machine.json            # what would be installed; writes nothing
-just install config/your-machine.json         # install it
+just apply config/your-machine.json           # set up the host (install is an alias)
 ```
 
 A `Makefile` offers the same targets, for a machine that does not have `just`
@@ -19,7 +19,7 @@ on it yet — which includes a new one, before this repository installs it:
 ```bash
 make verify-static
 make plan CONFIG=config/your-machine.json
-make install CONFIG=config/your-machine.json
+make apply CONFIG=config/your-machine.json
 ```
 
 `just --list` and `make help` both list everything. The two are kept in step by
@@ -41,11 +41,15 @@ Full procedure: [NEW-MACHINE.md](docs/NEW-MACHINE.md).
 | `plugins.json` | VS Code extensions |
 | `system.json` | Group memberships beyond packages |
 
-The manifest is grouped by purpose — `desktop`, `media`, `productivity`, `ai`,
-`network`, `lab`, `gpu`, `dev-gui` — so an install can take part of it:
+The manifest is grouped by purpose, and a run selects host profiles
+(`profiles/host.json`): `desktop`, `media`, `productivity`, `ai`, `network`,
+`lab`, `gpu`, `dev-gui` and `firewall`. The default is
+`desktop,media,productivity,ai,network,dev-gui,firewall`; a selection without the
+desktop profiles is headless. Every run prints the selection on a `Profiles:` line,
+and a re-run without `--profiles` keeps the recorded choice:
 
 ```bash
-just install config/your-machine.json desktop,dev-gui,lab
+just apply config/your-machine.json gpu,firewall     # ./bootstrap apply --config ... --profiles gpu,firewall
 ```
 
 Command-line tools, runtimes, the shell, dotfiles, kubectl plugins and Docker are
@@ -76,9 +80,9 @@ To change what a new machine gets, change the manifest.
   may install. Unpinned entries are refused, not downloaded.
 - Every third-party APT source declares a signing key or a Launchpad PPA.
 - Ubuntu archive packages need no per-item review; third-party sources do.
-- `install` never removes unrelated packages, never partitions or formats, and
+- `apply` never removes unrelated packages, never partitions or formats, and
   refuses to run as root.
-- `install` is repeatable; a second run on a correct machine changes nothing.
+- `apply` is repeatable; a second run on a correct machine changes nothing.
 - `verify` reads the system and reports drift. It never repairs.
 
 ## Storage layouts

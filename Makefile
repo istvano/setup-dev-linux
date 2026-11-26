@@ -2,7 +2,7 @@
 # including a new one, before `just` itself is on it.
 #
 # Targets that act on a machine take variables rather than positional
-# arguments:  make install CONFIG=config/mine.json GROUPS=desktop,dev-gui
+# arguments:  make apply CONFIG=config/mine.json PROFILES=desktop,dev-gui
 #
 # Grouped subcommands use a slash:  make vm/up, make vm/status. They are .PHONY,
 # so make does not look for a file of that name inside the vm directory.
@@ -15,7 +15,9 @@ PYTHON ?= python3 -B
 BOOTSTRAP ?= ./bootstrap
 OUT ?= /tmp/workstation-inventory.json
 MAC ?= ../mac-os-setup
+# GROUPS is the former name of PROFILES.
 GROUPS ?=
+PROFILES ?= $(GROUPS)
 ARGS ?=
 
 # Fail with a usable message instead of passing an empty flag to a command that
@@ -34,7 +36,7 @@ help: ## List the available targets
 	@grep -hE '^[a-zA-Z_/-]+:.*?## .*$$' $(MAKEFILE_LIST) \
 		| awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[1m%-18s\033[0m %s\n", $$1, $$2}'
 	@echo
-	@echo "Variables: CONFIG, HOST, GROUPS, OUT, MAC, ARGS"
+	@echo "Variables: CONFIG, PROFILES, OUT, MAC, ARGS"
 
 # --- Static checks ----------------------------------------------------------
 
@@ -91,25 +93,27 @@ update/keys: ## Re-record the repository signing-key fingerprints only
 # --- A new workstation ------------------------------------------------------
 
 .PHONY: plan
-plan: ## Show what would be installed, changing nothing (CONFIG=)
+plan: ## Show what would be installed, changing nothing (CONFIG=, optional PROFILES=)
 	$(call require,CONFIG,plan,config/mine.json)
-	$(BOOTSTRAP) plan --config $(CONFIG)
+	$(BOOTSTRAP) plan --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
 
 .PHONY: preflight
 preflight: ## Check the live machine before any write (CONFIG=)
 	$(call require,CONFIG,preflight,config/mine.json)
 	$(BOOTSTRAP) preflight --config $(CONFIG)
 
+.PHONY: apply
+apply: ## Set up the host (CONFIG=, optional PROFILES=gpu,firewall)
+	$(call require,CONFIG,apply,config/mine.json)
+	$(BOOTSTRAP) apply --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
+
 .PHONY: install
-install: ## Install the manifest (CONFIG=, optional GROUPS=desktop,dev-gui)
-	$(call require,CONFIG,install,config/mine.json)
-	$(BOOTSTRAP) install --config $(CONFIG) \
-		$(if $(strip $(GROUPS)),--manifest-groups $(GROUPS),)
+install: apply ## Former name of apply
 
 .PHONY: verify
-verify: ## Report drift without repairing it (CONFIG=)
+verify: ## Report drift without repairing it (CONFIG=, optional PROFILES=)
 	$(call require,CONFIG,verify,config/mine.json)
-	$(BOOTSTRAP) verify --config $(CONFIG)
+	$(BOOTSTRAP) verify --config $(CONFIG)$(if $(strip $(PROFILES)), --profiles $(PROFILES),)
 
 # --- Disposable test VM -----------------------------------------------------
 

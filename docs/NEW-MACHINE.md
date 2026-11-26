@@ -35,7 +35,7 @@ and mounts do not match what is actually there.
 ## 3. Install
 
 ```bash
-just install config/your-machine.json
+just apply config/your-machine.json
 ```
 
 Run this **as your own user**, not as root, and not with `sudo`. The installer
@@ -51,10 +51,11 @@ Command-line tools, runtimes, the shell, dotfiles and Docker are not installed
 here: setup-dev-linux-wsl installs them on a Linux machine too
 (`./bootstrap apply --target linux` in that repository; see [MOVED.md](MOVED.md)).
 
-To install part of the manifest, name the groups:
+To install part of the host, name the profiles (a server leaves out the desktop
+ones; `firewall` can be selected on its own):
 
 ```bash
-just install config/your-machine.json desktop,dev-gui,lab
+just apply config/your-machine.json desktop,dev-gui,lab
 ```
 
 ## 4. Verify

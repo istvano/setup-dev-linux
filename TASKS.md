@@ -59,6 +59,13 @@ Ordered by what it blocks, not by subsystem.
 
 ### 1. Blocks trusting the result
 
+- [ ] **The firewall stage does nothing yet.** The `firewall` profile is in the
+  default and the controller calls its stage (`apply_firewall_stage`), but UFW
+  and OpenSnitch are not configured: `plan` reports the stage as unimplemented
+  and `verify` reports the firewall as deferred.
+- [ ] **Headless selections have no guest evidence.** `--profiles gpu,firewall`
+  runs no desktop, snap or VS Code stage in the unit tests; no guest cycle has
+  run a headless selection.
 - [ ] **VS Code extension versions are not pinned.** Unlike the binaries,
   extensions install at whatever version the Marketplace offers.
   Pinning them needs a resolver that does not exist yet, and a stale pin with no

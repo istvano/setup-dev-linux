@@ -9,21 +9,21 @@ are unfinished. Feature contracts and dependency order are in [specs](../specs/R
 
 | Command | Current behavior |
 |---|---|
-| `./bootstrap plan --config PATH --format json` | Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
-| `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks; examples rejected; no writes |
-| `./bootstrap install --config PATH --format json` | Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
-| `./bootstrap verify --config PATH --format json` | Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
+| `./bootstrap plan --config PATH [--profiles LIST] --format json` | Prints the `Profiles:` line and the stages the selection runs. Pure standard-library preview; examples allowed and labelled; no downloads/sudo/writes |
+| `./bootstrap preflight --config PATH --format json` | Live platform/user/disk/mount checks and the host prerequisites `gpg` and `git`; examples rejected; no writes |
+| `./bootstrap apply --config PATH [--profiles LIST] --format json` | `install` is an alias. Guard first, target user only, verified uv/Python archives and frozen controller graph, Ansible foundation and selected approved packages; reports remaining source/role failures |
+| `./bootstrap verify --config PATH [--profiles LIST] --format json` | Checks the recorded profiles unless given. Read-only preflight, approved package state and declared source/implementation gaps; no controller sync or repair |
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
 | `./script/test-vm --controller --reboot` | Verify a real guest reboot and repeat the foundation acceptance |
 
-`install` currently **cannot report full success for the selected workstation**.
+`apply` currently **cannot report full success for the selected workstation**.
 Controller success followed by exit 1 identifies selected source approvals still
 missing; approved selected packages may have installed successfully. A private selection
 containing only implemented capabilities with their required private settings can pass its operation, while `workstation_ready` remains
 false because whole-workstation acceptance is unfinished. Other missing role
-implementation is incomplete (exit 3). Invalid inputs use exit 2. Never run install
+implementation is incomplete (exit 3). Invalid inputs use exit 2. Never run apply
 on the physical workstation merely to see what happens; use pure plan/preflight.
 
 Use private, non-example configuration copied from a declared storage layout. Supply

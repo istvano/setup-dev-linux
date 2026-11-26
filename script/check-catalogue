@@ -21,6 +21,7 @@ from catalogue_matrix import render_matrix
 from source_review import render_source_review
 from workstation.config import validate_semantics
 from workstation.packages import approved_registry
+from workstation import profiles as host_profiles
 
 
 def require(condition, message):
@@ -199,6 +200,12 @@ def main():
         selection = read_json(path.parent / config['selection_file'])
         check_config(config, entries, selection['capability_ids'])
     check_matrix(catalogue)
+    # Host profiles: the full JSON Schema here, then the runtime's own validator
+    # and its manifest consistency checks, so both agree on what is valid.
+    check_schema(read_json(ROOT / 'profiles/host.json'), 'profiles/host.schema.json')
+    host_profiles.load(ROOT)
+    for capability in read_json(ROOT / 'profiles/host.json')['catalogue']['capabilities']:
+        require(capability in entries, f'profiles/host.json: unknown capability {capability}')
     review = read_json(ROOT / 'catalogue/source-review.json')
     check_source_review(catalogue, review)
     require((ROOT / 'docs/SOURCE-REVIEW.md').read_text() == render_source_review(review), 'source review document differs from ledger; run python3 -B script/render-source-review --write')

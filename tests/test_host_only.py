@@ -36,7 +36,7 @@ CLI_ENTRY_POINTS = (
 )
 CLI_MANIFESTS = ('shell', 'dotfiles', 'runtimes')
 
-HOST_GROUPS = {'dev-gui', 'lab', 'gpu', 'desktop', 'media', 'productivity', 'ai', 'network'}
+HOST_GROUPS = {'base', 'dev-gui', 'lab', 'gpu', 'desktop', 'media', 'productivity', 'ai', 'network'}
 HOST_BINARIES = {'zed', 'obsidian'}
 HOST_REPOSITORIES = {'vscode', 'google-chrome', 'slack', 'dbeaver', 'claude-desktop',
                      'chatgpt', 'ppa-obs', 'ppa-quickemu'}

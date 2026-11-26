@@ -24,7 +24,15 @@ if not marker.is_file() or marker.read_text().strip() != args.expected_vm_id:
     raise SystemExit('Refusing non-test guest')
 
 ROOT = Path(__file__).resolve().parents[1]
-GROUPS = [g for g in args.groups.split(',') if g]
+sys.path.insert(0, str(ROOT / 'script'))
+from workstation import profiles  # noqa: E402
+
+# --groups names host profiles; they resolve to manifest groups (the base group
+# included) and the repositories those groups install from.
+CATALOGUE = profiles.load(ROOT)
+PROFILES = profiles.parse(args.groups, CATALOGUE)
+SELECTION = profiles.resolve(PROFILES, CATALOGUE, ROOT)
+GROUPS = SELECTION['groups']
 failures = []
 
 
@@ -151,7 +159,8 @@ def verify_new_deliveries():
     home = Path(pwd.getpwuid(os.geteuid()).pw_dir)
 
     from workstation.delivery import verify as verify_delivery
-    for check in verify_delivery(ROOT, groups=GROUPS):
+    for check in verify_delivery(ROOT, groups=GROUPS,
+                                 repositories=SELECTION['repositories']):
         if check['id'].startswith('manifest-'):
             report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
@@ -169,8 +178,8 @@ def verify_new_deliveries():
 
 
 def install(config):
-    command = [str(ROOT / 'bootstrap'), 'install', '--config', str(config),
-               '--format', 'json', '--manifest-groups', ','.join(GROUPS)]
+    command = [str(ROOT / 'bootstrap'), 'apply', '--config', str(config),
+               '--format', 'json', '--profiles', ','.join(PROFILES)]
     result = subprocess.run(command, capture_output=True, text=True)
     try:
         outcome = json.loads(result.stdout)['outcome']

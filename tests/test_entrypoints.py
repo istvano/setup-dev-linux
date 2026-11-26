@@ -64,7 +64,7 @@ class ParityTest(unittest.TestCase):
     def test_the_expected_workflow_targets_are_present(self):
         expected = {'check', 'check-manifest', 'test', 'verify-static',
                     'inventory', 'review', 'update/report', 'update/apply',
-                    'plan', 'preflight', 'install', 'verify',
+                    'plan', 'preflight', 'apply', 'install', 'verify',
                     'vm/reset', 'vm/up', 'vm/status', 'vm/accept', 'vm/clean-cycle',
                     'vm/foundation', 'desktop-manifest'}
         for name in sorted(expected):
@@ -105,21 +105,26 @@ class MakefileBehaviourTest(unittest.TestCase):
         # Run these for real rather than with -n: make does not execute recipe
         # lines under -n, so the guard would never fire and the test would pass
         # for the wrong reason. The guard exits before any command runs.
-        for target in ('plan', 'preflight', 'install', 'verify'):
+        for target in ('plan', 'preflight', 'apply', 'install', 'verify'):
             result = self.make(target)
             self.assertNotEqual(result.returncode, 0, f'{target} ran without CONFIG')
             self.assertIn('CONFIG is required', result.stdout + result.stderr)
 
-    def test_group_selection_is_passed_through_only_when_given(self):
-        with_groups = self.make('-n', 'install', 'CONFIG=x.json', 'GROUPS=desktop,dev-gui')
-        self.assertIn('--manifest-groups desktop,dev-gui', with_groups.stdout)
-        without = self.make('-n', 'install', 'CONFIG=x.json')
-        self.assertNotIn('--manifest-groups', without.stdout)
+    def test_profile_selection_is_passed_through_only_when_given(self):
+        with_profiles = self.make('-n', 'apply', 'CONFIG=x.json', 'PROFILES=gpu,firewall')
+        self.assertIn('apply --config x.json --profiles gpu,firewall', with_profiles.stdout)
+        without = self.make('-n', 'apply', 'CONFIG=x.json')
+        self.assertNotIn('--profiles', without.stdout)
+
+    def test_install_runs_apply(self):
+        result = self.make('-n', 'install', 'CONFIG=x.json', 'PROFILES=lab')
+        self.assertIn('apply --config x.json --profiles lab', result.stdout)
+        self.assertNotIn('bootstrap install', result.stdout)
 
     def test_help_lists_the_targets(self):
         result = self.make('help')
         self.assertEqual(result.returncode, 0)
-        for name in ('install', 'vm/clean-cycle'):
+        for name in ('apply', 'install', 'vm/clean-cycle'):
             self.assertIn(name, result.stdout)
 
 

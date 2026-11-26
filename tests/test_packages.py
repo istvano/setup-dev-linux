@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'script'))
 from workstation.config import InputError  # noqa: E402
 from workstation.packages import (  # noqa: E402
-    allowed_version, applied_groups, approved_registry, archive_suites,
+    allowed_version, approved_registry, archive_suites,
     expectations, repository_sites, verify_packages)
 
 ARCHIVE = {'kind': 'archive', 'origin': 'Ubuntu',
@@ -326,35 +326,11 @@ class DeclaredSourceWinsTests(unittest.TestCase):
                          'an installed package from an undeclared source must not verify')
 
 
-class AppliedGroupTests(unittest.TestCase):
+class SelectedGroupTests(unittest.TestCase):
     """Verification describes the machine that exists, not the one the manifest
     could describe: a machine installed without the gpu group has not failed to
-    install it."""
-
-    def setUp(self):
-        import tempfile
-        import shutil
-        self.root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        (self.root / '.workstation').mkdir()
-
-    def write(self, payload):
-        (self.root / '.workstation/applied-groups.json').write_text(json.dumps(payload))
-
-    def test_recorded_groups_are_returned(self):
-        self.write({'schema_version': 1, 'groups': ['desktop', 'dev-gui']})
-        self.assertEqual(applied_groups(self.root), ['desktop', 'dev-gui'])
-
-    def test_nothing_recorded_means_no_narrowing(self):
-        self.assertIsNone(applied_groups(self.root))
-
-    def test_an_unreadable_record_does_not_raise(self):
-        (self.root / '.workstation/applied-groups.json').write_text('not json')
-        self.assertIsNone(applied_groups(self.root))
-
-    def test_an_empty_group_list_means_no_narrowing(self):
-        self.write({'schema_version': 1, 'groups': []})
-        self.assertIsNone(applied_groups(self.root))
+    install it. Which groups were selected is recorded with the host profiles
+    (tests/test_profiles.py)."""
 
     def test_an_excluded_group_is_not_verified(self):
         desktop_only = expectations(ROOT, groups=['desktop'])

@@ -1,7 +1,13 @@
 {
   "schema_version": 1,
-  "description": "APT packages by host group. \"source\": archive means the Ubuntu archive; anything else names a repository in repositories.json. Command-line packages are installed by setup-dev-linux-wsl (docs/MOVED.md).",
+  "description": "APT packages by host group. The base group is installed on every run, headless included; the other groups are selected through host profiles (profiles/host.json). \"source\": archive means the Ubuntu archive; anything else names a repository in repositories.json. Command-line packages are installed by setup-dev-linux-wsl (docs/MOVED.md).",
   "groups": {
+    "base": [
+      {
+        "name": "software-properties-common",
+        "source": "archive"
+      }
+    ],
     "dev-gui": [
       {
         "name": "code",
@@ -99,10 +105,6 @@
       },
       {
         "name": "fonts-jetbrains-mono",
-        "source": "archive"
-      },
-      {
-        "name": "software-properties-common",
         "source": "archive"
       }
     ],
