@@ -111,26 +111,6 @@ verify: ## Report drift without repairing it (CONFIG=)
 	$(call require,CONFIG,verify,config/mine.json)
 	$(BOOTSTRAP) verify --config $(CONFIG)
 
-# --- Moving here from the old machine ---------------------------------------
-
-.PHONY: migrate-plan
-migrate-plan: ## Preview the copy to HOST, writing nothing (CONFIG=, HOST=)
-	$(call require,CONFIG,migrate-plan,config/mine.json)
-	$(call require,HOST,migrate-plan,newbox)
-	$(BOOTSTRAP) migrate --config $(CONFIG) --to $(HOST) --dry-run
-
-.PHONY: migrate
-migrate: ## Copy the declared trees to HOST and prove the copy is complete
-	$(call require,CONFIG,migrate,config/mine.json)
-	$(call require,HOST,migrate,newbox)
-	$(BOOTSTRAP) migrate --config $(CONFIG) --to $(HOST)
-
-.PHONY: migrate-secrets
-migrate-secrets: ## Copy credential paths to HOST — deliberately separate from migrate
-	$(call require,CONFIG,migrate-secrets,config/mine.json)
-	$(call require,HOST,migrate-secrets,newbox)
-	$(BOOTSTRAP) migrate --config $(CONFIG) --to $(HOST) --secrets
-
 # --- Disposable test VM -----------------------------------------------------
 
 .PHONY: vm/fetch
@@ -159,7 +139,7 @@ vm/ssh: ## Run a command in the guest (ARGS='uptime')
 	$(PYTHON) script/vm ssh $(ARGS)
 
 .PHONY: vm/accept
-vm/accept: ## Apply the manifest in the guest, rehearse the migration, reboot and repeat
+vm/accept: ## Apply the manifest in the guest, reboot and repeat
 	$(PYTHON) script/test-manifest-vm
 
 .PHONY: vm/foundation

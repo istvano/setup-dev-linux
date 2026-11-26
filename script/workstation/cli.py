@@ -36,23 +36,11 @@ def main(argv=None):
     context = None
     try:
         parser = Parser(description=__doc__)
-        parser.add_argument('command', choices=['plan', 'preflight', 'install', 'verify', 'migrate'])
+        parser.add_argument('command', choices=['plan', 'preflight', 'install', 'verify'])
         parser.add_argument('--config', required=True)
         parser.add_argument('--format', choices=['text', 'json'], default='text')
-        parser.add_argument('--to', help='destination host for migrate')
-        parser.add_argument('--secrets', action='store_true',
-                            help='migrate credential paths instead of ordinary data')
-        parser.add_argument('--dry-run', action='store_true',
-                            help='preview the copy without writing to the destination')
         parser.add_argument('--manifest-groups',
                             help='comma-separated manifest groups to install')
-        parser.add_argument('--rsh', help='transport command rsync should use')
-        parser.add_argument('--remote-home', help='operator home path on the destination')
-        parser.add_argument('--only-trees',
-                            help='comma-separated subset of the declared trees to copy')
-        parser.add_argument('--source-home',
-                            help='home directory to copy from, when it is not the '
-                                 'configured target user home on this machine')
         args = parser.parse_args(argv)
         command, fmt = args.command, args.format
         context = load_context(args.config)
@@ -65,30 +53,6 @@ def main(argv=None):
             checks.append({'id': 'apply', 'status': 'unimplemented', 'reason': 'installation-roles-not-yet-implemented'})
             emit(report(command, 'passed', checks, context), fmt)
             return 0
-        if command == 'migrate':
-            if not args.to:
-                raise InputError('migrate-requires-destination-host')
-            import pwd
-            from pathlib import Path as _Path
-            from .migrate import MigrateError, migrate as run_migrate
-            if args.source_home:
-                home = args.source_home
-            else:
-                try:
-                    home = pwd.getpwnam(context['config']['target']['user']).pw_dir
-                except KeyError:
-                    raise InputError('configured-target-user-not-present-on-this-machine')
-            root = _Path(__file__).resolve().parent.parent.parent
-            try:
-                checks, code = run_migrate(root, home, args.to,
-                                           secrets=args.secrets, dry_run=args.dry_run,
-                                           rsh=args.rsh, remote_home=args.remote_home,
-                                           only_trees=[t for t in (args.only_trees or '').split(',') if t])
-            except MigrateError as exc:
-                raise InputError(str(exc))
-            emit(report(command, {0: 'passed', 1: 'failed'}[code], checks, context), fmt)
-            return code
-
         if context['config']['example_only']:
             raise InputError('example-input-not-operational')
         if command == 'install' and os.geteuid() == 0:

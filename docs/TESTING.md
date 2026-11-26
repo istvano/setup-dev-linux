@@ -103,9 +103,6 @@ signature-verified Ubuntu 26.04 image. **50 checks, no failures.**
 | krew plugins | 6/6 |
 | Agent CLIs | Claude Code 2.1.273 and Copilot 1.0.85, present and unmodified |
 | GNOME settings | 72/72 declared keys; 5 extensions on, 2 deliberately off |
-| Migration plan | 167.6 GB across 389,518 files, nothing written |
-| Migration rehearsal | 18,164 files / 4.08 GB copied, completeness proved by a second pass |
-| Credential separation | 2,195 source credential files compared by content; none arrived |
 | Reboot | Guest returned in 24s; every group verified again unchanged |
 | Second apply | Repeatable, no change |
 | Docker group | Deferred on first apply, effective after the reboot, `docker run` without sudo |
@@ -121,8 +118,6 @@ tests, all passing — `make verify-static`.
 - **A rendered desktop session.** The settings are written and read back, but
   the guest runs a server image, so appearance, keybindings, dock behaviour and
   suspend are unobserved.
-- **The migration at full size.** Rehearsed at 4.08 GB against real data shapes;
-  the real move is 167.6 GB across 389,518 files.
 
 ## History
 

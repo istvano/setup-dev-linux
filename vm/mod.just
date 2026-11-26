@@ -26,7 +26,7 @@ stop:
 ssh *ARGS:
   python3 -B script/vm ssh {{ARGS}}
 
-[doc("Apply the manifest, rehearse the migration, reboot and repeat")]
+[doc("Apply the manifest, reboot and repeat")]
 accept:
   python3 -B script/test-manifest-vm
 

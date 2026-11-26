@@ -4,7 +4,7 @@ Status: pure bootstrap plan, live standard-layout preflight, isolated locked con
 and initial Ansible foundation are implemented, with nine approved Ubuntu CLI/shell packages, immutable user tools, NVM/Node, Go, Rust, user uv/Python, OpenCode, Codex, Cline CLI, SDKMAN/JVM and
 chezmoi shell/Git files.
 Remaining application roles, transfer-handoff
-verification, full independent workstation verification and production OS/migration
+verification, full independent workstation verification and production OS
 automation remain unfinished. Feature and guest results are in TESTING.md; catalogue
 selection and foundation success are not full workstation readiness.
 

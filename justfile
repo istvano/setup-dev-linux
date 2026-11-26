@@ -63,19 +63,5 @@ install CONFIG GROUPS="":
 verify CONFIG:
   ./bootstrap verify --config {{CONFIG}}
 
-# --- Moving here from the old machine ---------------------------------------
-
-# Preview the copy to HOST, writing nothing.
-migrate-plan CONFIG HOST:
-  ./bootstrap migrate --config {{CONFIG}} --to {{HOST}} --dry-run
-
-# Copy the declared trees to HOST and prove the copy is complete.
-migrate CONFIG HOST:
-  ./bootstrap migrate --config {{CONFIG}} --to {{HOST}}
-
-# Copy credential paths to HOST. Deliberately separate from migrate.
-migrate-secrets CONFIG HOST:
-  ./bootstrap migrate --config {{CONFIG}} --to {{HOST}} --secrets
-
 # --- Disposable test VM -----------------------------------------------------
 # See vm/mod.just: just vm --list

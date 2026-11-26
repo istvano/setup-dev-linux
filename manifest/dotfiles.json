@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "description": "Files chezmoi declares. Everything else in $HOME is operator data moved by migrate, not managed configuration.",
+  "description": "Files chezmoi declares. Everything else in $HOME is operator data, not managed configuration.",
   "managed": [
     {
       "path": ".zshrc",
@@ -33,43 +33,43 @@
   "never_managed": [
     {
       "path": ".ssh",
-      "reason": "Credential material; moved by migrate secrets."
+      "reason": "Credential material."
     },
     {
       "path": ".gnupg",
-      "reason": "Credential material; moved by migrate secrets."
+      "reason": "Credential material."
     },
     {
       "path": ".aws",
-      "reason": "Credential material; moved by migrate secrets."
+      "reason": "Credential material."
     },
     {
       "path": ".kube",
-      "reason": "Cluster credentials; moved by migrate secrets."
+      "reason": "Cluster credentials."
     },
     {
       "path": ".docker",
-      "reason": "Registry credentials; moved by migrate secrets."
+      "reason": "Registry credentials."
     },
     {
       "path": ".config/gh",
-      "reason": "GitHub token; moved by migrate secrets."
+      "reason": "GitHub token."
     },
     {
       "path": ".azure",
-      "reason": "Azure tokens; moved by migrate secrets."
+      "reason": "Azure tokens."
     },
     {
       "path": ".claude.json",
-      "reason": "Agent session state; moved by migrate secrets."
+      "reason": "Agent session state."
     },
     {
       "path": ".codex",
-      "reason": "Agent session state; moved by migrate secrets."
+      "reason": "Agent session state."
     },
     {
       "path": ".copilot",
-      "reason": "Agent session state; moved by migrate secrets."
+      "reason": "Agent session state."
     },
     {
       "path": ".zsh_history",
@@ -81,7 +81,7 @@
     },
     {
       "path": ".npmrc",
-      "reason": "Carries an employer registry URL, an address and a TLS exception; private input, moved by migrate secrets rather than declared here."
+      "reason": "Carries an employer registry URL, an address and a TLS exception; private input and never declared here."
     },
     {
       "path": ".zprofile",

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "reviewed_at": "2026-09-13",
   "status": "pre-build-evidence-not-install-authorization",
-  "catalogue_revision": "2026-09-16-manifest-and-migration",
+  "catalogue_revision": "2026-11-26-fresh-install",
   "records": [
     {
       "capability_id": "ansible-core",

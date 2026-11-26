@@ -2063,32 +2063,6 @@
       "decided": true
     }
   ],
-  "migration": {
-    "copy_trees": [
-      "workspace",
-      "bin",
-      "cpdb",
-      "Documents",
-      "Knowledge",
-      "Sync",
-      "Desktop",
-      "Templates",
-      "Public",
-      "Pictures",
-      "Music",
-      "Videos",
-      "Downloads",
-      "ISOs",
-      "Apps"
-    ],
-    "secrets_trees": [
-      "secure"
-    ],
-    "excluded_trees": [
-      "snap"
-    ],
-    "excluded_note": "snap regenerates from the installed snaps; Apps/idea-IU is copied but IntelliJ is reinstalled fresh."
-  },
   "desktop_policy": "curated-subset",
   "dotfile_policy": "chezmoi-shell-git-editor-tools"
 }

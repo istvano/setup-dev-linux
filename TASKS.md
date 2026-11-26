@@ -6,7 +6,7 @@ decided in [the inventory review](docs/INVENTORY-REVIEW.md).
 
 Last verified 2026-09-17 by a clean VM cycle from a destroyed guest: 50 checks,
 no failures. Evidence:
-[TESTING.md](docs/TESTING.md#machine-manifest-and-file-migration-acceptance--2026-09-16).
+[TESTING.md](docs/evidence-log.md#machine-manifest-acceptance--2026-09-16).
 
 ## Done
 
@@ -23,11 +23,6 @@ Each item below has guest evidence, not just a passing unit test.
   SHA-256; unpinned entries are refused before download.
 - **Repeatable apply.** Second apply after a reboot changed nothing; all
   verification groups passed again.
-- **File migration.** 167.6 GB / 389,518 files planned against the real home;
-  18,164 files / 4.08 GB copied into the guest and proved complete by a second
-  rsync pass finding nothing outstanding.
-- **Credential separation.** 2,195 source credential files compared by content
-  against the guest; none arrived through the ordinary copy.
 - **Coverage gate.** `script/check-manifest` fails when a reviewed selection has
   no delivery, when something unselected would install, or when a binary or
   repository key is unpinned.

@@ -3,8 +3,8 @@
 ## What this repository is
 
 A declarative record of this workstation and an installer that reproduces it on
-a fresh Ubuntu 26.04 machine, plus a file migration for moving between
-machines. `manifest/` is the single source of truth for what gets installed.
+a fresh Ubuntu 26.04 machine. Fresh installs only: nothing is copied from another
+machine. `manifest/` is the single source of truth for what gets installed.
 
 ## Current state
 
@@ -12,8 +12,7 @@ Implemented and exercised in a disposable Ubuntu 26.04 guest: the bootstrap
 plan/preflight/install/verify contract, the locked Ansible controller, third-party
 repository configuration, manifest package and snap installation, pinned
 release-binary installation with checksum verification, NVM/Node, SDKMAN/JVM,
-user uv/Python, OpenCode/Codex/Cline CLIs, chezmoi shell and Git files, and the
-file migration with its completeness proof.
+user uv/Python, OpenCode/Codex/Cline CLIs and chezmoi shell and Git files.
 
 Unfinished work is recorded in TASKS.md and nowhere else. Do not describe
 unfinished work as done, and never equate static or fixture success with a
@@ -29,7 +28,7 @@ D001–D016 and the capability matrix supersede stale Mac/raw-review proposals.
 Decided 2026-09-16, in review with the operator:
 
 - **Automated disk transfer is withdrawn.** No receipts, witnesses or machine
-  binding. Files move by copy over SSH; see `specs/F14-file-migration.md`.
+  binding. There is no file copy either (removed 2026-11-26).
 - **The manifest is decided by review, not inference.** `catalogue/curation.json`
   records each decision; `docs/INVENTORY-REVIEW.md` renders it.
 - **Source review applies to third-party sources only.** Ubuntu archive packages
@@ -59,8 +58,6 @@ Decided 2026-09-16, in review with the operator:
 - Every third-party binary is pinned to a version, URL and SHA-256 before it may
   install; every third-party APT source declares a signing key or PPA. No
   curl-pipe-shell. Ubuntu archive packages need neither.
-- `migrate` never deletes on the destination, excludes credentials from the
-  ordinary copy, and proves completeness rather than assuming it.
 - Preserve unrelated user configuration; back up replacements privately. Never
   copy histories, credentials or whole application profiles into committed
   configuration.
@@ -81,7 +78,7 @@ python3 -B -m unittest discover -s tests
 or `just verify-static`. Guest acceptance is `just vm clean-cycle`
 (`make vm/clean-cycle`), which
 destroys the guest, rebuilds it from the verified image, applies the manifest,
-verifies what landed, rehearses the migration, reboots and applies again.
+verifies what landed, reboots and applies again.
 
 When the manifest changes, re-run `script/check-manifest`: it is what stops a
 reviewed selection from silently failing to reach installation.

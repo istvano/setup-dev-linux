@@ -24,7 +24,7 @@
   "history": {
     "name": "atuin",
     "source": "ubuntu-archive",
-    "note": "Shell history database is not migrated; atuin starts empty."
+    "note": "Shell history database is not carried over; atuin starts empty."
   },
   "helpers": {
     "proxy": [

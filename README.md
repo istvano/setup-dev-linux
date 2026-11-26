@@ -1,11 +1,9 @@
 # linux-os-setup
 
-Reproducible Ubuntu 26.04 LTS workstation setup, plus a file migration for
-moving to a new machine.
+Reproducible Ubuntu 26.04 LTS workstation setup for a fresh machine.
 
 The repository holds a declarative record of what this workstation runs and an
-installer that reproduces it elsewhere. New machine: install the manifest, copy
-your files, authenticate by hand.
+installer that reproduces it elsewhere. New machine: install the manifest, authenticate by hand.
 
 ## Quick start
 
@@ -13,7 +11,6 @@ your files, authenticate by hand.
 just verify-static                            # catalogue, manifest coverage, tests
 just plan config/your-machine.json            # what would be installed; writes nothing
 just install config/your-machine.json         # install it
-just migrate config/your-machine.json newbox  # copy your files, from the old machine
 ```
 
 A `Makefile` offers the same targets, for a machine that does not have `just`
@@ -23,7 +20,6 @@ on it yet — which includes a new one, before this repository installs it:
 make verify-static
 make plan CONFIG=config/your-machine.json
 make install CONFIG=config/your-machine.json
-make migrate CONFIG=config/your-machine.json HOST=newbox
 ```
 
 `just --list` and `make help` both list everything. The two are kept in step by
@@ -46,7 +42,6 @@ Full procedure: [NEW-MACHINE.md](docs/NEW-MACHINE.md).
 | `dotfiles.json` | Files chezmoi manages, and files it deliberately does not |
 | `desktop.json` | Curated GNOME settings, extensions and fonts |
 | `plugins.json` | Editor extensions and kubectl plugins |
-| `migrate.json` | Which home directories move, and what never moves |
 
 The manifest is grouped by purpose — `core`, `dev`, `cloud`, `kubernetes`,
 `containers`, `lab`, `gpu`, `desktop`, `media`, `productivity`, `ai`,
@@ -83,9 +78,6 @@ To change what a new machine gets, change the manifest.
   refuses to run as root.
 - `install` is repeatable; a second run on a correct machine changes nothing.
 - `verify` reads the system and reports drift. It never repairs.
-- `migrate` never deletes on the destination, excludes credentials from the
-  ordinary copy, and proves completeness with a second pass rather than
-  assuming it.
 
 ## Storage layouts
 
@@ -97,7 +89,7 @@ To change what a new machine gets, change the manifest.
 Disk roles come from verified stable identities in private configuration.
 "System disk" and "data disk" never mean the first or second enumerated device.
 No target disk encryption is selected. Automated physical-disk transfer was
-withdrawn on 2026-09-16; files move by copy.
+withdrawn on 2026-09-16.
 
 ## Keeping it current
 
@@ -114,7 +106,7 @@ needing review. Full procedure: [OPERATIONS.md](docs/OPERATIONS.md#keeping-versi
 
 ```bash
 just verify-static        # no VM needed
-just vm clean-cycle       # destroy the guest, rebuild, apply, verify, migrate, reboot, repeat
+just vm clean-cycle       # destroy the guest, rebuild, apply, verify, reboot, repeat
 ```
 
 Grouped subcommands use a slash in make and a module in just, which spells the

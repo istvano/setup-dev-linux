@@ -25,13 +25,6 @@ Disk roles are resolved from verified stable identities supplied in private
 configuration, and mounts from filesystem UUIDs. Device enumeration names are
 not portable and are never used to select a role.
 
-## How data gets here
-
-By copy, over SSH, from the old machine — see
-[NEW-MACHINE.md](../NEW-MACHINE.md). The automated physical-disk transfer design
-was withdrawn on 2026-09-16 (D017), so there is no drive handoff, no receipt and
-no preserved source partition layout to account for.
-
 ## What stays manual
 
 Credentials, VPN profiles, backup destination and schedule, GPU verification

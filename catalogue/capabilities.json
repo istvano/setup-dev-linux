@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": "2026-09-16-manifest-and-migration",
+  "revision": "2026-11-26-fresh-install",
   "status": "selection-normalized-delivery-unverified",
   "provenance": {
     "mac_commit": "31344724d99b4150cb7ac44b2646fc8554c60a5e",
@@ -7572,40 +7572,6 @@
       "conflicts": [],
       "session_requirements": [],
       "acceptance": "Check stern is installed from its declared source and exercise its documented primary workflow in a disposable guest.",
-      "open_question": null
-    },
-    {
-      "id": "storage-handoff",
-      "title": "Manual file migration",
-      "purpose": "Copy selected home directories to a new workstation over SSH and prove the copy landed complete.",
-      "kind": "behavior",
-      "decision": "keep",
-      "profile": "operations",
-      "boundary": "manual",
-      "owner": "operator",
-      "evidence": [
-        "docs/DECISIONS.md#d006--confirmed-workstation-selection"
-      ],
-      "delivery": {
-        "status": "not-applicable",
-        "channel": null,
-        "identifier": null,
-        "candidate_url": null,
-        "os": null,
-        "architecture": null,
-        "version": null,
-        "integrity": null,
-        "blocker": null
-      },
-      "licence": {
-        "status": "not-applicable",
-        "identifier": null,
-        "classification": null
-      },
-      "update_policy": "supported-channel",
-      "conflicts": [],
-      "session_requirements": [],
-      "acceptance": "Verify offline copy from fresh target, mount identities and package state before any bootstrap mutation.",
       "open_question": null
     },
     {

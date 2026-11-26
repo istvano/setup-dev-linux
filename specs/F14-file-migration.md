@@ -1,5 +1,9 @@
 # F14 — File migration
 
+> **Removed 2026-11-26.** The tooling this spec describes (`bootstrap migrate`,
+> `manifest/migrate.json`) no longer exists: this repository provisions fresh
+> machines only. Kept as a record of what was built and proved.
+
 ## Purpose
 
 Move the operator's files from the old workstation to the new one, and prove

@@ -1,23 +1,13 @@
 # Setting up a new workstation
 
-This is the operator runbook for moving to a new machine. It assumes the old
-machine is still running and reachable over the network.
+This is the operator runbook for setting up a fresh machine. This repository
+installs software only; it does not copy files from another machine.
 
-Nothing here partitions disks, formats filesystems or deletes data on either
-machine. The copy never deletes on the destination.
+Nothing here partitions disks, formats filesystems or deletes data.
 
 ## Before you start
 
-On the **new** machine:
-
-- Ubuntu 26.04 LTS amd64 installed, with a user account and an SSH server
-  (`sudo apt install openssh-server`).
-- Your SSH public key from the old machine in `~/.ssh/authorized_keys`.
-
-On the **old** machine:
-
-- An independently verified backup. The migration reads, never moves, but a
-  workstation move is the wrong moment to discover a backup gap.
+- Ubuntu 26.04 LTS amd64 installed, with a user account.
 - This repository checked out, and `just verify-static` passing.
 
 ## 1. Check what will be installed
@@ -72,45 +62,7 @@ just verify config/your-machine.json
 Verification reads the installed system and reports drift. It never repairs.
 An `incomplete` result names what has no verification yet; it is not a pass.
 
-## 5. Move your files
-
-From the **old** machine, preview first:
-
-```bash
-just migrate-plan config/your-machine.json newbox
-```
-
-Then copy:
-
-```bash
-just migrate config/your-machine.json newbox
-```
-
-This copies the trees declared in `manifest/migrate.json`, excluding build
-output and package caches that regenerate themselves. It is resumable: if it is
-interrupted, run it again and it continues.
-
-When the copy finishes, migrate runs rsync a second time in dry-run mode. A
-byte-complete copy has nothing left to transfer, so anything still outstanding
-is reported as a failure rather than a warning.
-
-Credentials do not travel in that copy. Move them deliberately:
-
-```bash
-just migrate-secrets config/your-machine.json newbox
-```
-
-This covers `~/.ssh`, `~/.gnupg`, `~/secure`, `~/.aws`, `~/.azure`, `~/.kube`,
-`~/.docker`, `~/.config/gh` and the agent CLI session files, with permissions
-preserved.
-
-One file is deliberately never copied: `~/.ssh/authorized_keys`. It is what
-grants you access to the new machine, so replacing it mid-migration revokes the
-key the copy is running over and locks you out with the transfer half done.
-Set up your keys on the new machine before you start — step 0 above — and add
-anything else you need there by hand afterwards.
-
-## 6. Finish by hand
+## 5. Finish by hand
 
 These are deliberately not automated:
 
@@ -121,7 +73,6 @@ These are deliberately not automated:
 - **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot
   is on, enrol the module signing key. A reboot is required.
 - **Docker group**: log out and back in before the group membership applies.
-- **IntelliJ IDEA**: install fresh rather than using the copy in `~/Apps`.
 
 ## Private Git identities
 

@@ -65,7 +65,6 @@ class ParityTest(unittest.TestCase):
         expected = {'check', 'check-manifest', 'test', 'verify-static',
                     'inventory', 'review', 'update/report', 'update/apply',
                     'plan', 'preflight', 'install', 'verify',
-                    'migrate-plan', 'migrate', 'migrate-secrets',
                     'vm/reset', 'vm/up', 'vm/status', 'vm/accept', 'vm/clean-cycle',
                     'vm/foundation', 'desktop-manifest'}
         for name in sorted(expected):
@@ -106,15 +105,10 @@ class MakefileBehaviourTest(unittest.TestCase):
         # Run these for real rather than with -n: make does not execute recipe
         # lines under -n, so the guard would never fire and the test would pass
         # for the wrong reason. The guard exits before any command runs.
-        for target in ('plan', 'preflight', 'install', 'verify', 'migrate'):
+        for target in ('plan', 'preflight', 'install', 'verify'):
             result = self.make(target)
             self.assertNotEqual(result.returncode, 0, f'{target} ran without CONFIG')
             self.assertIn('CONFIG is required', result.stdout + result.stderr)
-
-    def test_migration_refuses_without_a_destination(self):
-        result = self.make('migrate', 'CONFIG=config/standard-split.example.json')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('HOST is required', result.stdout + result.stderr)
 
     def test_group_selection_is_passed_through_only_when_given(self):
         with_groups = self.make('-n', 'install', 'CONFIG=x.json', 'GROUPS=core,dev')
@@ -125,7 +119,7 @@ class MakefileBehaviourTest(unittest.TestCase):
     def test_help_lists_the_targets(self):
         result = self.make('help')
         self.assertEqual(result.returncode, 0)
-        for name in ('install', 'migrate', 'vm/clean-cycle'):
+        for name in ('install', 'vm/clean-cycle'):
             self.assertIn(name, result.stdout)
 
 
