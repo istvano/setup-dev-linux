@@ -46,25 +46,23 @@ checkout; ordinary validation and all future workstation commands need no Mac ch
 | Invalid JSON/config | Duplicate keys, unknown keys/IDs, conflicting choices, placeholders and example input rejected before install |
 | Noninteractive input | Closed/non-TTY stdin never hangs; missing user/privilege input is actionable |
 | Shared report | Config/catalogue/selection provenance consistent across commands; failures outrank incomplete; secrets absent |
-| Independent verify | Deliberate state errors fail; broken user runtime cannot trigger downloads or repair |
+| Independent verify | Deliberate state errors fail; verification cannot trigger downloads or repair |
 | Prerequisite integrity | Corrupt digest prevents execution; distribution module/controller interpreter split works |
 
 ## Role acceptance (P2–P4)
 
 Deliver verification in the same change as each role. Test clean users and existing-file
 conflicts; preserve unrelated settings and restore owned-file backups. Exercise editor
-startup, root extensions and dependency accounting; shell parsing and runtime switching;
-synthetic Git LFS checkout and work/personal identity; disabled signing without key;
-throwaway signing/decryption and browser profile separation. Verify supported telemetry
-opt-outs rather than assuming environment variables are effective.
+startup, root extensions and dependency accounting, and browser profile separation.
+Verify supported telemetry opt-outs rather than assuming environment variables are
+effective. Shell, runtime, Git identity and signing acceptance belong to
+setup-dev-linux-wsl.
 
 Use a desktop session for GNOME/keyring/Remmina/Wayland checks. Missing session is
 incomplete. No real connection profiles or secrets enter tests. Backups remain unscheduled.
 
-Test Docker build/Compose, registry and build cache, fresh-login group access and actual
-port exposure from a second guest. Verify selected k3d/kind workflows in disposable
-project-owned clusters; plugin failures must fail required checks. Verify OpenHands
-mounts/socket absence/loopback. Test isolated lab guests independently of installer VMs.
+Docker, Kubernetes tooling and their acceptance belong to setup-dev-linux-wsl. Test
+isolated lab guests independently of installer VMs.
 
 CPU-only tests require no NVIDIA hardware. A selected GPU disconnected is incomplete;
 physical driver/container/workload, connected/disconnected boot and sleep/wake results
@@ -87,7 +85,10 @@ must be observed. DDC acceptance applies only when the optional capability is en
 ## Current evidence
 
 Last full cycle: **2026-09-17**, from a guest destroyed and rebuilt from the
-signature-verified Ubuntu 26.04 image. **50 checks, no failures.**
+signature-verified Ubuntu 26.04 image. **50 checks, no failures.** That run predates
+the host refactor (2026-11-26): it still installed the command-line groups, krew
+plugins, agent CLIs and Docker that setup-dev-linux-wsl now owns. A host-only cycle
+has not been run yet.
 
 | | |
 |---|---|
@@ -110,8 +111,8 @@ tests, all passing — `make verify-static`.
 ## What no VM run can establish
 
 - **GPU delivery.** The `gpu` group is excluded from guest acceptance because
-  the guest has no NVIDIA hardware. The 595 open driver, its kernel modules and
-  nvidia-container-toolkit are unproven until the physical machine.
+  the guest has no NVIDIA hardware. The 595 open driver and its kernel modules
+  are unproven until the physical machine.
 - **A rendered desktop session.** The settings are written and read back, but
   the guest runs a server image, so appearance, keybindings, dock behaviour and
   suspend are unobserved.

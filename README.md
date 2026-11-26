@@ -36,20 +36,22 @@ Full procedure: [NEW-MACHINE.md](docs/NEW-MACHINE.md).
 | `packages.json` | APT packages by group, each naming the archive or a repository |
 | `repositories.json` | Third-party APT sources, each with its signing key |
 | `snaps.json` | Snaps and their channels |
-| `binaries.json` | Third-party release binaries, each pinned to a version, URL and SHA-256 |
-| `runtimes.json` | NVM/Node, SDKMAN/JVM, uv, agent CLIs |
-| `shell.json` | Login shell, oh-my-zsh, starship, atuin |
-| `dotfiles.json` | Files chezmoi manages, and files it deliberately does not |
+| `binaries.json` | Desktop release binaries (zed, obsidian), each pinned to a version, URL and SHA-256 |
 | `desktop.json` | Curated GNOME settings, extensions and fonts |
-| `plugins.json` | Editor extensions and kubectl plugins |
+| `plugins.json` | VS Code extensions |
+| `system.json` | Group memberships beyond packages |
 
-The manifest is grouped by purpose — `core`, `dev`, `cloud`, `kubernetes`,
-`containers`, `lab`, `gpu`, `desktop`, `media`, `productivity`, `ai`,
-`network`, `security` — so an install can take part of it:
+The manifest is grouped by purpose — `desktop`, `media`, `productivity`, `ai`,
+`network`, `lab`, `gpu`, `dev-gui` — so an install can take part of it:
 
 ```bash
-just install config/your-machine.json core,dev,kubernetes
+just install config/your-machine.json desktop,dev-gui,lab
 ```
+
+Command-line tools, runtimes, the shell, dotfiles, kubectl plugins and Docker are
+installed by [setup-dev-linux-wsl](https://github.com/istvano/setup-dev-linux-wsl)
+(`--target linux`), not here. [docs/MOVED.md](docs/MOVED.md) says where each item
+this repository used to install went.
 
 ## How the manifest was decided
 

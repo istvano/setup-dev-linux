@@ -35,5 +35,5 @@ fails when the matrix no longer matches the catalogue.
 
 | Document | What it is |
 |---|---|
-| [TOOL-SELECTION.md](TOOL-SELECTION.md) | Why Ansible, chezmoi, SDKMAN and NVM own what they own |
+| [TOOL-SELECTION.md](TOOL-SELECTION.md) | Why Ansible, chezmoi, SDKMAN and NVM were chosen (history: the command line moved to setup-dev-linux-wsl, see [MOVED.md](MOVED.md)) |
 | [../specs/README.md](../specs/README.md) | Feature contracts and acceptance cases |

@@ -1,11 +1,11 @@
 # Implemented operator commands
 
 Current scope: configuration/preview, standard-layout storage preflight, isolated
-controller, Ansible foundation, nine approved APT packages, immutable user tools,
-chezmoi shell/Git files, NVM/Node, pnpm, Go, Rust, user uv/Python, OpenCode,
-Codex, Cline CLI, SDKMAN, four selected JDKs, Maven, Gradle, Kotlin and Mandrel. Remaining
-selected agent CLIs, application roles and full
-workstation readiness are unfinished. Feature contracts and dependency order are in [specs](../specs/README.md).
+controller, Ansible foundation and the host manifest (repositories, packages, snaps,
+pinned desktop binaries, VS Code extensions, GNOME settings). Command-line tools,
+runtimes, the shell and Docker are installed by setup-dev-linux-wsl
+([MOVED.md](MOVED.md)). Remaining application roles and full workstation readiness
+are unfinished. Feature contracts and dependency order are in [specs](../specs/README.md).
 
 | Command | Current behavior |
 |---|---|
@@ -16,11 +16,7 @@ workstation readiness are unfinished. Feature contracts and dependency order are
 | `./script/test` | Strict static and behavioral suite in the existing Python environment |
 | `./script/test-vm` | Copy reviewed repository sources to the dedicated guest and test foundation behavior |
 | `./script/test-vm --controller` | Additionally acquire the isolated controller, apply foundation twice and run pinned QA/lint in the guest |
-| `./script/test-vm --controller --packages` | Also test the six core CLI package workflows, repeat apply, missing-package drift and explicit recovery |
-| `./script/test-vm --controller --packages --user-environment` | Also test shell/Git files, private backups, Node/pnpm, Go, Rust, user Python/uv, OpenCode, Codex, Cline CLI and SDKMAN/JVM synthetic workflows, selection and drift |
-| `./script/test-vm --java-review` | Isolated four-JDK source/SDKMAN compile-run experiment; production role acceptance uses `--user-environment` |
-| `./script/test-vm --sdkman-review` | Isolated source-pair experiment; does not install the production SDKMAN/JVM role |
-| `./script/test-vm --controller --user-environment --reboot` | Verify a real guest reboot and repeat all currently implemented runtime/user acceptance; other application roles remain unfinished |
+| `./script/test-vm --controller --reboot` | Verify a real guest reboot and repeat the foundation acceptance |
 
 `install` currently **cannot report full success for the selected workstation**.
 Controller success followed by exit 1 identifies selected source approvals still
@@ -107,26 +103,15 @@ Then apply what can be applied:
 make update/apply         # or: just update apply
 ```
 
-This re-pins the third-party release binaries, re-records the repository signing
-keys, refreshes the npm-published agent CLIs, and then runs the catalogue check,
-the manifest check and the tests. A bad pin fails there rather than on a machine.
+This re-pins the third-party release binaries (zed, obsidian), re-records the
+repository signing keys, and then runs the catalogue check, the manifest check and
+the tests. A bad pin fails there rather than on a machine.
 
 ### What `update/apply` does not touch
 
-Most locks are hand-curated: their payloads carry a digest for every file in the
-artifact, so re-pinning means re-reviewing the payload, not substituting a
-version string. `update/report` names them, and they stay where they are:
-
-`node` · `chezmoi` · `pnpm` · `nvm` · `oh-my-zsh` · `uv` · `python` ·
-`opencode` · `codex` · `cline` · `mandrel` · the JDKs · the SDKMAN candidates
-
-Refreshing one of those is a deliberate piece of work: fetch the new artifact,
-regenerate its file manifest, record the licence, and run the guest cycle.
-
-Three sources have no feed at all and are listed so the gap stays visible: the
-Microsoft JDK builds (the `aka.ms` redirect publishes no version index) and the
-controller's own toolchain in `locks/bootstrap.json`, which is changed
-deliberately rather than on a sweep.
+The controller's own toolchain in `locks/bootstrap.json` has no feed and is
+listed so the gap stays visible: it is changed deliberately rather than on a sweep.
+Command-line tools and runtimes are setup-dev-linux-wsl's to refresh.
 
 VS Code extension versions are not pinned; they install at whatever the
 Marketplace offers.

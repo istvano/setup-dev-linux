@@ -8,11 +8,16 @@ machine. `manifest/` is the single source of truth for what gets installed.
 
 ## Current state
 
+This repository sets up the Linux host: the OS layer, drivers, desktop
+applications, GNOME settings, snaps, VS Code and its extensions, zed and obsidian.
+The command line (CLI tools, runtimes, shell, dotfiles, chezmoi, Docker, kubectl
+plugins) belongs to setup-dev-linux-wsl; docs/MOVED.md records where each item went.
+Do not reintroduce command-line installers here; `tests/test_host_only.py` refuses them.
+
 Implemented and exercised in a disposable Ubuntu 26.04 guest: the bootstrap
 plan/preflight/install/verify contract, the locked Ansible controller, third-party
-repository configuration, manifest package and snap installation, pinned
-release-binary installation with checksum verification, NVM/Node, SDKMAN/JVM,
-user uv/Python, OpenCode/Codex/Cline CLIs and chezmoi shell and Git files.
+repository configuration, manifest package and snap installation and pinned
+release-binary installation with checksum verification.
 
 Unfinished work is recorded in TASKS.md and nowhere else. Do not describe
 unfinished work as done, and never equate static or fixture success with a
@@ -33,20 +38,16 @@ Decided 2026-09-16, in review with the operator:
   records each decision; `docs/INVENTORY-REVIEW.md` renders it.
 - **Source review applies to third-party sources only.** Ubuntu archive packages
   install without a per-item review record.
-- **Host Go and Rust toolchains are omitted.** That work runs in containers.
-  The roles and locks remain, dormant. Do not reintroduce them into a profile.
-- **SDKMAN owns every JVM installation**, including Gradle and Kotlin. No JVM
-  tooling comes from APT.
-- **starship replaces the oh-my-zsh agnoster theme.**
-- SDKMAN and NVM remain selected; do not reintroduce mise. Rootful Docker-group
-  membership for the selected user is authorised. No target disk encryption.
+- **The command line moved to setup-dev-linux-wsl** (2026-11-26): runtimes,
+  shell, dotfiles, Docker and its group, the NVIDIA container toolkit. This
+  repository no longer runs chezmoi. No target disk encryption.
 
 ## Implementation boundaries
 
-- Ansible owns system changes and sequencing; chezmoi owns declared user files.
+- Ansible owns system changes, sequencing and the desktop files the host owns.
   No competing file owners, package-install hooks or recursive bootstrap calls.
 - Distribution Python for the initial loader/guard and managed-host APT modules.
-  Keep the controller and user runtime environments separate.
+  Keep the controller environment isolated from the operator's tools.
 - Verify storage before APT prerequisites, environments, logs or managed-home
   writes. Post-install apply never partitions, formats or moves production data.
 - Run user tools as the explicit target user, never by changing HOME under sudo.
@@ -84,8 +85,8 @@ When the manifest changes, re-run `script/check-manifest`: it is what stops a
 reviewed selection from silently failing to reach installation.
 
 Add behavioural checks for changed guarantees. Fixture-only tests do not
-observe real filesystem or permission behaviour — the sealed-payload rename bug
-in `python_user.py` passed every fixture test and failed on a live machine.
+observe real filesystem or permission behaviour — a sealed-payload rename bug in
+the former user-Python role passed every fixture test and failed on a live machine.
 
 State which checks ran, what remains unverified, and any unresolved source or
 workload prerequisites.
