@@ -251,22 +251,42 @@ def main(argv=None):
             # by its own pinning and signing rules, checked by script/check-manifest.
             # The catalogue gate still applies to everything it does not deliver.
             from .manifest import covers, delivered, load as load_manifest
+            from .plugins import capability_ids as extension_ids
             try:
                 routes = delivered(load_manifest())
+                extensions = extension_ids()
             except (OSError, ValueError, KeyError):
-                routes = {}
+                routes, extensions = {}, set()
+
+            def checked(i):
+                # Delivered by the manifest, or a declared VS Code extension the
+                # plugins check above verifies one by one.
+                return covers(routes, i) or i in extensions
+
             selected = scoped(context['selected'])
             blocked = [i for i in selected
                        if context['entries'][i]['delivery']['status'] == 'unverified'
-                       and not covers(routes, i)]
+                       and not checked(i)]
             # Nothing attempts to install these: they are selected but no role
             # delivers them yet. "deferred" says that honestly and still keeps the
             # overall outcome at incomplete, which is not a pass.
             checks.extend({'id': i, 'status': 'deferred', 'reason': 'delivery-not-implemented'}
                           for i in blocked)
-            missing = [i for i in selected if i not in context.get('approved', {}) and i not in blocked and not covers(routes, i)]
-            checks.extend({'id': i, 'status': 'deferred', 'reason': 'capability-role-verification-not-yet-implemented'} for i in missing)
-            code = 1 if any(c['status'] == 'failed' for c in package_checks) else (3 if blocked or missing or any(c['status'] == 'deferred' for c in package_checks) or not context['selected'] else 0)
+            # Behaviours with no installable artifact (browser isolation, backup
+            # workflow, identity restoration...). Nothing is missing from the
+            # machine, there is only no dedicated check yet: a notice, which
+            # does not hold the outcome at incomplete (D035).
+            # Anything installable that nothing delivers stays deferred.
+            missing = [i for i in selected if i not in context.get('approved', {})
+                       and i not in blocked and not checked(i)]
+            roles = [i for i in missing
+                     if context['entries'][i]['delivery']['status'] == 'not-applicable']
+            undelivered = [i for i in missing if i not in roles]
+            checks.extend({'id': i, 'status': 'notice', 'reason': 'capability-role-verification-not-yet-implemented'}
+                          for i in roles)
+            checks.extend({'id': i, 'status': 'deferred', 'reason': 'capability-role-verification-not-yet-implemented'}
+                          for i in undelivered)
+            code = 1 if any(c['status'] == 'failed' for c in package_checks) else (3 if blocked or undelivered or any(c['status'] == 'deferred' for c in package_checks) or not context['selected'] else 0)
         # The last stage, once the host stages succeeded. Host verification
         # findings do not hold it back: they are reported either way, and the
         # command line does not depend on them. A failed handoff fails the run

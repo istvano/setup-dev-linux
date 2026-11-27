@@ -28,6 +28,11 @@ ALIASES = {
     'networkmanager-openvpn': 'network-manager-openvpn-gnome',
     'gnome-extension-manager': 'gnome-shell-extension-manager',
     'gnome-text-editor': 'gedit',
+    # Ubuntu Desktop defaults whose catalogue name is not the package name (D035).
+    'libreoffice': 'libreoffice-writer',
+    'gnome-disks': 'gnome-disk-utility',
+    'transmission': 'transmission-gtk',
+    'scanner-utilities': 'simple-scan',
 }
 
 FILES = ('packages', 'repositories', 'snaps', 'binaries')

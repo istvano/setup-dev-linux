@@ -106,6 +106,58 @@
       {
         "name": "fonts-jetbrains-mono",
         "source": "archive"
+      },
+      {
+        "name": "libreoffice-writer",
+        "source": "archive"
+      },
+      {
+        "name": "libreoffice-calc",
+        "source": "archive"
+      },
+      {
+        "name": "libreoffice-impress",
+        "source": "archive"
+      },
+      {
+        "name": "rhythmbox",
+        "source": "archive"
+      },
+      {
+        "name": "shotwell",
+        "source": "archive"
+      },
+      {
+        "name": "showtime",
+        "source": "archive"
+      },
+      {
+        "name": "gnome-disk-utility",
+        "source": "archive"
+      },
+      {
+        "name": "deja-dup",
+        "source": "archive"
+      },
+      {
+        "name": "baobab",
+        "source": "archive"
+      },
+      {
+        "name": "resources",
+        "source": "archive"
+      },
+      {
+        "name": "transmission-gtk",
+        "source": "archive"
+      },
+      {
+        "name": "simple-scan",
+        "source": "archive"
+      },
+      {
+        "name": "sane-utils",
+        "source": "archive"
       }
     ],
     "media": [

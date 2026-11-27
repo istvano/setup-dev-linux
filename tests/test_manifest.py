@@ -36,6 +36,14 @@ class RouteTest(unittest.TestCase):
         self.assertFalse(covers(self.routes, 'kubectl'), 'kubectl belongs to setup-dev-linux-wsl')
         self.assertFalse(covers(self.routes, 'docker-ce'), 'Docker belongs to setup-dev-linux-wsl')
 
+    def test_ubuntu_desktop_defaults_are_delivered(self):
+        """D035: the default apps are declared, so verify checks them."""
+        for capability in ('libreoffice', 'rhythmbox', 'shotwell', 'showtime', 'gnome-disks',
+                           'deja-dup', 'baobab', 'resources', 'transmission',
+                           'scanner-utilities'):
+            self.assertTrue(covers(self.routes, capability), capability)
+            self.assertEqual(self.routes[ALIASES.get(capability, capability)], 'apt:archive')
+
     def test_every_alias_target_is_actually_delivered(self):
         for source, target in ALIASES.items():
             self.assertIn(target, self.routes,

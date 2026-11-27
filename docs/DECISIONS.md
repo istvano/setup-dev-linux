@@ -648,3 +648,38 @@ no configuration on Linux at all.
 
 Neither terminal is told which shell to run. They start the login shell from `$SHELL`,
 which GNOME sets at login, so after `chsh` the operator logs out and back in.
+
+## D035 — a fully verified machine reports passed
+
+Decided 2026-11-27, at the operator's request. On BLUEBOX every check passed and
+`apply` still ended `incomplete`, because 42 selected catalogue capabilities were
+reported `deferred`. None of them was a gap in the machine; each was a gap in how the
+report classified it:
+
+- **17 VS Code extensions** (`extension-*`). `manifest/plugins.json` installs them and
+  `plugins.verify` checks each one, but the report only treated manifest packages,
+  snaps and binaries as delivered. `plugins.capability_ids` now names them, and a
+  declared extension counts as checked. Optional catalogue extensions are not
+  declared, so selecting one still reports `deferred`: nothing installs it.
+- **10 Ubuntu Desktop default apps** (LibreOffice, Rhythmbox, Shotwell, Showtime,
+  Disks, Déjà Dup, Disk Usage Analyser, Resources, Transmission, Document Scanner).
+  They are now declared archive packages in the `desktop` group (with curation
+  records in `baseline`), so verify checks they are installed from the Ubuntu archive.
+  Catalogue names that differ from the package (`libreoffice`, `gnome-disks`,
+  `transmission`, `scanner-utilities`) are aliases in `manifest.py`. On a standard
+  Ubuntu Desktop install they are already present and apply changes nothing; on a
+  minimal install apply now installs them.
+- **7 repository-tooling entries** with boundary `controller` or `test-vm`
+  (ansible-core, ansible-lint, pytest, controller-python, cloud-init,
+  plan-verify-update, vm-testing). They describe what this repository runs on and is
+  tested with, not the workstation; the `controller-foundation` check covers the
+  controller. `profiles.in_scope` excludes them from every selection.
+- **Behaviour roles with nothing to install** (delivery status `not-applicable`:
+  host-security, privacy-optouts, gnome-settings, editor-settings, browser-isolation,
+  backup-workflow, identity-restoration). They are reported as `notice`, which does
+  not hold the outcome at `incomplete`. Several are exercised by other checks (the
+  firewall, the desktop keys); the notice records that no check is dedicated to them.
+
+What still gives `incomplete` is unchanged in kind: a selected capability that is
+installable but delivered by nothing, a `deferred` check (such as the UFW status
+without `sudo -n`), or an empty selection. `workstation_ready` stays false.
