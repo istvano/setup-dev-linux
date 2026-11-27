@@ -36,8 +36,10 @@ cd ~/workspace/setup-dev-linux
 anything (`[setup-dev-linux] sudo password for <you>:`), and uses it for every
 privileged step of the host stages; with passwordless sudo it asks nothing. It needs a
 terminal for that: run without one, it stops before any change with
-`sudo: failed — sudo-password-needs-terminal`. setup-dev-linux-wsl, run at the end,
-asks for sudo itself when it needs it.
+`sudo: failed — sudo-password-needs-terminal`. The host stages print nothing to the
+terminal (one line names the log to `tail -f`). When they finish, `apply` refreshes
+sudo's cached credential for your terminal, so setup-dev-linux-wsl, run at the end,
+normally does not ask again; if it does, it asks for sudo itself.
 
 Read the `hint:` line `apply` prints before choosing the command-line profiles
 (below). `just` and `make` offer the same commands; neither is needed on a new

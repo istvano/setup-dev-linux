@@ -77,6 +77,29 @@ def acquire(stdin=None, ask=None, run=None, err=None):
     raise BecomeError('sudo-authentication-failed')
 
 
+def refresh_ticket(password, run=None):
+    """Leave sudo's cached credential for this terminal fresh, for the handoff.
+
+    The handoff runs setup-dev-linux-wsl's bootstrap attached to this terminal,
+    and its sudo calls would ask for the password again, after host stages that
+    can run for an hour with nothing on the screen; an operator who stepped
+    away comes back to "sudo: timed out". sudo -v with the password on standard
+    input (-S, no prompt) refreshes the credential sudo keys to this terminal
+    and session, which the bootstrap shares, so its sudo calls do not ask. It
+    expires on sudo's own timeout like any other. Failure only means the
+    bootstrap asks itself, so it is not an error. Nothing with passwordless sudo.
+    """
+    if password is None:
+        return False
+    run = run or subprocess.run
+    try:
+        result = run([SUDO, '-S', '-v', '-p', ''], input=password + '\n', text=True,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
 @contextlib.contextmanager
 def password_pipe(password):
     """(arguments, subprocess options) that hand ansible-playbook the password.

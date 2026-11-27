@@ -135,6 +135,28 @@ class PasswordPipe(unittest.TestCase):
             os.fstat(options['stdin'])
 
 
+class RefreshTicket(unittest.TestCase):
+    def test_none_runs_nothing(self):
+        sudo = FakeSudo()
+        self.assertFalse(become.refresh_ticket(None, run=sudo))
+        self.assertEqual(sudo.calls, [])
+
+    def test_the_password_goes_to_sudo_v_on_standard_input_only(self):
+        sudo = FakeSudo()
+        self.assertTrue(become.refresh_ticket(PASSWORD, run=sudo))
+        [(argv, kwargs)] = sudo.calls
+        self.assertEqual(argv, [become.SUDO, '-S', '-v', '-p', ''])
+        self.assertEqual(kwargs['input'], PASSWORD + '\n')
+        self.assertNotIn(PASSWORD, ' '.join(argv))
+
+    def test_a_refused_or_failing_refresh_is_not_an_error(self):
+        self.assertFalse(become.refresh_ticket('wrong', run=FakeSudo()))
+
+        def broken(argv, **kwargs):
+            raise subprocess.TimeoutExpired(argv, 60)
+        self.assertFalse(become.refresh_ticket(PASSWORD, run=broken))
+
+
 class ApplyFoundation(unittest.TestCase):
     """apply_foundation with the controller downloads stubbed out."""
 
@@ -150,7 +172,7 @@ class ApplyFoundation(unittest.TestCase):
 
     def fake_run(self, argv, **kwargs):
         record = {'argv': [str(a) for a in argv], 'env': dict(kwargs.get('env') or {}),
-                  'stdin': kwargs.get('stdin'), 'secret': None}
+                  'stdin': kwargs.get('stdin'), 'input': kwargs.get('input'), 'secret': None}
         if isinstance(record['stdin'], int):
             record['secret'] = drain(record['stdin'])  # what ansible-playbook does
         self.calls.append(record)
@@ -175,7 +197,7 @@ class ApplyFoundation(unittest.TestCase):
              patch('sys.stdin', Terminal(tty)), \
              patch('getpass.getpass', side_effect=lambda prompt: answers.pop(0)), \
              patch('subprocess.run', side_effect=self.fake_run), \
-             contextlib.redirect_stderr(io.StringIO()):
+             contextlib.redirect_stderr(io.StringIO()) as self.stderr:
             try:
                 return apply_foundation(config, root=self.root, selection=selection)
             finally:
@@ -213,6 +235,25 @@ class ApplyFoundation(unittest.TestCase):
             if path.is_file():
                 self.assertNotIn(PASSWORD.encode(), path.read_bytes(), path.name)
         self.assertNotIn(PASSWORD, json.dumps(os.environ.copy()))
+
+    def test_the_handoff_inherits_a_fresh_sudo_credential_after_the_last_stage(self):
+        self.apply([PASSWORD])
+        argvs = [c['argv'] for c in self.calls]
+        refresh = argvs.index([become.SUDO, '-S', '-v', '-p', ''])
+        last_stage = max(i for i, a in enumerate(argvs) if a[0].endswith('ansible-playbook'))
+        self.assertGreater(refresh, last_stage)
+        self.assertEqual(self.calls[refresh]['input'], PASSWORD + '\n')
+
+    def test_passwordless_sudo_refreshes_nothing(self):
+        self.apply([], passwordless=True)
+        self.assertFalse(any(c['argv'][0] == become.SUDO for c in self.calls))
+
+    def test_the_silent_host_stages_are_announced_with_the_log_path(self):
+        self.apply([PASSWORD])
+        notice = self.stderr.getvalue()
+        self.assertIn('tail -f', notice)
+        self.assertIn(str(self.root / '.workstation' / 'foundation.log'), notice)
+        self.assertNotIn(PASSWORD, notice)
 
     def test_without_a_terminal_it_fails_before_any_write_or_stage(self):
         with self.assertRaisesRegex(BecomeError, 'sudo-password-needs-terminal'):

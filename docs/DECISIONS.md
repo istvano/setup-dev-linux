@@ -580,6 +580,12 @@ Password:`, which 2.21.4 does not recognise, so the task times out. 2.21.6 adds
 sudo-rs prompt matching (absent from 2.21.5); `locks/bootstrap.json` binds the new
 `pyproject.toml` and `uv.lock`, which was regenerated with the pinned uv 0.12.13.
 
-The handoff is unchanged: setup-dev-linux-wsl runs attached to the terminal and asks
-for sudo itself. The VM guest keeps passwordless sudo, so the password path is a
+The handoff runs setup-dev-linux-wsl attached to the terminal, and its sudo calls ask
+for the password themselves. On the first real machine that prompt came after an hour
+of host stages with nothing on the screen, and timed out (`sudo: timed out`) before
+anyone saw it. So once the host stages pass, `apply` runs `sudo -S -v -p ''` with the
+password on standard input: that refreshes the credential sudo keeps for this
+terminal and session, which the bootstrap shares, so it normally asks nothing. It
+expires on sudo's own timeout, and a refresh that fails only means the bootstrap asks.
+`apply` also prints one line before the host stages, naming the log to `tail -f`. The VM guest keeps passwordless sudo, so the password path is a
 manual check in [TESTING.md](TESTING.md).
