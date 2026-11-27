@@ -42,6 +42,27 @@ def archive_suites():
     return [codename, f'{codename}-updates', f'{codename}-security', f'{codename}-backports']
 
 
+# Ubuntu Pro's Expanded Security Maintenance serves Canonical's own security and
+# update builds of archive packages, from esm.ubuntu.com, under these Release origins
+# (the same origin:suite pairs Ubuntu's 50unattended-upgrades allows). With Pro
+# attached, unattended-upgrades installs them, and they outrank the archive's
+# version: on the first Ubuntu 26.04 host it moved ffmpeg past 7:8.0.1-3ubuntu2,
+# so the release-pocket candidate became a refused downgrade.
+ESM_SITE = 'esm.ubuntu.com'
+ESM_POCKETS = (('UbuntuESMApps', 'apps-security'), ('UbuntuESMApps', 'apps-updates'),
+               ('UbuntuESM', 'infra-security'), ('UbuntuESM', 'infra-updates'))
+
+
+def esm_origins(codename=None):
+    """(origin, suite, site) triples accepted for archive packages from ESM."""
+    if codename is None:
+        suites = archive_suites()
+        codename = suites[0] if suites else None
+    if not codename:
+        return []
+    return [[origin, f'{codename}-{pocket}', ESM_SITE] for origin, pocket in ESM_POCKETS]
+
+
 def repository_sites(root=ROOT):
     """Host each declared repository serves packages from."""
     manifest, _ = load_json(Path(root) / 'manifest/repositories.json')
@@ -58,13 +79,15 @@ def expectations(root=ROOT, groups=None):
     manifest, _ = load_json(Path(root) / 'manifest/packages.json')
     sites = repository_sites(root)
     suites = archive_suites()
+    esm = esm_origins(suites[0] if suites else '')
     selected = groups if groups is not None else list(manifest['groups'])
     records = {}
     for group in selected:
         for entry in manifest['groups'].get(group, []):
             source = entry['source']
             if source == ARCHIVE:
-                record = {'kind': ARCHIVE, 'origin': ARCHIVE_ORIGIN, 'suites': suites, 'site': None}
+                record = {'kind': ARCHIVE, 'origin': ARCHIVE_ORIGIN, 'suites': suites,
+                          'esm': esm, 'site': None}
             else:
                 require(source in sites, f"{entry['name']}: undeclared repository {source}")
                 record = {'kind': 'repository', 'origin': None, 'suites': [], 'site': sites[source]}
@@ -87,8 +110,13 @@ def allowed_version(version, expectation):
     if not all(origin.get('trusted') for origin in origins):
         return False
     if expectation['kind'] == ARCHIVE:
-        return all(origin.get('origin') == expectation['origin']
-                   and origin.get('suite') in expectation['suites'] for origin in origins)
+        # The archive's own pockets, or Ubuntu Pro ESM, which must also be served
+        # from its own host: an origin label alone is whatever a Release file says.
+        esm = expectation.get('esm', [])
+        return all((origin.get('origin') == expectation['origin']
+                    and origin.get('suite') in expectation['suites'])
+                   or [origin.get('origin'), origin.get('suite'), origin.get('site')] in esm
+                   for origin in origins)
     return all(origin.get('site') == expectation['site'] for origin in origins)
 
 
