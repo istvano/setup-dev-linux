@@ -18,6 +18,11 @@ from .config import ROOT, InputError, load_json, require, validate_schema
 CATALOGUE = 'profiles/host.json'
 SCHEMA = 'profiles/host.schema.json'
 HINT = './bootstrap apply --config <file> --profiles <list>'
+# Catalogue boundaries that describe this repository's own tooling rather than
+# the workstation: the controller apply runs on (its pinned Python, ansible-core,
+# and the QA tools CI uses) and the disposable test VM. The controller-foundation
+# check covers the first; neither is something a workstation lacks (D035).
+REPOSITORY_BOUNDARIES = ('controller', 'test-vm')
 
 
 def load(root=ROOT):
@@ -125,9 +130,12 @@ def in_scope(capability_id, entry, selection, catalogue, groups=None):
     Anything else belongs to the host profile the catalogue mapping names, or
     to every selection when it names none. A capability owned by an unselected
     profile is not this machine's gap: a headless machine has not failed to
-    receive a VS Code extension.
+    receive a VS Code extension. Repository tooling (REPOSITORY_BOUNDARIES)
+    belongs to no selection.
     """
     from .manifest import group_of
+    if entry.get('boundary') in REPOSITORY_BOUNDARIES:
+        return False
     group = group_of(groups or {}, capability_id)
     if group is not None:
         return group in selection['groups']

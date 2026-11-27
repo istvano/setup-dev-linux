@@ -61,6 +61,15 @@ def install_extensions(home, root=ROOT):
     return changed
 
 
+def capability_ids(root=ROOT):
+    """The catalogue ids (`extension-<id>`) of the declared extensions.
+
+    verify() checks each of these, so the report does not also list them as
+    capabilities nothing delivers (D035).
+    """
+    return {'extension-' + e.lower() for e in manifest(root)['vscode_extensions']}
+
+
 def selected(groups):
     return groups is None or OWNER in groups
 

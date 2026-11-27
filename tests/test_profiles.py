@@ -211,6 +211,24 @@ class ResolveTest(unittest.TestCase):
                          ['ppa-quickemu'])
 
 
+class ScopeTest(unittest.TestCase):
+    """D035: the report covers the workstation, not this repository's tooling."""
+
+    def setUp(self):
+        self.catalogue = profiles.load()
+        self.selection = profiles.resolve(list(self.catalogue['default']), self.catalogue)
+
+    def test_controller_and_test_vm_tooling_belong_to_no_selection(self):
+        for boundary in ('controller', 'test-vm'):
+            entry = {'boundary': boundary, 'profile': 'foundation'}
+            self.assertFalse(profiles.in_scope('pytest', entry, self.selection, self.catalogue),
+                             boundary)
+
+    def test_a_workstation_role_is_still_in_scope(self):
+        entry = {'boundary': 'host', 'profile': 'operations'}
+        self.assertTrue(profiles.in_scope('host-security', entry, self.selection, self.catalogue))
+
+
 class ProfilesLineTest(unittest.TestCase):
     def setUp(self):
         self.catalogue = profiles.load()

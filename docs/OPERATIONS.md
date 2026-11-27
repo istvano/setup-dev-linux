@@ -89,10 +89,11 @@ cause and exits 1. Re-running is safe. In
 JSON mode its programs' output goes to standard error so the report stays the only standard
 output. `apply` does not run `cli:verify` itself: that bootstrap ends with its own verify.
 
-`apply` currently **cannot report full success for the selected workstation**.
-Selected capabilities that no role delivers or verifies yet are reported as `deferred`
-and give exit 3 (incomplete) even when the host stages succeeded; a failed package,
-delivery or verification check gives exit 1. A private selection
+A selected capability that is installable but that no role delivers yet is reported as
+`deferred` and gives exit 3 (incomplete) even when the host stages succeeded; so does a
+`deferred` check. Behaviours with nothing to install and no dedicated check yet are a
+`notice`, which does not affect the outcome (D035). A failed package, delivery or
+verification check gives exit 1. A private selection
 containing only implemented capabilities with their required private settings can pass its operation, while `workstation_ready` remains
 false because whole-workstation acceptance is unfinished. Invalid inputs use exit 2. Never run apply
 on the physical workstation merely to see what happens; use pure plan/preflight.

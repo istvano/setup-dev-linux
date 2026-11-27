@@ -120,5 +120,60 @@ class ControllerIntegrity(unittest.TestCase):
             apply.assert_not_called()
 
 
+class ReportOutcomeTest(unittest.TestCase):
+    """D035: verify passes once everything installable is verified."""
+
+    @staticmethod
+    def entry(status, boundary='host'):
+        return {'owner': 'ansible', 'boundary': boundary, 'profile': None,
+                'delivery': {'status': status, 'channel': None}}
+
+    def run_verify(self, entries):
+        import getpass
+        context = {'config': {'example_only': False, 'target': {'user': getpass.getuser()}},
+                   'provenance': {}, 'selected': list(entries), 'entries': entries}
+        out = io.StringIO()
+        with patch('workstation.cli.load_context', return_value=context), \
+             patch('workstation.storage.preflight', return_value=([], 0)), \
+             patch('workstation.host.check_prerequisites', return_value=([], 0)), \
+             patch('workstation.profiles.recorded', return_value=None), \
+             patch('workstation.system.verify', return_value=[]), \
+             patch('workstation.packages.verify_packages', return_value=[]), \
+             patch('workstation.desktop.verify', return_value=[]), \
+             patch('workstation.desktop.verify_ghostty', return_value=[]), \
+             patch('workstation.delivery.verify', return_value=[]), \
+             patch('workstation.plugins.verify', return_value=[]), \
+             patch('workstation.firewall.verify', return_value=[]), \
+             patch('workstation.firewall.recorded_allow_ssh', return_value=None), \
+             patch('workstation.handoff.verify_cli', return_value=[]), \
+             contextlib.redirect_stdout(out):
+            code = main(['verify', '--config', 'fixture', '--format', 'json', '--no-handoff'])
+        return code, {c['id']: c for c in json.loads(out.getvalue())['checks']}
+
+    def test_roles_extensions_and_repository_tooling_do_not_hold_it_at_incomplete(self):
+        code, checks = self.run_verify({
+            'host-security': self.entry('not-applicable'),
+            'extension-golang.go': self.entry('unverified'),
+            'libreoffice': self.entry('unverified'),
+            'pytest': self.entry('unverified', boundary='controller'),
+            'vm-testing': self.entry('not-applicable', boundary='test-vm'),
+        })
+        self.assertEqual(code, 0, checks)
+        self.assertEqual(checks['host-security']['status'], 'notice')
+        for verified_elsewhere in ('extension-golang.go', 'libreoffice', 'pytest', 'vm-testing'):
+            self.assertNotIn(verified_elsewhere, checks)
+
+    def test_something_installable_nothing_delivers_is_still_incomplete(self):
+        code, checks = self.run_verify({'emacs': self.entry('unverified')})
+        self.assertEqual(code, 3)
+        self.assertEqual(checks['emacs'], {'id': 'emacs', 'status': 'deferred',
+                                           'reason': 'delivery-not-implemented'})
+
+    def test_an_undelivered_reviewed_package_is_still_incomplete(self):
+        code, checks = self.run_verify({'emacs': self.entry('verified')})
+        self.assertEqual(code, 3)
+        self.assertEqual(checks['emacs']['status'], 'deferred')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -351,6 +351,110 @@
       "decided": false
     },
     {
+      "id": "libreoffice-writer",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: LibreOffice word processor (catalogue: libreoffice). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "libreoffice-calc",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: LibreOffice spreadsheet (catalogue: libreoffice). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "libreoffice-impress",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: LibreOffice presentations (catalogue: libreoffice). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "rhythmbox",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Music player. Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "shotwell",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Photo manager. Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "showtime",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Video player (replaced Totem in Ubuntu 25.10). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "gnome-disk-utility",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Disks (catalogue: gnome-disks). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "deja-dup",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Backups (Deja Dup). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "baobab",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Disk usage analyser. Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "resources",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: System monitor (replaced GNOME System Monitor in Ubuntu 25.10). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "transmission-gtk",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: BitTorrent client (catalogue: transmission). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "simple-scan",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Document Scanner (catalogue: scanner-utilities). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
+      "id": "sane-utils",
+      "kind": "apt",
+      "group": "baseline",
+      "proposal": "keep",
+      "reason": "Ubuntu Desktop default app: Scanner backends and scanimage (catalogue: scanner-utilities). Declared so verify checks it rather than deferring it (D035).",
+      "decided": true
+    },
+    {
       "id": "code",
       "kind": "apt",
       "group": "dev",

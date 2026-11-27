@@ -148,8 +148,8 @@ Verification reads the installed system and reports drift. It never repairs. It
 checks the recorded profiles unless you pass `--profiles`, and ends with
 setup-dev-linux-wsl's own `script/verify --target linux` (`cli:verify`;
 `--no-handoff` skips it). The UFW check needs `sudo -n`: run `sudo -v` first, or it
-is reported as deferred. An `incomplete` result names what has no verification yet;
-it is not a pass.
+is reported as deferred. An `incomplete` result names what has no delivery or
+verification yet; it is not a pass. A `notice` is a record, not a gap (D035).
 
 ## 7. Finish by hand
 

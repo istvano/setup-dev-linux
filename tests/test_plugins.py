@@ -30,6 +30,17 @@ class ManifestTest(unittest.TestCase):
         self.assertIn('saoudrizwan.claude-dev', declared['vscode_extensions'])
         self.assertNotIn('krew_plugins', declared)
 
+    def test_every_kept_catalogue_extension_is_a_declared_one(self):
+        """D035: the catalogue's kept extension-* ids map onto what verify() checks.
+
+        Optional ones stay deferred when selected: nothing installs them.
+        """
+        catalogue = json.loads((ROOT / 'catalogue/capabilities.json').read_text())
+        ids = {c['id'] for c in catalogue['capabilities']
+               if c['kind'] == 'extension' and c['decision'] == 'keep'}
+        self.assertTrue(ids)
+        self.assertEqual(ids - plugins.capability_ids(ROOT), set())
+
 
 class ExtensionTest(unittest.TestCase):
     def setUp(self):
