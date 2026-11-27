@@ -285,18 +285,22 @@ class PlaybookFilterTest(unittest.TestCase):
     def test_snaps_are_filtered_by_group(self):
         self.assertIn("selectattr('group', 'in', manifest_groups)", self.read('snaps.yml'))
 
-    def test_a_vendor_that_stepped_aside_registers_its_source(self):
-        # claude-desktop's postinst skips its own source while ours exists; once
-        # ours is removed its configure step must run again, before the refresh.
+    def test_our_source_is_removed_only_when_the_vendor_wrote_its_own(self):
+        # claude-desktop's postinst steps aside while ours exists and Chrome's
+        # registers only once per machine; removing ours unconditionally left
+        # each with no source at all.
         text = (ROOT / 'ansible' / 'tasks' / 'install-vendor-package.yml').read_text()
+        install = text.index('packages"')
+        look = text.index('Look for a source')
         hand_back = text.index('back to the vendor package')
-        reconfigure = text.index("'/usr/sbin/dpkg-reconfigure', '--frontend', 'noninteractive'")
-        confirm = text.index('now has a source of its own')
         refresh = text.index('Refresh metadata after')
-        self.assertLess(hand_back, reconfigure)
-        self.assertLess(reconfigure, confirm)
-        self.assertLess(confirm, refresh)
-        self.assertIn('failed_when: vendor_source_after.rc != 0', text)
+        self.assertLess(install, look)
+        self.assertLess(look, hand_back)
+        self.assertLess(hand_back, refresh)
+        task = text[hand_back:refresh]
+        self.assertIn('when: >-', task)
+        self.assertIn("reject('search', '/workstation-' ~ vendor.id", task)
+        self.assertNotIn('dpkg-reconfigure', text)
 
     def test_preinstalled_snaps_are_switched_to_the_declared_channel(self):
         # Ubuntu seeds firefox and thunderbird on a release branch; `snap install`
