@@ -18,3 +18,19 @@
           - "{{ workstation_root }}/script/apply-desktop-settings"
       register: desktop_apply
       changed_when: (desktop_apply.stdout | from_json).changed
+
+    # Ghostty reads one file and has no settings database, so its Solarized Light
+    # configuration is a file rather than a dconf key. Replaced on each apply; a
+    # different previous file is kept beside it with a timestamp (backup).
+    - name: Create the Ghostty configuration directory
+      ansible.builtin.file:
+        path: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/ghostty"
+        state: directory
+        mode: "0755"
+
+    - name: Place the Ghostty configuration
+      ansible.builtin.copy:
+        src: "{{ workstation_root }}/manifest/files/ghostty/config"
+        dest: "{{ lookup('ansible.builtin.env', 'HOME') }}/.config/ghostty/config"
+        mode: "0644"
+        backup: true

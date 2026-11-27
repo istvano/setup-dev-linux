@@ -181,3 +181,38 @@ class LiveDconfTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TerminalThemeTest(unittest.TestCase):
+    """Solarized Light in every terminal the desktop installs."""
+
+    def test_ptyxis_uses_its_solarized_palette_in_the_light_style(self):
+        settings = load_manifest(ROOT)['settings']
+        app = settings['org/gnome/Ptyxis']
+        self.assertEqual(app['interface-style'], "'light'")
+        uuid = app['default-profile-uuid'].strip("'")
+        self.assertEqual(app['profile-uuids'], f"['{uuid}']")
+        self.assertEqual(settings[f'org/gnome/Ptyxis/Profiles/{uuid}']['palette'], "'solarized'")
+
+    def test_the_ghostty_config_is_solarized_light_without_a_theme_name(self):
+        text = (ROOT / desktop.GHOSTTY_CONFIG).read_text()
+        self.assertIn('background = #fdf6e3', text)
+        self.assertIn('foreground = #657b83', text)
+        self.assertIn('palette = 15=#fdf6e3', text)
+        self.assertNotRegex(text, r'(?m)^theme\s*=')
+        self.assertEqual(sum(1 for line in text.splitlines() if line.startswith('palette = ')), 16)
+
+    def test_ghostty_config_verification(self):
+        with tempfile.TemporaryDirectory() as home:
+            placed = Path(home) / '.config' / 'ghostty' / 'config'
+            with patch.object(desktop.shutil, 'which', return_value=None):
+                self.assertEqual(desktop.verify_ghostty(home, ROOT), [])
+            with patch.object(desktop.shutil, 'which', return_value='/usr/bin/ghostty'):
+                self.assertEqual(desktop.verify_ghostty(home, ROOT)[0]['reason'],
+                                 'ghostty-config-missing')
+                placed.parent.mkdir(parents=True)
+                placed.write_text('theme = something else\n')
+                self.assertEqual(desktop.verify_ghostty(home, ROOT)[0]['reason'],
+                                 'ghostty-config-differs')
+                placed.write_bytes((ROOT / desktop.GHOSTTY_CONFIG).read_bytes())
+                self.assertEqual(desktop.verify_ghostty(home, ROOT)[0]['status'], 'passed')

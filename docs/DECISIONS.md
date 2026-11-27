@@ -626,3 +626,25 @@ is checked too):
 
 These are the origin:suite pairs Ubuntu's own `50unattended-upgrades` allows. Nothing
 changes for third-party packages, and a machine without Pro sees no ESM versions.
+## D034 — Solarized Light in Ptyxis and Ghostty
+
+Decided 2026-11-27, at the operator's request: every terminal the desktop installs uses
+Solarized Light, as on the Mac (setup-dev-mac ADR-057) and in Windows Terminal
+(setup-dev-win ADR-028). GNOME Terminal already had its Solarized Light profile in
+`manifest/desktop.json`, but Ubuntu 26.04's default terminal is Ptyxis, and Ghostty had
+no configuration on Linux at all.
+
+- **Ptyxis** reads dconf, so `manifest/desktop.json` declares it like any other
+  setting: `org/gnome/Ptyxis` `interface-style 'light'`, one profile (fixed id, made
+  the default and the only listed profile) whose `palette` is Ptyxis's bundled
+  `'solarized'`, which has a light variant used in the light style. Applied with
+  `dconf load` and verified key by key with the rest.
+- **Ghostty** reads a file, so `manifest/files/ghostty/config` is copied to
+  `~/.config/ghostty/config` by `ansible/desktop.yml` (a different previous file is
+  kept with a timestamp) and `desktop.verify_ghostty` compares it byte for byte when
+  Ghostty is installed. The colours are written out rather than named with `theme =`:
+  Ghostty refuses to start on a theme it cannot resolve, and whether Ubuntu's package
+  ships the theme files is outside this repository's control.
+
+Neither terminal is told which shell to run. They start the login shell from `$SHELL`,
+which GNOME sets at login, so after `chsh` the operator logs out and back in.

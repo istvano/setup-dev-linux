@@ -109,6 +109,7 @@ class ControllerIntegrity(unittest.TestCase):
              patch('workstation.system.verify', return_value=[]), \
              patch('workstation.packages.verify_packages', return_value=[]), \
              patch('workstation.desktop.verify', return_value=[]), \
+             patch('workstation.desktop.verify_ghostty', return_value=[]), \
              patch('workstation.delivery.verify', return_value=[]), \
              patch('workstation.plugins.verify', return_value=[]), \
              patch('workstation.firewall.verify', return_value=[]), \

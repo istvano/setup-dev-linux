@@ -1,0 +1,36 @@
+# Ghostty configuration, placed by setup-dev-linux (ansible/desktop.yml) as
+# ~/.config/ghostty/config. Edits there are overwritten on the next apply; the
+# previous file is kept beside it with a timestamp.
+#
+# Solarized Light, fixed rather than following the desktop's appearance, matching
+# the Mac (setup-dev-mac ADR-057), Windows Terminal and the GNOME Terminal and
+# Ptyxis profiles in manifest/desktop.json. The colours are written out instead of
+# `theme = iTerm2 Solarized Light`: a theme name Ghostty cannot resolve stops it
+# starting, and whether a distribution package ships the theme files is not
+# something this repository controls.
+background = #fdf6e3
+foreground = #657b83
+cursor-color = #657b83
+selection-background = #eee8d5
+selection-foreground = #586e75
+palette = 0=#073642
+palette = 1=#dc322f
+palette = 2=#859900
+palette = 3=#b58900
+palette = 4=#268bd2
+palette = 5=#d33682
+palette = 6=#2aa198
+palette = 7=#eee8d5
+palette = 8=#002b36
+palette = 9=#cb4b16
+palette = 10=#586e75
+palette = 11=#657b83
+palette = 12=#839496
+palette = 13=#6c71c4
+palette = 14=#93a1a1
+palette = 15=#fdf6e3
+# Solarized's bright slots are base tones and 15 is the background, so bold text
+# promoted to them would vanish. Ghostty's default, stated so nobody flips it.
+bold-is-bright = false
+# A light window frame to match the light terminal.
+window-theme = light
