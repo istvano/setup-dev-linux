@@ -589,3 +589,15 @@ terminal and session, which the bootstrap shares, so it normally asks nothing. I
 expires on sudo's own timeout, and a refresh that fails only means the bootstrap asks.
 `apply` also prints one line before the host stages, naming the log to `tail -f`. The VM guest keeps passwordless sudo, so the password path is a
 manual check in [TESTING.md](TESTING.md).
+
+## D032 — sources name only the native architecture
+
+Decided 2026-11-27. On the first Ubuntu 26.04 host every `apt update` printed
+`Notice: Skipping acquire of configured file 'main/binary-i386/Packages' as repository
+… doesn't support architecture 'i386'` for each third-party source. Ubuntu Desktop
+enables `i386` as a foreign architecture, and none of the declared vendors publish it.
+`ansible/repositories.yml` now reads `dpkg --print-architecture` and every
+`workstation-<id>.sources` it declares carries `Architectures:` with that one value.
+A vendor's own source file is the vendor's: Chrome's already names `amd64`, and one
+that does not keeps its notice. setup-dev-linux-wsl's `script/apt-vendor` does the same
+for the sources it writes (its ADR-016).
