@@ -2,6 +2,10 @@
 
 User-confirmed decisions, 2026-09-12. These supersede conflicting proposals and older hardware/selection notes in the preserved software-review.md. They guide future implementation; no host installation, group modification or disk operation has been performed.
 
+D022–D030 (2026-11-26) make this the Linux host repository. They supersede D002, D003,
+D012, D017 and D020, and the command-line, Docker and disk-transfer parts of D005,
+D006, D008, D011, D013 and D019. The earlier entries are kept as they were written.
+
 ## D001 — Target and automation scope
 
 Initial supported OS: Ubuntu 26.04 LTS amd64 with GNOME. Machine-specific hardware and optional features are configuration inputs; the first target machine is recorded in [its own note](migrations/current.md). Automate applications and settings; data restoration stays operator-run, following [the new-machine runbook](NEW-MACHINE.md).
@@ -131,8 +135,9 @@ Proxy settings come from private local input with no committed endpoint, usernam
 password. Missing settings must produce an actionable failure; never assume a public
 proxy. Define how proxyoff restores prior environment values and test repeated on/off
 cycles without exposing credentials in output. Do not copy shell history or old secret
-function bodies. [User environment](../profiles/user-environment.json) records these
-confirmed preferences for implementation review; it is not a workstation command input.
+function bodies. `profiles/user-environment.json` recorded these confirmed preferences
+for implementation review (removed 2026-11-26 with the command line, which
+setup-dev-linux-wsl now owns; see [MOVED.md](MOVED.md)).
 
 ## D013 — Reviewed current stable versions
 
@@ -302,3 +307,237 @@ Two carry a caveat worth keeping visible:
 `source-review.schema.json` gained `accepted` as a record status; it previously
 allowed only `review-required`, which is why nothing could ever be marked done.
 
+## D022 — The Linux host repository and the two-repository split
+
+Decided with the operator on 2026-11-26
+([design](superpowers/specs/2026-11-26-linux-host-refactor-design.md)). A Linux
+machine is set up by two repositories, the same split as on Windows, where
+setup-dev-win sets up Windows and hands off to setup-dev-linux-wsl inside WSL:
+
+- **setup-dev-linux (this repository)** sets up the host: the Ubuntu 26.04 OS
+  layer, third-party APT sources and their signing keys, the NVIDIA driver,
+  desktop applications (APT, snaps, pinned binaries), GNOME settings, extensions
+  and fonts, VS Code and its extensions, Zed, Obsidian, virtualisation, the VPN
+  client, the firewall, the storage preflight and the VM test harness.
+- **setup-dev-linux-wsl, run with `--target linux`**, sets up the command line:
+  CLI tools, runtimes, the shell, dotfiles, chezmoi, Docker and kubectl plugins.
+  It is the same command-line environment the operator gets inside WSL.
+
+`./bootstrap apply` ends by handing off to it (D029). The repository was refactored
+in place: the Python controller, the locked Ansible environment, the manifests, the
+catalogue checks and the VM harness stay. The outer shape follows setup-dev-win:
+`plan`, `apply` and `verify` (`install` stays as an alias of `apply`), a printed
+`Profiles:` line and the handoff.
+
+## D023 — Fresh installs only; migration and file copy removed
+
+The operator: "remove all the migration and copy features". The `migrate` and
+`migrate-secrets` commands, `manifest/migrate.json`, the rsync copy of D017, its
+secrets pass (D020) and the disk-transfer handoff producer with its configuration
+inputs are removed. `tests/test_no_migration.py` keeps them out of the scripts,
+tests, manifests, recipes and live documents. The specification and machine
+record that described the copy stay as history.
+
+The repository is for a new Ubuntu 26.04 install. A machine set up by the version
+before 2026-11-26 is reinstalled, or cleaned by hand: there is no cleanup stage and
+no upgrade test. Restoring data stays manual (D001).
+
+## D024 — The command line moved to setup-dev-linux-wsl; MOVED.md is the ledger
+
+Removed from this repository: the command-line parts of the `core`, `dev`, `cloud`,
+`kubernetes` and `security` groups, the CLI release binaries, the runtimes (NVM,
+SDKMAN, Go, Rust and user uv; setup-dev-linux-wsl uses mise, and Temurin replaces
+the Microsoft Build of OpenJDK there), the agent CLIs, the shell and its plugins,
+the dotfiles and the krew plugins. This supersedes D003 and D012, and the
+command-line parts of D006, D011, D013 and D019.
+
+Nothing was removed without a destination. [MOVED.md](MOVED.md) has one row per
+removed item: a profile fragment, APT list, mise configuration or chezmoi source on
+setup-dev-linux-wsl's main branch, or a dropped row or decision there with its
+reason. `tests/test_moved.py` fails when an item leaves `manifest/*.json` without
+a row, and `tests/test_host_only.py` refuses command-line installers here.
+
+claude-desktop (here) and Claude Code (there) share one Anthropic key file,
+`/etc/apt/keyrings/anthropic.asc`, byte-identical in both repositories, so APT
+never sees one URI with two `Signed-By` values.
+
+## D025 — Host profiles: desktop and headless
+
+A run selects host profiles from `profiles/host.json`: `desktop`, `media`,
+`productivity`, `ai`, `network`, `lab`, `gpu`, `dev-gui` and `firewall`. Each maps to
+manifest groups; `firewall` maps to its stage (D026). The `base` group installs on
+every selection. The default is `desktop,media,productivity,ai,network,dev-gui,firewall`.
+
+The desktop set is `desktop,media,productivity,ai,network,dev-gui`. A selection with
+none of it is headless: it runs no snap, GNOME setting, VS Code extension or desktop
+playbook, and `verify` demands none of them. `firewall` can be selected on its own;
+on a headless machine it installs the OpenSnitch daemon without its UI.
+
+Every command prints the selection on a `Profiles:` line in setup-dev-win's
+wording, then `Profiles source: explicit`, `recorded` or `default`. `apply` records
+the selection, before anything installs, in per-user state at
+`${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json` (directory 0700,
+file 0600; owner and symlink checks on every read and write), so a re-run without
+`--profiles` keeps it. The record lives outside the clone: re-cloning, `git clean`
+or rebuilding `.workstation/` must not turn a headless machine into a desktop
+install. A record that exists but cannot be read stops the run. The operator's
+configuration file is never rewritten. `--manifest-groups` is the former name of
+`--profiles`.
+
+## D026 — Firewall: UFW and OpenSnitch
+
+The `firewall` profile runs `ansible/firewall.yml`.
+
+- **UFW**: default deny incoming, default allow outgoing, enabled. Incoming SSH (the
+  UFW `OpenSSH` application rule, which covers port 22 only) is allowed only with
+  `--allow-ssh`, never by default, and the rule is added before UFW is enabled. The
+  profile is shipped by `openssh-server`, so an effective allow without
+  `/etc/ufw/applications.d/openssh-server` is refused before any change
+  (`allow-ssh-needs-openssh-server; install openssh-server or pass --no-allow-ssh`)
+  instead of failing after the packages stage. The choice is recorded as
+  `firewall.allow_ssh` in `state.json` (D025), not in the configuration file;
+  later runs without a flag keep it, so an omitted flag never closes SSH, and
+  `--no-allow-ssh` removes the rule and records that.
+- **SSH sessions need a decision**: when `apply` runs over SSH (`SSH_CONNECTION` is
+  set) with the `firewall` profile and the SSH choice would come from the default (no
+  flag, no record), it refuses before any change, exit 2, with
+  `ssh-session-needs-an-explicit-choice; pass --allow-ssh or --no-allow-ssh`. The
+  default would otherwise lock a headless server out of new SSH logins with nothing
+  but a warning. An explicit `--no-allow-ssh`, or a recorded choice, proceeds; with
+  SSH closed it warns on standard error and adds a `firewall:ssh-closing` notice (the
+  current session survives; new logins do not). `plan` shows the decision as a
+  `firewall:ssh` line, `allow-ssh-<true|false>-<explicit|recorded|default>`, and
+  warns when apply would refuse; `verify` reports it as a `firewall:ssh-choice`
+  notice. `verify` counts any rule that lets SSH in (`OpenSSH`, `ssh`, `22`,
+  `22/tcp`; ALLOW or LIMIT; v4 or v6) as SSH allowed, so a hand-added port rule does
+  not pass as "SSH not allowed".
+- **libvirt with `lab`**: UFW's default deny incoming and its routed policy would
+  drop libvirt guests' DHCP, DNS and NAT on the default network. When `lab` is
+  selected with `firewall`, the playbook adds, before enabling UFW,
+  `ufw allow in on virbr0 to any port 67 proto udp`,
+  `ufw allow in on virbr0 to any port 53` (UDP and TCP),
+  `ufw route allow in on virbr0` and `ufw route allow out on virbr0`. ufw skips a
+  rule that exists, so re-runs change nothing. Deselecting `lab` removes none of
+  them: like packages, rules are never uninstalled. Whether a guest then gets an
+  address and resolves names is a manual check (TESTING.md).
+- **OpenSnitch**, the Linux counterpart of LuLu (Mac) and simplewall (Windows):
+  `opensnitch` and `opensnitch-ebpf-modules` from the Ubuntu archive, enabled and
+  running; its UI (`python3-opensnitch-ui`) only with the desktop set. It runs in
+  allow mode so setup and the handoff are never blocked by a prompt. The daemon's
+  `"DefaultAction": "allow"` in `/etc/opensnitchd/default-config.json` is what
+  Ubuntu's package (1.6.9) ships; this repository never writes that file. It is
+  system-wide while any record of a seed would be per-user, and a write could only
+  ever undo an operator's deny. With the desktop set, the UI's own default, which
+  decides while the UI is connected, is seeded as `[global] default_action=1` in
+  `${XDG_CONFIG_HOME:-~/.config}/opensnitch/settings.conf` (an absolute
+  `XDG_CONFIG_HOME` only, as QSettings does): created when absent, an existing
+  value never rewritten, the file backed up before an edit, and only once, recorded
+  as `firewall.opensnitch_ui_seeded` in `state.json`. The operator switches to deny
+  once their rules exist, and after that re-runs and the handoff may prompt.
+
+`verify` reads `ufw status verbose` through `sudo -n` (without cached credentials
+that check is deferred, not passed) and reports both OpenSnitch modes as notices,
+never as failures. The firewall packages come only from the signed Ubuntu archive
+and are installed by the playbook, not listed in `manifest/packages.json`, so the
+manifest's declared-source check does not cover them.
+
+## D027 — Docker belongs to setup-dev-linux-wsl; its ports stay reachable
+
+Docker Engine, buildx, compose, the `docker` group and the NVIDIA container toolkit
+are installed by setup-dev-linux-wsl (its `runtime-docker` and `gpu-nvidia`
+profiles), one Docker setup for WSL and Linux. This repository installs none of
+them and no longer adds the `docker` group; this supersedes D002. The host keeps
+the NVIDIA driver.
+
+By the operator's choice, ports a container publishes stay reachable from the
+network on a Linux machine (Docker's default), unlike the Mac's loopback rule.
+The consequence: Docker writes its own packet-filter rules ahead of UFW's, so a
+published port is open to the LAN whatever UFW says. `verify` adds a
+`firewall:docker-bypass` notice whenever `docker` is installed and the `firewall`
+profile is selected. To keep a port
+private, publish it on `127.0.0.1`, or filter it in Docker's `DOCKER-USER` chain.
+
+## D028 — chezmoi belongs to setup-dev-linux-wsl
+
+One chezmoi source and one state file per machine, both setup-dev-linux-wsl's. This
+repository never runs chezmoi and ships no chezmoi sources; `tests/test_host_only.py`
+refuses a mention of it in `script/` and `ansible/`. Desktop files the host owns are
+written by Ansible or by the controller as the target user: GNOME settings, the
+OpenSnitch UI default, VS Code extensions. The handoff only checks whether
+setup-dev-linux-wsl's record (`${XDG_CONFIG_HOME:-~/.config}/chezmoi/chezmoi.toml`)
+exists, to decide whether to print the first-run hint (D029). This supersedes the
+chezmoi ownership in D003, D012 and [TOOL-SELECTION.md](TOOL-SELECTION.md).
+
+## D029 — The handoff to setup-dev-linux-wsl
+
+The last `apply` stage, run only when the host stages succeeded; host verification
+findings are reported but do not hold it back. As the target user, never as root:
+
+1. Clone `https://github.com/istvano/setup-dev-linux-wsl` into
+   `~/workspace/setup-dev-linux-wsl`, or update that clone. Git and the bootstrap
+   run with every `GIT_*` variable removed from the environment, so a `GIT_DIR`,
+   `GIT_WORK_TREE`, `GIT_INDEX_FILE` or `GIT_CONFIG_*` left in the operator's shell
+   cannot point them elsewhere. An existing directory's origin is read with
+   `git config --get remote.origin.url`, which returns the URL as configured, before
+   any `url.<base>.insteadOf` rewrite: a rewrite is hidden by it, not exposed. That is
+   deliberate: a legitimate insteadOf setup (a mirror, or the tests' local bare
+   repository) keeps working, and `~/.gitconfig` belongs to the operator, outside the
+   threat model. A directory that is not a clone, a clone of another repository, or
+   one with local changes to tracked files stops the run with a message naming it;
+   nothing is overwritten.
+2. Fetch, resolve `--linux-ref` (default `main`; `origin/<ref>`, else a tag or
+   commit) with `git rev-parse --verify`, and check it out once with
+   `checkout --detach`.
+3. Run `./bootstrap apply --target linux` attached to the terminal; it asks for the
+   git identity.
+
+`--profiles LIST` is passed only when the operator gives `--cli-profiles LIST`: that
+bootstrap refuses a list that disagrees with its recorded choice, so re-runs pass
+none. On its first run it installs its own default without asking and records it.
+So when it has recorded nothing and `--cli-profiles` is absent, `apply` prints a
+`hint:` line before the host stages and again just before the bootstrap (`plan`
+prints it too). The line names the set this repository installed before,
+`core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp`
+(plus `gpu-nvidia` with the `gpu` profile), says to interrupt (Ctrl-C) and re-run
+`apply` with `--cli-profiles` to get it on this run, and says that once a choice is
+recorded it is changed in `[data] profiles` of that chezmoi record instead.
+
+For a run with no terminal, such as the VM cycle (D030), `--cli-git-name` and
+`--cli-git-email` (both or neither) make the bootstrap run with
+`--non-interactive --git-name NAME --git-email EMAIL`; it then takes its defaults for
+everything else it would ask. The values become setup-dev-linux-wsl's git `user.name`
+and `user.email` and are recorded in its chezmoi data (`gitName`, `gitEmail`), so later
+runs must give the same values or none. This repository never prints them;
+setup-dev-linux-wsl's refusal of a different value on a later run prints both.
+
+Outcomes: a failed bootstrap fails the run with its exit code (a `handoff` check,
+outcome `failed`); a refusal prints one `handoff:` line naming the cause and exits
+1; Ctrl-C during a host stage or the bootstrap prints one line and exits 130;
+re-running is always safe. `--linux-ref`, `--cli-profiles` and the identity are checked
+before anything changes, and so are the host programs the run needs: `gpg` and
+`git` on the system path (packages `gnupg` and `git`; a missing one fails
+`preflight` and `apply` with `prerequisite:<program>`). `verify` ends with
+setup-dev-linux-wsl's `script/verify --target linux` as `cli:verify`; `apply` does
+not, because that bootstrap ends with its own verify. `--no-handoff` skips both.
+
+## D030 — VM acceptance runs both repositories on one guest
+
+`just vm clean-cycle` (`make vm/clean-cycle`) destroys the guest, rebuilds it from
+the verified image and runs `script/test-manifest-vm`: `apply` with every host profile
+except `gpu` (the guest has no NVIDIA hardware) and `--allow-ssh` (the harness
+reaches the guest over SSH), ending with the handoff. The first apply passes
+`--cli-profiles` with the former command-line set and a throwaway identity, so
+setup-dev-linux-wsl runs non-interactively. The re-run after the reboot passes
+neither, nor `--profiles` or `--allow-ssh`: both repositories run from what the first
+apply recorded, which is the operator's re-run path, and the fixture fails unless that
+report says `Profiles source: recorded` with the first run's profiles and
+`firewall:ssh-choice` `allow-ssh-true-recorded`. The guest needs network access:
+setup-dev-linux-wsl is cloned from GitHub and installs from Homebrew and vendor
+repositories.
+
+Besides what the host installed, the cycle checks UFW, OpenSnitch's allow mode,
+that `apt-get update` and `apt-get check` stay clean with both repositories'
+sources, and that `bootstrap verify` ends with a passing `cli:verify`.
+`--skip-handoff` keeps a host-only cycle. `script/test-vm --controller` keeps a
+controller-only path: the `firewall` profile alone, `--allow-ssh`, `--no-handoff`.
+What a guest cannot show is listed in [TESTING.md](TESTING.md).

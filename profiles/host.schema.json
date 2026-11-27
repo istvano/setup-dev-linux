@@ -1,0 +1,491 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "description",
+    "profiles",
+    "default",
+    "desktop_set",
+    "base_groups",
+    "stages",
+    "catalogue"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "desktop",
+        "media",
+        "productivity",
+        "ai",
+        "network",
+        "lab",
+        "gpu",
+        "dev-gui",
+        "firewall"
+      ],
+      "properties": {
+        "desktop": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "media": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "productivity": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "ai": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "network": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "lab": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "gpu": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "dev-gui": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "firewall": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "base",
+              "desktop",
+              "media",
+              "productivity",
+              "ai",
+              "network",
+              "lab",
+              "gpu",
+              "dev-gui"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "default": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "desktop",
+          "media",
+          "productivity",
+          "ai",
+          "network",
+          "lab",
+          "gpu",
+          "dev-gui",
+          "firewall"
+        ]
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "desktop_set": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "desktop",
+          "media",
+          "productivity",
+          "ai",
+          "network",
+          "lab",
+          "gpu",
+          "dev-gui",
+          "firewall"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "base_groups": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "base",
+          "desktop",
+          "media",
+          "productivity",
+          "ai",
+          "network",
+          "lab",
+          "gpu",
+          "dev-gui"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "firewall": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "firewall"
+            ]
+          },
+          "uniqueItems": true
+        }
+      }
+    },
+    "catalogue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profiles",
+        "capabilities"
+      ],
+      "properties": {
+        "profiles": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "desktop": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "backup": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "editor": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "network": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "lab": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "gpu": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "core": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "foundation": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "operations": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            }
+          }
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gnome-settings": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "editor-settings": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "browser-isolation": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "lab-isolation": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "host-security": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "privacy-optouts": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            },
+            "backup-workflow": {
+              "enum": [
+                "desktop",
+                "media",
+                "productivity",
+                "ai",
+                "network",
+                "lab",
+                "gpu",
+                "dev-gui",
+                "firewall"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

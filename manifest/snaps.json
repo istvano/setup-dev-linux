@@ -15,7 +15,7 @@
     {
       "name": "bitwarden",
       "channel": "latest/stable",
-      "group": "security"
+      "group": "productivity"
     },
     {
       "name": "remmina",

@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'script'))
 from workstation.config import InputError  # noqa: E402
 from workstation.packages import (  # noqa: E402
-    allowed_version, applied_groups, approved_registry, archive_suites,
-    expectations, repository_sites, verify_named_packages, verify_packages)
+    allowed_version, approved_registry, archive_suites,
+    expectations, repository_sites, verify_packages)
 
 ARCHIVE = {'kind': 'archive', 'origin': 'Ubuntu',
            'suites': ['resolute', 'resolute-updates', 'resolute-security'], 'site': None}
@@ -95,20 +95,20 @@ class RepositoryPolicyTests(unittest.TestCase):
 
 class ManifestExpectationTests(unittest.TestCase):
     def test_archive_packages_expect_ubuntu_in_a_release_pocket(self):
-        record = expectations(ROOT)['bat']
+        record = expectations(ROOT)['ffmpeg']
         self.assertEqual(record['kind'], 'archive')
         self.assertEqual(record['origin'], 'Ubuntu')
         self.assertIn('resolute', record['suites'])
 
     def test_third_party_packages_expect_their_repository_host(self):
-        record = expectations(ROOT)['docker-ce']
+        record = expectations(ROOT)['code']
         self.assertEqual(record['kind'], 'repository')
-        self.assertEqual(record['site'], 'download.docker.com')
+        self.assertEqual(record['site'], 'packages.microsoft.com')
 
     def test_group_selection_narrows_the_expectation_set(self):
-        core = expectations(ROOT, groups=['core'])
-        self.assertIn('bat', core)
-        self.assertNotIn('docker-ce', core)
+        media = expectations(ROOT, groups=['media'])
+        self.assertIn('ffmpeg', media)
+        self.assertNotIn('code', media)
 
     def test_every_repository_resolves_to_a_host(self):
         for name, site in repository_sites(ROOT).items():
@@ -150,16 +150,43 @@ class VerificationTests(unittest.TestCase):
 
 
 class ApprovalRegistryTests(unittest.TestCase):
-    """Retained as licence and copyright provenance; not an installation input."""
+    """Retained as licence and copyright provenance; not an installation input.
+
+    The host selects no verified ubuntu-apt capability today (the archive
+    command-line tools moved to setup-dev-linux-wsl), so the real registry is
+    empty and the rules are exercised against a fixture.
+    """
+
+    GIT = {'id': 'git', 'kind': 'package', 'owner': 'ansible',
+           'delivery': {'status': 'verified', 'channel': 'ubuntu-apt', 'identifier': 'git'},
+           'licence': {'status': 'reviewed',
+                       'identifier': 'GPL-2.0-only with bundled component notices'}}
+    RECORD = {'id': 'git', 'package': 'git', 'source_package': 'git',
+              'licence': 'GPL-2.0-only with bundled component notices',
+              'copyright_url': 'https://changelogs.ubuntu.com/changelogs/pool/main/g/git/'
+                               'git_2.53.0-1ubuntu1/copyright',
+              'copyright_sha256': 'c60bb8fe022a5f6030d7cc8b98afdd2e2fe84d021e8a2f58e49ab32e176c906d',
+              'allowed_suites': ['resolute', 'resolute-updates', 'resolute-security']}
 
     def setUp(self):
-        self.entries = {e['id']: e for e in
-                        json.loads((ROOT / 'catalogue/capabilities.json').read_text())['capabilities']}
+        import shutil
+        import tempfile
+        self.root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+        (self.root / 'catalogue').mkdir()
+        shutil.copyfile(ROOT / 'catalogue/approved-delivery.schema.json',
+                        self.root / 'catalogue/approved-delivery.schema.json')
+        (self.root / 'catalogue/approved-delivery.json').write_text(json.dumps(
+            {'schema_version': 1, 'reviewed_at': '2026-09-13', 'entries': [self.RECORD]}))
+        self.entries = {'git': copy.deepcopy(self.GIT)}
+
+    def test_the_real_registry_matches_the_real_catalogue(self):
+        entries = {e['id']: e for e in
+                   json.loads((ROOT / 'catalogue/capabilities.json').read_text())['capabilities']}
+        self.assertEqual(set(approved_registry(entries)), set())
 
     def test_catalogue_approvals_match_the_registry(self):
-        self.assertEqual(set(approved_registry(self.entries)),
-                         {'curl', 'git', 'git-lfs', 'jq', 'ripgrep', 'shellcheck', 'zsh',
-                          'zsh-autosuggestions', 'zsh-syntax-highlighting'})
+        self.assertEqual(set(approved_registry(self.entries, self.root)), {'git'})
 
     def test_unreviewed_delivery_or_licence_is_rejected(self):
         for field, value, message in [
@@ -170,12 +197,12 @@ class ApprovalRegistryTests(unittest.TestCase):
                 entries = copy.deepcopy(self.entries)
                 entries['git'][field[0]][field[1]] = value
                 with self.assertRaisesRegex(InputError, message):
-                    approved_registry(entries)
+                    approved_registry(entries, self.root)
 
     def test_wrong_owner_is_rejected(self):
-        self.entries['git']['owner'] = 'chezmoi'
+        self.entries['git']['owner'] = 'vscode'
         with self.assertRaisesRegex(InputError, 'wrong-package-owner'):
-            approved_registry(self.entries)
+            approved_registry(self.entries, self.root)
 
 
 class InstalledStateTests(unittest.TestCase):
@@ -299,76 +326,15 @@ class DeclaredSourceWinsTests(unittest.TestCase):
                          'an installed package from an undeclared source must not verify')
 
 
-class PrerequisiteCheckTests(unittest.TestCase):
-    """Runtimes ask whether a system dependency is present.
-
-    These call into the package layer from another module, so a signature
-    change there breaks them silently unless something exercises the call.
-    """
-
-    def test_named_packages_are_checked_against_the_archive(self):
-        with patch('workstation.packages.inspect_packages',
-                   return_value=[{'id': 'g++', 'installed_allowed': True}]) as probe:
-            checks = verify_named_packages(['g++'])
-        records = probe.call_args[0][0]
-        self.assertEqual(records[0]['package'], 'g++')
-        self.assertEqual(records[0]['kind'], 'archive')
-        self.assertEqual(checks[0]['status'], 'passed')
-
-    def test_a_missing_prerequisite_is_failed(self):
-        with patch('workstation.packages.inspect_packages',
-                   return_value=[{'id': 'g++', 'installed_allowed': False}]):
-            self.assertEqual(verify_named_packages(['g++'])[0]['status'], 'failed')
-
-    def test_no_names_never_probes(self):
-        with patch('workstation.packages.inspect_packages') as probe:
-            self.assertEqual(verify_named_packages([]), [])
-        probe.assert_not_called()
-
-    def test_runtimes_pass_package_names_not_records(self):
-        """The call site must hand over strings; passing prerequisite records
-        made the package layer treat a list as a filesystem path."""
-        from workstation import mandrel_runtime, rust_runtime
-        for module in (mandrel_runtime, rust_runtime):
-            source = Path(module.__file__).read_text()
-            self.assertIn("r['package'] for r in prerequisites()", source,
-                          f'{module.__name__} must pass package names')
-            self.assertNotIn('verify_packages(prerequisites()', source)
-
-
-class AppliedGroupTests(unittest.TestCase):
+class SelectedGroupTests(unittest.TestCase):
     """Verification describes the machine that exists, not the one the manifest
     could describe: a machine installed without the gpu group has not failed to
-    install it."""
-
-    def setUp(self):
-        import tempfile
-        import shutil
-        self.root = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
-        (self.root / '.workstation').mkdir()
-
-    def write(self, payload):
-        (self.root / '.workstation/applied-groups.json').write_text(json.dumps(payload))
-
-    def test_recorded_groups_are_returned(self):
-        self.write({'schema_version': 1, 'groups': ['core', 'dev']})
-        self.assertEqual(applied_groups(self.root), ['core', 'dev'])
-
-    def test_nothing_recorded_means_no_narrowing(self):
-        self.assertIsNone(applied_groups(self.root))
-
-    def test_an_unreadable_record_does_not_raise(self):
-        (self.root / '.workstation/applied-groups.json').write_text('not json')
-        self.assertIsNone(applied_groups(self.root))
-
-    def test_an_empty_group_list_means_no_narrowing(self):
-        self.write({'schema_version': 1, 'groups': []})
-        self.assertIsNone(applied_groups(self.root))
+    install it. Which groups were selected is recorded with the host profiles
+    (tests/test_profiles.py)."""
 
     def test_an_excluded_group_is_not_verified(self):
-        core_only = expectations(ROOT, groups=['core'])
-        self.assertNotIn('nvidia-driver-595-open', core_only,
+        desktop_only = expectations(ROOT, groups=['desktop'])
+        self.assertNotIn('nvidia-driver-595-open', desktop_only,
                          'a group that was never applied must not be checked')
 
 

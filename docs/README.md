@@ -4,11 +4,12 @@
 
 | Document | What it is |
 |---|---|
-| [NEW-MACHINE.md](NEW-MACHINE.md) | The procedure for setting up a new workstation and moving your files |
-| [OPERATIONS.md](OPERATIONS.md) | Commands that work today, and how to keep versions current |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | How configuration, storage guards and the command contract fit together |
-| [DECISIONS.md](DECISIONS.md) | Every settled decision and why (D001–D020) |
-| [TESTING.md](TESTING.md) | What must be tested, how to run it, and the current result |
+| [NEW-MACHINE.md](NEW-MACHINE.md) | Fresh Ubuntu to a working machine: apply, the handoff, log in again, verify |
+| [OPERATIONS.md](OPERATIONS.md) | Commands that work today, the firewall and the handoff, and how to keep versions current |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | The two repositories, the stages of a run, configuration, storage guards and the command contract |
+| [DECISIONS.md](DECISIONS.md) | Every settled decision and why (D001–D030; D022–D030 make this the host repository) |
+| [TESTING.md](TESTING.md) | What must be tested, the VM cycle and its checklist, and the current result |
+| [MOVED.md](MOVED.md) | Where each command-line item this repository used to install went |
 | [../TASKS.md](../TASKS.md) | What is done, what is not, and what is deliberately excluded |
 
 ## Evidence
@@ -35,5 +36,5 @@ fails when the matrix no longer matches the catalogue.
 
 | Document | What it is |
 |---|---|
-| [TOOL-SELECTION.md](TOOL-SELECTION.md) | Why Ansible, chezmoi, SDKMAN and NVM own what they own |
+| [TOOL-SELECTION.md](TOOL-SELECTION.md) | Why Ansible, chezmoi, SDKMAN and NVM were chosen (history: the command line moved to setup-dev-linux-wsl, see [MOVED.md](MOVED.md)) |
 | [../specs/README.md](../specs/README.md) | Feature contracts and acceptance cases |

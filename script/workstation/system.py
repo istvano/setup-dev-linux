@@ -1,21 +1,18 @@
 """System settings the manifest declares beyond packages.
 
-Installing docker is not the same as being able to use it. The package creates
-the group; something has to put the operator in it, and the membership only
-takes effect in a session started afterwards. Reporting "installed" while
-`docker ps` fails is the first-day confusion this exists to prevent.
+Installing a package is not the same as being able to use it. A package can
+create a group; something has to put the operator in it, and the membership only
+takes effect in a session started afterwards.
 
 Verification distinguishes three states, because they need different actions:
 the user is not in the group at all (the install did not finish), the user is in
 the group but this session predates it (log out and back in), or the membership
-is effective and the socket answers.
+is effective. The docker group is not declared here: setup-dev-linux-wsl
+installs Docker and owns its group.
 """
 import grp
-import json
 import os
 import pwd
-import shutil
-import subprocess
 from pathlib import Path
 
 from .config import ROOT, load_json
@@ -55,18 +52,6 @@ def session_groups():
         return set()
 
 
-def socket_reachable():
-    """Whether the Docker socket answers as this user, without sudo."""
-    if shutil.which('docker') is None:
-        return None
-    try:
-        result = subprocess.run(['docker', 'version', '--format', '{{.Server.Version}}'],
-                                capture_output=True, text=True, check=False, timeout=30)
-    except (OSError, subprocess.SubprocessError):
-        return False
-    return result.returncode == 0
-
-
 def verify(user, root=ROOT, groups=None):
     records = declared_groups(root, groups)
     if not records:
@@ -92,17 +77,6 @@ def verify(user, root=ROOT, groups=None):
                            'reason': f"granted-but-effective-after-{record['effective_after']}"
                                      .replace(' ', '-')})
             continue
-        if name == 'docker':
-            reachable = socket_reachable()
-            if reachable is False:
-                checks.append({'id': identifier, 'status': 'failed',
-                               'reason': 'member-but-the-docker-socket-refused'})
-                failures += 1
-                continue
-            if reachable is None:
-                checks.append({'id': identifier, 'status': 'deferred',
-                               'reason': 'docker-not-installed'})
-                continue
         checks.append({'id': identifier, 'status': 'passed',
                        'reason': 'member-and-effective-in-this-session'})
     checks.append({'id': 'system-groups',

@@ -1,6 +1,6 @@
 # Tool selection and ownership
 
-Status: recommended implementation design, 2026-09-12. D006 and the capability matrix now define the confirmed target selection; this document describes ownership, not installed state. The initial supported platform is Ubuntu 26.04 LTS amd64 with GNOME. Hardware capacity, GPU profile and disk layout are per-machine inputs; [the machine record](migrations/current.md) is an example, not a requirement.
+Status: recommended implementation design, 2026-09-12, kept as history. Since 2026-11-26 this repository sets up the Linux host only (D022–D030 in [DECISIONS.md](DECISIONS.md)): the rows below for chezmoi, SDKMAN, NVM, the shell, Docker and the command-line tools now belong to setup-dev-linux-wsl ([MOVED.md](MOVED.md)), and host security is UFW plus OpenSnitch (D026). D006 and the capability matrix define the confirmed target selection; this document describes ownership, not installed state. The initial supported platform is Ubuntu 26.04 LTS amd64 with GNOME. Hardware capacity, GPU profile and disk layout are per-machine inputs; [the machine record](migrations/current.md) is an example, not a requirement.
 
 ## Selected implementation stack
 
@@ -19,12 +19,12 @@ Status: recommended implementation design, 2026-09-12. D006 and the capability m
 | ansible-lint / yamllint | Playbook and YAML validation | Setup's uv environment | Pin with the automation dependencies. Use only the collections actually required. |
 | ShellCheck / shfmt / actionlint / gitleaks | Shell, formatting, CI and secret checks | Development/CI host | Carry across useful Mac gates. Missing required tools fail the strict gate. |
 | QEMU/KVM + libvirt + cloud-init | Disposable Ubuntu integration guests | Development host; guest-local setup | Test real systemd/package/kernel behavior. Containers alone cannot prove workstation installation. Test VMs are separate from hostile-work lab VMs. |
-| Ubuntu Autoinstall | Later phase: install the OS before running bootstrap | Target installer or disposable VM | Native installer path; use locally generated inputs. Standard storage mode is the reusable default and does not require an old SSD. Optional transferred-ssd mode is selected for this migration: /, /boot and EFI on SSD 1; /home and /var/lib on preserved SSD 2. Installer must not format transferred storage. No Landscape deployment needed for this personal setup. |
+| Ubuntu Autoinstall | Later phase: install the OS before running bootstrap | Target installer or disposable VM | Native installer path; use locally generated inputs. Standard storage mode is the only mode: a fresh install on the selected disks, single or split layout (D023). No Landscape deployment needed for this personal setup. |
 | Git / just | Version control and thin convenience aliases | User | Scripts remain the canonical interface, so just is not required to bootstrap. No automatic commits/pushes. |
 
 No separate Ansible Vault/SOPS dependency is needed to run an ordinary install: the repository must not need production credentials. Selected age/GPG/SOPS user workflows remain independent of bootstrap credentials. Test credentials are throwaway and never checked in. Raw snapshots and logs are local/private.
 
-Storage transfer is optional: see [confirmed decisions](DECISIONS.md). Apply validates only mounts required by the selected mode/layout and never performs data migration. Single SSD: EFI and separate /boot, /, /home; /var/lib is a directory on root. Two SSDs: EFI, /boot and / on SSD 1; /home and selected separate /var/lib on SSD 2. The separate /var/lib filesystem is optional, so its absence is not a failure for single-disk layouts.
+Storage is a fresh install on the selected disks: see [confirmed decisions](DECISIONS.md). Apply validates only the mounts the selected layout requires and never moves data. Single SSD: EFI and separate /boot, /, /home; /var/lib is a directory on root. Two SSDs: EFI, /boot and / on SSD 1; /home and selected separate /var/lib on SSD 2. The separate /var/lib filesystem is optional, so its absence is not a failure for single-disk layouts.
 
 ## Single-owner configuration contract
 
@@ -50,7 +50,7 @@ Chezmoi advises sparse, idempotent script use; retaining file management without
 | GPU | Ubuntu-supported NVIDIA driver branch + NVIDIA Container Toolkit | Drivers on host; configure toolkit only for selected container runtime. CUDA dependencies stay in projects/containers unless a host compiler use case requires otherwise. |
 | Remote desktop | Remmina, preferred APT package with required RDP/secret plugins | Host GUI, with GNOME keyring integration. Validate Ubuntu package names and protocol support before pinning selection. Preserve profiles manually. Avoid duplicate Snap/APT installs. |
 | Virtualization | KVM/libvirt; virt-manager (selected) | Host virtualization; isolated lab guests for untrusted code. Quickemu is optional and disabled by D006. |
-| Host security | AppArmor plus Ubuntu UFW baseline | Preserve default confinement; deny unsolicited inbound connections while preserving explicitly selected access. UFW is not a LuLu-style application egress firewall. Application egress tooling remains a separate evaluated decision. |
+| Host security | AppArmor, UFW and OpenSnitch (D026) | Preserve default confinement; UFW denies unsolicited inbound connections, SSH only when chosen. UFW is not a LuLu-style application egress firewall; OpenSnitch is, seeded in allow mode until the operator switches it to deny. |
 | Passwords/signing | Bitwarden, GnuPG, desktop pinentry/keyring | Host capabilities. Fresh SSH key per machine; restore decryption identities manually. |
 | Display switching | Optional ddcutil candidate, disabled | Host DDC/CI access for the shared monitors; validate connection paths and least-privilege device access on actual hardware. |
 | Backup | Keep Deja Dup, restic and rclone | Host access to selected files. Keep overlapping user choices; do not enable two competing schedules. Backup destination/encryption setup remains manual. |
@@ -63,7 +63,7 @@ Docker supports Ubuntu 26.04, and its published ports require separate scrutiny 
 
 NVIDIA lists Ubuntu 26.04 amd64 in its Container Toolkit platform table. This supports the software choice, not the untested enclosure, link, hotplug or suspend behavior of the particular eGPU. [NVIDIA platform support](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/supported-platforms.html)
 
-SDKMAN and NVM are retained by user decision. Verify selected Java distributions, Mandrel and Node release availability during implementation; compatibility testing validates retained workflows, not migration to mise. See [confirmed decisions](DECISIONS.md).
+SDKMAN and NVM are retained by user decision. Verify selected Java distributions, Mandrel and Node release availability during implementation; compatibility testing validates retained workflows, not a switch to mise. See [confirmed decisions](DECISIONS.md).
 
 ## Version, source and licence policy
 
@@ -99,7 +99,7 @@ Selected agents use reviewed Linux channels; pin and isolate any npm CLI prefix 
 project NVM switching. uv tooling never replaces distribution Python or imports Mac pins.
 
 JSON configuration/catalogue parsing precedes automation dependency installation. Run
-storage/handoff guards before APT or any managed writes. P1 introduces independent
+the storage guard before APT or any managed writes. P1 introduces independent
 verification and consistent reports; P2–P4 add checks with each role. All workstation
 commands require `--config PATH`; read-only commands never implicitly sync uv or trigger
 runtime installation. [Architecture](ARCHITECTURE.md) defines the exact contracts.

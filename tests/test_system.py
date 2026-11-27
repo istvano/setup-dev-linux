@@ -1,10 +1,10 @@
 """System group membership.
 
-Installing docker is not the same as being able to use it: the package creates
-the group, something has to put the operator in it, and the membership only
-takes effect in a session started afterwards. These three states need different
-actions, so verification must tell them apart rather than collapse them into
-pass or fail.
+Installing a package is not the same as being able to use it: the package
+creates the group, something has to put the operator in it, and the membership
+only takes effect in a session started afterwards. These three states need
+different actions, so verification must tell them apart rather than collapse
+them into pass or fail.
 """
 import json
 import shutil
@@ -25,38 +25,59 @@ def summary(checks):
     return [c for c in checks if c['id'] == 'system-groups'][0]
 
 
-def entry(checks, name='group:docker'):
+def entry(checks, name='group:libvirt'):
     return [c for c in checks if c['id'] == name][0]
 
 
+FIXTURE = {'schema_version': 1, 'description': 'fixture', 'user_groups': [
+    {'group': 'libvirt', 'requires_manifest_group': 'lab', 'reason': 'Managing VMs without sudo.',
+     'effective_after': 'a fresh login'}]}
+
+
+def fixture_root():
+    root = Path(tempfile.mkdtemp())
+    (root / 'manifest').mkdir()
+    (root / 'manifest/system.json').write_text(json.dumps(FIXTURE))
+    return root
+
+
 class ManifestTest(unittest.TestCase):
-    def test_the_real_manifest_declares_the_docker_group(self):
+    def test_the_real_manifest_declares_no_docker_group(self):
+        """Docker and its group belong to setup-dev-linux-wsl."""
         groups = [g['group'] for g in manifest(ROOT)['user_groups']]
-        self.assertIn('docker', groups)
+        self.assertNotIn('docker', groups)
 
     def test_each_declaration_says_what_it_is_for_and_when_it_takes_effect(self):
-        for record in manifest(ROOT)['user_groups']:
+        for record in manifest(ROOT)['user_groups'] + FIXTURE['user_groups']:
             self.assertTrue(record['reason'])
             self.assertTrue(record['effective_after'])
             self.assertTrue(record['requires_manifest_group'])
 
     def test_a_group_is_only_declared_when_its_manifest_group_is_selected(self):
-        self.assertEqual(declared_groups(ROOT, groups=['core']), [])
-        self.assertTrue(declared_groups(ROOT, groups=['containers']))
+        root = fixture_root()
+        self.addCleanup(shutil.rmtree, root, ignore_errors=True)
+        self.assertEqual(declared_groups(root, groups=['desktop']), [])
+        self.assertTrue(declared_groups(root, groups=['lab']))
+
+    def test_nothing_is_declared_means_nothing_is_checked(self):
+        self.assertEqual(verify('operator', ROOT, groups=None), [])
 
 
 class VerificationTest(unittest.TestCase):
     """The three states, each reported differently."""
 
-    def check(self, members, session, reachable=True, primary=None):
+    def setUp(self):
+        self.root = fixture_root()
+        self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
+
+    def check(self, members, session, primary=None):
         with patch.object(system, 'group_members', return_value=members), \
              patch.object(system, 'session_groups', return_value=session), \
-             patch.object(system, 'primary_group', return_value=primary), \
-             patch.object(system, 'socket_reachable', return_value=reachable):
-            return verify('operator', ROOT, groups=['containers'])
+             patch.object(system, 'primary_group', return_value=primary):
+            return verify('operator', self.root, groups=['lab'])
 
     def test_member_and_effective_passes(self):
-        checks = self.check({'operator'}, {'docker'})
+        checks = self.check({'operator'}, {'libvirt'})
         self.assertEqual(entry(checks)['status'], 'passed')
         self.assertEqual(summary(checks)['status'], 'passed')
 
@@ -80,27 +101,15 @@ class VerificationTest(unittest.TestCase):
         checks = self.check(None, set())
         self.assertEqual(entry(checks)['reason'], 'group-does-not-exist')
 
-    def test_membership_without_a_working_socket_fails(self):
-        """Being in the group but refused by the daemon is a real fault, not a
-        stale session."""
-        checks = self.check({'operator'}, {'docker'}, reachable=False)
-        self.assertEqual(entry(checks)['status'], 'failed')
-        self.assertIn('refused', entry(checks)['reason'])
-
-    def test_docker_absent_is_deferred(self):
-        checks = self.check({'operator'}, {'docker'}, reachable=None)
-        self.assertEqual(entry(checks)['status'], 'deferred')
-        self.assertEqual(entry(checks)['reason'], 'docker-not-installed')
-
     def test_a_primary_group_counts_as_membership(self):
         """getgrnam lists secondary members only; a primary group is still
         membership."""
-        checks = self.check(set(), {'docker'}, primary='docker')
+        checks = self.check(set(), {'libvirt'}, primary='libvirt')
         self.assertEqual(entry(checks)['status'], 'passed')
 
     def test_nothing_is_checked_when_the_group_is_not_selected(self):
         with patch.object(system, 'group_members', return_value=set()):
-            self.assertEqual(verify('operator', ROOT, groups=['core']), [])
+            self.assertEqual(verify('operator', self.root, groups=['desktop']), [])
 
 
 class PlaybookTest(unittest.TestCase):

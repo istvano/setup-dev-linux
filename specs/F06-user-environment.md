@@ -1,5 +1,10 @@
 # F06 — Declared user files and retained shell behavior
 
+> **Moved 2026-11-26.** The chezmoi-owned user files, shell and Git identities now belong to setup-dev-linux-wsl, which owns the
+> command line on a Linux machine as well as in WSL; this repository no longer
+> implements them ([MOVED.md](../docs/MOVED.md)). Kept as a record of what was built
+> and proved.
+
 ## Ownership and inputs
 
 Ansible installs reviewed chezmoi/Zsh/framework artifacts; chezmoi exclusively owns

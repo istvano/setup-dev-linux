@@ -4,6 +4,7 @@ Two entry points exist because a brand-new machine does not have `just` on it
 yet. That only helps if they stay in step, and the obvious failure is one
 gaining a target the other never hears about.
 """
+import os
 import re
 import subprocess
 import sys
@@ -64,8 +65,7 @@ class ParityTest(unittest.TestCase):
     def test_the_expected_workflow_targets_are_present(self):
         expected = {'check', 'check-manifest', 'test', 'verify-static',
                     'inventory', 'review', 'update/report', 'update/apply',
-                    'plan', 'preflight', 'install', 'verify',
-                    'migrate-plan', 'migrate', 'migrate-secrets',
+                    'plan', 'preflight', 'apply', 'install', 'verify',
                     'vm/reset', 'vm/up', 'vm/status', 'vm/accept', 'vm/clean-cycle',
                     'vm/foundation', 'desktop-manifest'}
         for name in sorted(expected):
@@ -88,6 +88,16 @@ class ParityTest(unittest.TestCase):
                     text, rf'\[doc\("[^"]+"\)\]\n{re.escape(recipe)}\b',
                     f'{name}/{recipe} has no [doc(...)] annotation')
 
+    def test_just_passes_bootstrap_flags_through(self):
+        """--no-handoff, --cli-profiles, --linux-ref, --allow-ssh reach the bootstrap."""
+        text = JUSTFILE.read_text()
+        for recipe in ('plan', 'apply', 'verify'):
+            self.assertRegex(text, rf'(?m)^{recipe} CONFIG PROFILES="" \*FLAGS:', recipe)
+            body = text.split(f'\n{recipe} CONFIG', 1)[1].split('\n\n', 1)[0]
+            self.assertIn('{{FLAGS}}', body, recipe)
+        self.assertRegex(text, r'(?m)^install CONFIG PROFILES="" \*FLAGS: \(apply CONFIG PROFILES FLAGS\)',
+                         'install keeps passing everything to apply')
+
     def test_grouped_subcommands_use_a_slash(self):
         """The vm group is addressed as vm/<recipe>, not vm-<recipe>."""
         targets = make_targets() | just_targets()
@@ -106,26 +116,50 @@ class MakefileBehaviourTest(unittest.TestCase):
         # Run these for real rather than with -n: make does not execute recipe
         # lines under -n, so the guard would never fire and the test would pass
         # for the wrong reason. The guard exits before any command runs.
-        for target in ('plan', 'preflight', 'install', 'verify', 'migrate'):
+        for target in ('plan', 'preflight', 'apply', 'install', 'verify'):
             result = self.make(target)
             self.assertNotEqual(result.returncode, 0, f'{target} ran without CONFIG')
             self.assertIn('CONFIG is required', result.stdout + result.stderr)
 
-    def test_migration_refuses_without_a_destination(self):
-        result = self.make('migrate', 'CONFIG=config/standard-split.example.json')
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn('HOST is required', result.stdout + result.stderr)
+    def test_profile_selection_is_passed_through_only_when_given(self):
+        with_profiles = self.make('-n', 'apply', 'CONFIG=x.json', 'PROFILES=gpu,firewall')
+        self.assertIn('apply --config x.json --profiles gpu,firewall', with_profiles.stdout)
+        without = self.make('-n', 'apply', 'CONFIG=x.json')
+        self.assertNotIn('--profiles', without.stdout)
 
-    def test_group_selection_is_passed_through_only_when_given(self):
-        with_groups = self.make('-n', 'install', 'CONFIG=x.json', 'GROUPS=core,dev')
-        self.assertIn('--manifest-groups core,dev', with_groups.stdout)
-        without = self.make('-n', 'install', 'CONFIG=x.json')
-        self.assertNotIn('--manifest-groups', without.stdout)
+    def test_bootstrap_flags_are_passed_through(self):
+        for target in ('plan', 'apply', 'install', 'verify'):
+            result = self.make('-n', target, 'CONFIG=x.json', 'PROFILES=gpu',
+                               'FLAGS=--no-handoff --linux-ref v1')
+            self.assertIn(' --config x.json --profiles gpu --no-handoff --linux-ref v1',
+                          result.stdout, target)
+
+    def test_flags_from_the_environment_are_ignored(self):
+        """Only FLAGS= on the command line counts; an exported FLAGS never leaks in."""
+        result = subprocess.run(['make', '-C', str(ROOT), '-n', 'apply', 'CONFIG=x.json'],
+                                capture_output=True, text=True,
+                                env={**os.environ, 'FLAGS': '--allow-ssh'})
+        self.assertNotIn('--allow-ssh', result.stdout)
+
+    def test_profiles_from_the_environment_are_ignored(self):
+        """As FLAGS: an exported PROFILES or GROUPS never selects host profiles."""
+        for name in ('PROFILES', 'GROUPS'):
+            result = subprocess.run(['make', '-C', str(ROOT), '-n', 'apply', 'CONFIG=x.json'],
+                                    capture_output=True, text=True,
+                                    env={**os.environ, name: 'gpu'})
+            self.assertNotIn('--profiles', result.stdout, name)
+        result = self.make('-n', 'apply', 'CONFIG=x.json', 'GROUPS=lab')
+        self.assertIn('--profiles lab', result.stdout, 'GROUPS= on the command line still counts')
+
+    def test_install_runs_apply(self):
+        result = self.make('-n', 'install', 'CONFIG=x.json', 'PROFILES=lab')
+        self.assertIn('apply --config x.json --profiles lab', result.stdout)
+        self.assertNotIn('bootstrap install', result.stdout)
 
     def test_help_lists_the_targets(self):
         result = self.make('help')
         self.assertEqual(result.returncode, 0)
-        for name in ('install', 'migrate', 'vm/clean-cycle'):
+        for name in ('apply', 'install', 'vm/clean-cycle'):
             self.assertIn(name, result.stdout)
 
 

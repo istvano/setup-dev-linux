@@ -22,6 +22,8 @@ def render_matrix(catalogue):
         'KEEP means selected in the personal target, not installed or tested. The reusable',
         'default excludes GPU-profile capabilities. OPTIONAL is disabled; PENDING needs a',
         'decision; OMIT is excluded. Manual entries describe operator work, not automation.', '',
+        'Command-line capabilities moved to setup-dev-linux-wsl, which owns the command line;',
+        'see [moved and dropped items](MOVED.md). This catalogue covers the Linux host only.', '',
         'Delivery metadata and pre-build evidence are independent of selection. Null pins or',
         'unresolved source checks are never trusted defaults. See [architecture](ARCHITECTURE.md)',
         'and [source review](SOURCE-REVIEW.md) for remaining gates.', '',
@@ -34,7 +36,8 @@ def render_matrix(catalogue):
         out += ['']
     out += ['## Linux review coverage', '', 'Source: [preserved review](software-review.md). Later decisions supersede raw notes.', '', '| Row | Observed group | Raw decision | Capability IDs |', '|---|---|---|---|']
     for row in catalogue['linux_review_rows']:
-        out.append(f'| {row["id"]} | {cell(row["label"])} | {cell(row["raw_decision"])} | {ids(row["capability_ids"])} |')
+        mapped = ids(row['capability_ids']) if row['capability_ids'] else cell(row.get('note') or 'None')
+        out.append(f'| {row["id"]} | {cell(row["label"])} | {cell(row["raw_decision"])} | {mapped} |')
     out += ['', '## Linux extension families', '', '| Family | Selected root | Treatment |', '|---|---|---|']
     for row in catalogue['linux_extension_families']:
         out.append(f'| {cell(row["family"])} | {ids(row["capability_ids"])} | {cell(row["note"])} |')

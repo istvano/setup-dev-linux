@@ -27,31 +27,12 @@ def read(name):
     return json.loads((ROOT / name).read_text())
 
 
-PROVIDED_BY = {
-    'corepack': 'node runtime globals',
-    'plugin-git': 'oh-my-zsh',
-    'zsh-autosuggestions': 'oh-my-zsh custom plugins',
-    'zsh-syntax-highlighting': 'oh-my-zsh custom plugins',
-    'oh-my-zsh': 'shell framework',
-    'proxy-helpers': 'chezmoi shell files',
-    'node-22.21.0': 'node runtime', 'nvm': 'node runtime',
-    'sdkman': 'jvm runtime', 'maven-3.9.11': 'jvm tools',
-    'java-21-tem': 'jvm runtime', 'java-25-tem': 'jvm runtime',
-    'java-21-ms': 'jvm runtime', 'java-25-ms': 'jvm runtime',
-    'java-mandrel-25': 'jvm runtime',
-    'theme-agnoster': 'replaced by starship',
-    'uv': 'python runtime', 'uvx': 'python runtime',
-}
-
-
 def main():
     curation = read('catalogue/curation.json')
     packages = read('manifest/packages.json')
     repositories = read('manifest/repositories.json')
     snaps = read('manifest/snaps.json')
     binaries = read('manifest/binaries.json')
-    runtimes = read('manifest/runtimes.json')
-    shell = read('manifest/shell.json')
 
     seen = set()
     for group, entries in packages['groups'].items():
@@ -59,7 +40,7 @@ def main():
             require(entry['name'] not in seen, f"{entry['name']}: declared twice")
             seen.add(entry['name'])
     routes = delivered({'packages': packages, 'repositories': repositories, 'snaps': snaps,
-                        'binaries': binaries, 'runtimes': runtimes, 'shell': shell})
+                        'binaries': binaries})
 
     # Every third-party APT package names a repository that exists and lists it.
     known = {r['id']: r for r in repositories['repositories']}
@@ -83,6 +64,19 @@ def main():
                 require(re.fullmatch(r'[0-9A-F]{40}', declaration.get('key_fingerprint', '')),
                         f'{name}: malformed fingerprint for {repo}')
 
+    # An explicit keyring is shared with setup-dev-linux-wsl, which installs its
+    # committed armoured key there verbatim: same directory, .asc, armoured.
+    for declaration in repositories['repositories']:
+        keyring = declaration.get('keyring')
+        if keyring is None:
+            continue
+        require(re.fullmatch(r'/etc/apt/keyrings/[a-z0-9-]+\.asc', keyring),
+                f"{declaration['id']}: keyring {keyring} is not an .asc file in /etc/apt/keyrings")
+        key_file = ROOT / declaration.get('key_file', '')
+        require(declaration.get('key_file') and key_file.is_file()
+                and key_file.read_bytes().lstrip().startswith(b'-----BEGIN PGP'),
+                f"{declaration['id']}: an .asc keyring needs a vendored armoured key_file")
+
     # Every binary is pinned before it may install.
     for binary in binaries['binaries']:
         for field in ('version', 'url', 'sha256'):
@@ -97,8 +91,6 @@ def main():
     undelivered = []
     for item in kept:
         name = item['id'].split('/')[-1]
-        if name in PROVIDED_BY or item['id'] in PROVIDED_BY:
-            continue
         if covers(routes, name):
             continue
         undelivered.append(item['id'])
@@ -111,22 +103,9 @@ def main():
         if item['proposal'] == 'keep':
             name = item['id'].split('/')[-1]
             selected.update({name, ALIASES.get(name, name)})
-    unselected = sorted(set(routes) - selected - {'tofu', 'fd-find', 'fonts-jetbrains-mono', 'google-cloud-cli'})
+    unselected = sorted(set(routes) - selected - {'fonts-jetbrains-mono'})
     require(not unselected,
             f'{len(unselected)} manifest entries were never selected: ' + ', '.join(unselected))
-
-    # A prerequisite that never reaches the manifest is a capability that
-    # installs and then cannot work.
-    prerequisites = read('catalogue/prerequisites.json')
-    selected_capabilities = set(read('profiles/target.json')['capability_ids'])
-    package_names = {e['name'] for entries in packages['groups'].values() for e in entries}
-    for requirement in prerequisites['requirements']:
-        if requirement['capability'] not in selected_capabilities:
-            continue
-        for package in requirement['packages']:
-            require(package['package'] in package_names,
-                    f"{requirement['capability']}: prerequisite {package['package']} "
-                    f"is not in the manifest")
 
     if failures:
         for failure in failures:

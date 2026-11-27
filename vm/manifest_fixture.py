@@ -15,8 +15,13 @@ from pathlib import Path
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--expected-vm-id', required=True)
-parser.add_argument('--groups', required=True, help='comma-separated manifest groups')
+parser.add_argument('--groups', required=True, help='comma-separated host profiles')
 parser.add_argument('--verify-only', action='store_true')
+parser.add_argument('--handoff', choices=['first', 'again'],
+                    help='apply ends with the handoff to setup-dev-linux-wsl: first '
+                         '(non-interactive, with the former command-line set) or again '
+                         '(no --profiles and no --allow-ssh either: both repositories use '
+                         'what they recorded); absent, the run is host only')
 args = parser.parse_args()
 
 marker = Path('/etc/linux-os-setup-test-vm')
@@ -24,7 +29,17 @@ if not marker.is_file() or marker.read_text().strip() != args.expected_vm_id:
     raise SystemExit('Refusing non-test guest')
 
 ROOT = Path(__file__).resolve().parents[1]
-GROUPS = [g for g in args.groups.split(',') if g]
+sys.path.insert(0, str(ROOT / 'script'))
+sys.path.insert(0, str(ROOT / 'vm'))
+import harness  # noqa: E402
+from workstation import profiles  # noqa: E402
+
+# --groups names host profiles; they resolve to manifest groups (the base group
+# included) and the repositories those groups install from.
+CATALOGUE = profiles.load(ROOT)
+PROFILES = profiles.parse(args.groups, CATALOGUE)
+SELECTION = profiles.resolve(PROFILES, CATALOGUE, ROOT)
+GROUPS = SELECTION['groups']
 failures = []
 
 
@@ -103,22 +118,15 @@ def verify():
                               + (': missing ' + ', '.join(missing_snaps) if missing_snaps else ''))
 
     # A tool that installs but cannot run is not installed in any useful sense.
-    runnable = {'helm': ['version', '--short'], 'k9s': ['version', '--short'],
-                'yq': ['--version'], 'sops': ['--version'], 'kubeconform': ['-v'],
-                'actionlint': ['--version'], 'd2': ['--version'],
-                'chezmoi': ['--version'], 'hadolint': ['--version']}
+    # zed is the one pinned archive binary; obsidian is a vendor .deb.
+    runnable = {'zed': ['--version']}
     broken = []
     for name, invocation in runnable.items():
         binary = next((b for b in wanted if b['id'] == name), None)
-        if binary is None:
-            continue
-        target = str(install_dir / name) if binary['kind'] != 'deb' else name
-        # Absence is already reported above; running a missing binary would only
-        # turn a clear finding into a traceback.
-        if name in absent:
+        if binary is None or name in absent:
             continue
         try:
-            result = subprocess.run([target, *invocation], capture_output=True,
+            result = subprocess.run([str(install_dir / name), *invocation], capture_output=True,
                                     text=True, check=False, timeout=60)
         except (OSError, subprocess.SubprocessError) as exc:
             broken.append(f'{name}({type(exc).__name__})')
@@ -132,6 +140,69 @@ def verify():
 
     verify_new_deliveries()
     verify_desktop()
+    verify_firewall()
+    verify_apt()
+    verify_bootstrap()
+
+
+def verify_firewall():
+    """UFW on with SSH kept open, OpenSnitch running in allow mode.
+
+    Allow mode is a first-install default the operator may change later (the
+    daemon's from Ubuntu's package, the UI's seeded once); nobody changes it in
+    the guest, so here it must read allow.
+    """
+    if 'firewall' not in PROFILES:
+        return
+    import pwd
+    from workstation import firewall, state
+    home = pwd.getpwuid(os.geteuid()).pw_dir
+    for check in firewall.verify(True, desktop=SELECTION['desktop'], home=home):
+        if check['status'] == 'notice':
+            if check['id'] in ('firewall:opensnitch-daemon-mode', 'firewall:opensnitch-ui-mode'):
+                report(check['reason'].endswith('-allow'), f"{check['id']}: {check['reason']}")
+            continue
+        report(check['status'] == 'passed', f"{check['id']}: {check['status']} — {check['reason']}")
+    recorded = state.get('firewall') or {}
+    report(recorded.get('allow_ssh') is True, 'state.json firewall.allow_ssh is true')
+    if SELECTION['desktop']:
+        report(recorded.get('opensnitch_ui_seeded') is True,
+               'state.json firewall.opensnitch_ui_seeded')
+
+
+def verify_apt():
+    """APT stays clean with both repositories' sources (RB10).
+
+    claude-desktop registers its own source; setup-dev-linux-wsl adds Anthropic's
+    for Claude Code. One keyring and one Signed-By keep `apt-get update` quiet.
+    """
+    for command in (['sudo', '-n', 'apt-get', 'update'], ['apt-get', 'check']):
+        result = subprocess.run(command, capture_output=True, text=True, check=False,
+                                timeout=900)
+        findings = harness.apt_findings(result.stdout + result.stderr)
+        report(result.returncode == 0 and not findings,
+               ' '.join(command[-2:]) + (': clean' if not findings
+                                         else ': ' + ' | '.join(findings[:5]))
+               + ('' if result.returncode == 0 else f' (exit {result.returncode})'))
+
+
+def verify_bootstrap():
+    """bootstrap verify itself; with the handoff it ends with cli:verify."""
+    command = harness.verify_command(ROOT / 'bootstrap', CONFIG, ','.join(PROFILES),
+                                     handoff=args.handoff)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                            text=True)
+    try:
+        value = json.loads(result.stdout)
+    except ValueError:
+        report(False, 'bootstrap verify produced no report')
+        return
+    failed = [c['id'] for c in value['checks'] if c['status'] == 'failed']
+    report(not failed, f"bootstrap verify: {value['outcome']}"
+                       + (': failed ' + ', '.join(failed) if failed else ''))
+    if args.handoff:
+        report(harness.check_passed(value, 'cli:verify'),
+               'cli:verify (setup-dev-linux-wsl script/verify --target linux)')
 
 
 def verify_desktop():
@@ -151,21 +222,22 @@ def verify_desktop():
 
 
 def verify_new_deliveries():
-    """Extensions, kubectl plugins and the pinned agent CLIs, read from the
+    """Repositories, snaps, binaries, extensions and groups, read from the
     installed system rather than from the installer's own report."""
     sys.path.insert(0, str(ROOT / 'script'))
     import pwd
     home = Path(pwd.getpwuid(os.geteuid()).pw_dir)
 
     from workstation.delivery import verify as verify_delivery
-    for check in verify_delivery(ROOT, groups=GROUPS):
+    for check in verify_delivery(ROOT, groups=GROUPS,
+                                 repositories=SELECTION['repositories']):
         if check['id'].startswith('manifest-'):
             report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
-    if {'dev', 'kubernetes'} & set(GROUPS):
+    if 'dev-gui' in GROUPS:
         from workstation.plugins import verify as verify_plugins
         for check in verify_plugins(home, ROOT, groups=GROUPS):
-            if check['id'] in ('vscode-extensions', 'krew-plugins'):
+            if check['id'] == 'vscode-extensions':
                 report(check['status'] == 'passed', f"{check['id']}: {check['reason']}")
 
     from workstation.system import verify as verify_system
@@ -174,36 +246,41 @@ def verify_new_deliveries():
         report(check['status'] in ('passed', 'deferred'),
                f"system {check['id']}: {check['status']} — {check['reason']}")
 
-    if 'ai' in GROUPS:
-        from workstation.npm_cli import verify as verify_agent
-        agents = json.loads((ROOT / 'manifest/runtimes.json').read_text())['agents']
-        for agent in agents:
-            if agent.get('delivery') == 'npm-pinned':
-                for check in verify_agent(home, agent['lock_id'], ROOT):
-                    report(check['status'] == 'passed',
-                           f"agent {check['id']}: {check['reason']}")
-
 
 def install(config):
-    command = [str(ROOT / 'bootstrap'), 'install', '--config', str(config),
-               '--format', 'json', '--manifest-groups', ','.join(GROUPS)]
-    result = subprocess.run(command, capture_output=True, text=True)
+    # The way the operator runs it: explicit profiles, then (with --handoff) the
+    # handoff to setup-dev-linux-wsl, non-interactive because the guest has no
+    # terminal; the re-run (--handoff again) passes no profiles and no SSH flag,
+    # so the record decides. Standard input is closed so nothing can wait for an
+    # answer; the handoff's own output goes to standard error, which the driver logs.
+    command = harness.apply_command(ROOT / 'bootstrap', config, ','.join(PROFILES),
+                                    handoff=args.handoff)
+    result = subprocess.run(command, stdout=subprocess.PIPE, stdin=subprocess.DEVNULL,
+                            text=True)
     try:
-        outcome = json.loads(result.stdout)['outcome']
+        value = json.loads(result.stdout)
+        outcome = value['outcome']
     except (ValueError, KeyError):
         print(result.stdout[-4000:])
-        print(result.stderr[-4000:], file=sys.stderr)
         raise SystemExit('install produced no report')
     # "incomplete" is the honest outcome while capability roles remain unwritten;
-    # a failure is not.
+    # a failure is not. A failed handoff fails the run with its exit code.
     report(result.returncode in (0, 3), f'install returned {outcome}')
+    if args.handoff:
+        report(harness.check_passed(value, 'handoff'),
+               f'handoff to setup-dev-linux-wsl ({args.handoff} run)')
+    if args.handoff == 'again':
+        # No --profiles and no --allow-ssh were passed: the record decided both.
+        findings = harness.rerun_findings(value, PROFILES)
+        report(not findings, 'the re-run used the recorded profiles and SSH choice'
+                             + (': ' + '; '.join(findings) if findings else ''))
     if result.returncode not in (0, 3):
-        print(json.dumps(json.loads(result.stdout), indent=2)[:4000])
+        print(json.dumps(value, indent=2)[:4000])
 
 
-config = build_config()
+CONFIG = build_config()
 if not args.verify_only:
-    install(config)
+    install(CONFIG)
 verify()
 
 if failures:

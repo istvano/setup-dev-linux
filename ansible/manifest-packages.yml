@@ -90,7 +90,8 @@
     - name: Install each vendor-managed repository's packages in turn
       ansible.builtin.include_tasks: tasks/install-vendor-package.yml
       loop: >-
-        {{ repositories.repositories | selectattr('self_registers_source', 'defined')
+        {{ repositories.repositories | selectattr('id', 'in', selected_repositories)
+           | selectattr('self_registers_source', 'defined')
            | selectattr('self_registers_source') | list }}
       loop_control:
         loop_var: vendor

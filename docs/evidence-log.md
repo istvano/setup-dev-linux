@@ -578,7 +578,7 @@ Checkpoint publication is not implemented, and neither verifier is wired into
 interruption recovery and negative mount cases remain T6c/d work. Transfer
 preflight therefore remains **incomplete (exit 3)**.
 
-## Machine manifest and file migration acceptance — 2026-09-16
+## Machine manifest acceptance — 2026-09-16
 
 The first end-to-end acceptance of [F13](../specs/F13-machine-manifest.md) and
 [F14](../specs/F14-file-migration.md), run with `script/test-manifest-vm`

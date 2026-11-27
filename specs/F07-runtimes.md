@@ -1,5 +1,10 @@
 # F07 — Reviewed runtimes and synthetic developer workflows
 
+> **Moved 2026-11-26.** The runtimes and agent CLIs now belong to setup-dev-linux-wsl, which owns the
+> command line on a Linux machine as well as in WSL; this repository no longer
+> implements them ([MOVED.md](../docs/MOVED.md)). Kept as a record of what was built
+> and proved.
+
 ## Shared behavior
 
 Use reviewed current stable releases, excluding previews. Temurin 25 is the fixed

@@ -136,7 +136,7 @@ def main():
         lines += ['Every observed item has a proposal.', '']
 
     lines += ['## Not covered by this document', '',
-              'GNOME settings, dotfiles and file migration are reviewed separately:',
+              'GNOME settings and dotfiles are reviewed separately:',
               '',
               f"- **GNOME**: {len(inventory['desktop']['dconf'])} dconf sections changed from default, "
               f"{len(inventory['desktop']['gnome_extensions'])} shell extensions.",

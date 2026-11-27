@@ -1,8 +1,8 @@
 """The pre-deployment version report.
 
 Its job is to say what would change before anything is written, and to be
-honest about what it cannot refresh: most pins live in hand-curated locks whose
-payloads carry per-file digests, and a sweep must not pretend otherwise.
+honest about what it cannot refresh: the controller toolchain is changed
+deliberately, and a sweep must not pretend otherwise.
 """
 import json
 import subprocess
@@ -46,8 +46,6 @@ class SourceDeclarationTest(unittest.TestCase):
         for lock in sorted((ROOT / 'locks').glob('*.json')):
             if lock.name.endswith('schema.json'):
                 continue
-            if lock.stem in ('go', 'rust'):
-                continue  # dormant by decision, not selected
             self.assertIn(f'locks/{lock.name}', watched,
                           f'{lock.name} is pinned but no update source watches it')
 
@@ -70,9 +68,8 @@ class NormalisationTest(unittest.TestCase):
     def test_tag_prefixes_are_ignored(self):
         normalise = self.module.normalise
         self.assertEqual(normalise('v1.2.3'), normalise('1.2.3'))
-        self.assertEqual(normalise('rust-v0.154.0'), normalise('0.154.0'))
-        self.assertEqual(normalise('mandrel-25.0.4.1-Final'), normalise('25.0.4.1-Final'))
-        self.assertEqual(normalise('jdk-25.0.4.1+1'), normalise('25.0.4.1-1'))
+        self.assertEqual(normalise('release-1.2.3'), normalise('1.2.3'))
+        self.assertEqual(normalise('1.2.3+1'), normalise('1.2.3-1'))
 
     def test_unrelated_versions_still_differ(self):
         normalise = self.module.normalise
@@ -89,35 +86,26 @@ class ComparisonTest(unittest.TestCase):
     def test_equal_after_normalising_is_current(self):
         self.assertTrue(self.module.matches('1.18.31', 'v1.18.31', {}))
 
-    def test_containment_match_for_dated_releases(self):
-        """python-build-standalone tags by date; the pin embeds that date."""
-        self.assertTrue(self.module.matches(
-            '3.14.7+20260901', '20260901', {'match': 'contains'}))
-
-    def test_containment_is_not_the_default(self):
-        self.assertFalse(self.module.matches('3.14.7+20260901', '20260901', {}))
+    def test_a_different_release_is_not_current(self):
+        self.assertFalse(self.module.matches('1.18.31', 'v1.18.32', {}))
 
 
 class RecordedVersionTest(unittest.TestCase):
     def setUp(self):
         self.module = load_module()
 
-    def test_reads_a_list_of_artifacts(self):
-        source = next(s for s in SOURCES if s['id'] == 'chezmoi')
-        self.assertTrue(self.module.recorded(source))
-
     def test_reads_a_mapping_of_artifacts(self):
         """bootstrap.json keys its artifacts by id instead of listing them."""
         source = next(s for s in SOURCES if s['id'] == 'controller')
         self.assertTrue(self.module.recorded(source))
 
-    def test_reads_a_top_level_field(self):
-        source = next(s for s in SOURCES if s['id'] == 'claude-code')
-        self.assertTrue(self.module.recorded(source))
+    def test_a_resolver_source_records_no_single_version(self):
+        source = next(s for s in SOURCES if s['id'] == 'binaries')
+        self.assertIsNone(self.module.recorded(source))
 
     def test_an_unknown_artifact_is_not_invented(self):
         self.assertIsNone(self.module.recorded(
-            {'lock': 'locks/user-tools.json', 'artifact': 'nothing-like-this',
+            {'lock': 'locks/bootstrap.json', 'artifact': 'nothing-like-this',
              'probe': 'github_release'}))
 
 
@@ -128,7 +116,7 @@ class ReportBehaviourTest(unittest.TestCase):
 
     def test_a_report_writes_nothing_and_succeeds(self):
         before = (ROOT / 'manifest/binaries.json').read_bytes()
-        result = self.run_report('--only', 'maven')
+        result = self.run_report('--only', 'controller')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn('Nothing was written', result.stdout)
         self.assertEqual((ROOT / 'manifest/binaries.json').read_bytes(), before)
@@ -140,35 +128,17 @@ class ReportBehaviourTest(unittest.TestCase):
         for source in automatic:
             self.assertTrue(source['apply'].startswith('script/'))
 
-    def test_hand_curated_locks_are_never_marked_automatic(self):
-        """Their payloads carry per-file digests; a sweep must not rewrite them."""
-        for identifier in ('node', 'mandrel', 'temurin-25', 'cline'):
+    def test_the_controller_is_never_marked_automatic(self):
+        """The controller toolchain is changed deliberately, not by a sweep."""
+        for identifier in ('controller',):
             source = next(s for s in SOURCES if s['id'] == identifier)
             self.assertIsNone(source.get('apply'),
                               f'{identifier} must not be re-pinned by a sweep')
 
 
 class ApplyCommandTest(unittest.TestCase):
-    """Apply commands are split with shlex, not str.split.
-
-    One carries a quoted licence string; splitting on whitespace turns it into
-    three stray arguments and the resolver refuses them.
-    """
-
-    def test_a_quoted_argument_survives_splitting(self):
-        import shlex
-        source = next(s for s in SOURCES if s['id'] == 'claude-code')
-        arguments = shlex.split(source['apply'])
-        licence = arguments[arguments.index('--licence') + 1]
-        self.assertEqual(licence, 'Anthropic commercial terms')
-        self.assertNotIn('commercial', arguments[arguments.index('--licence') + 2:])
-
-    def test_naive_splitting_would_break_it(self):
-        source = next(s for s in SOURCES if s['id'] == 'claude-code')
-        naive = source['apply'].split()
-        self.assertNotEqual(naive[naive.index('--licence') + 1],
-                            'Anthropic commercial terms',
-                            'this is why shlex is used')
+    """Apply commands are split with shlex, not str.split, so a quoted argument
+    survives as one argument."""
 
     def test_every_apply_command_splits_cleanly(self):
         import shlex
@@ -178,6 +148,9 @@ class ApplyCommandTest(unittest.TestCase):
                 self.assertTrue(arguments[0].startswith('script/'))
                 self.assertNotIn("'", ' '.join(arguments),
                                  f"{source['id']}: quotes leaked into an argument")
+
+    def test_only_host_pins_are_watched(self):
+        self.assertEqual({s['id'] for s in SOURCES}, {'binaries', 'repository-keys', 'controller'})
 
 
 class GitHubAuthenticationTest(unittest.TestCase):
@@ -241,7 +214,7 @@ class GitHubAuthenticationTest(unittest.TestCase):
 
         with patch.object(self.module, 'github_token', return_value='unused'), \
              patch.object(self.module, 'read', side_effect=fake_read):
-            self.module.fetch('https://registry.npmjs.org/cline/latest')
+            self.module.fetch('https://example.org/release/latest')
         self.assertEqual(calls, [None])
 
 

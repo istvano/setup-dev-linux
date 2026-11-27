@@ -1,13 +1,15 @@
 #!/usr/bin/python3 -B
-"""Apply the manifest in the disposable guest and rehearse the file migration.
+"""Apply the host and hand off to setup-dev-linux-wsl in the disposable guest.
 
-Sequence: sync this working tree into the guest, apply the manifest, verify what
-landed, copy a bounded sample of the operator's real home into the guest and
-prove the copy is complete, reboot, then verify and re-apply to show the result
-is stable and the apply is repeatable.
+Sequence: sync this working tree into the guest, apply (host stages, then the
+handoff: setup-dev-linux-wsl's ./bootstrap apply --target linux, cloned from
+GitHub, non-interactive), verify what landed on both sides, reboot, then
+verify and apply again with no host profiles, no SSH flag and no command-line
+profile list, so both repositories run from what they recorded, to show the
+result is stable and the apply is repeatable. The guest needs network access.
+--skip-handoff keeps the cycle host only.
 """
 import argparse
-import hashlib
 import json
 import os
 import subprocess
@@ -20,19 +22,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 STATE = ROOT / 'vm/state'
 GUEST_HOME = '/home/ws-test'
-# No GPU is present in the guest, so the gpu group cannot be exercised here.
-DEFAULT_GROUPS = ('core,dev,cloud,kubernetes,containers,lab,media,'
-                  'network,security,ai,productivity,desktop')
+sys.path.insert(0, str(ROOT / 'vm'))
+import harness  # noqa: E402
 
 parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--groups', default=DEFAULT_GROUPS)
+# Every host profile but gpu: the guest has no NVIDIA hardware.
+parser.add_argument('--groups', default=harness.CLEAN_CYCLE_PROFILES,
+                    help='host profiles (default: %(default)s)')
 parser.add_argument('--skip-install', action='store_true', help='verify without applying')
-parser.add_argument('--skip-migrate', action='store_true')
 parser.add_argument('--skip-reboot', action='store_true')
-parser.add_argument('--migrate-source', help='home directory to copy from (default: this home)')
-parser.add_argument('--migrate-trees', default='bin,Documents',
-                    help='declared trees to actually copy during the rehearsal')
+parser.add_argument('--skip-handoff', action='store_true',
+                    help='host only: never hand off to setup-dev-linux-wsl')
 args = parser.parse_args()
+# The host stages, then setup-dev-linux-wsl with Homebrew and the former
+# command-line set: far longer than the host alone.
+APPLY_TIMEOUT = 9000 if args.skip_handoff else 14400
 
 os.umask(0o077)
 state = json.loads((STATE / 'vm.json').read_text())
@@ -68,10 +72,10 @@ log.chmod(0o600)
 
 stage('sync working tree into the guest')
 guest('cloud-init status --wait', timeout=300)
-files = [ROOT / n for n in ('bootstrap', 'pyproject.toml', 'uv.lock', 'vm/manifest_fixture.py')]
-files.append(ROOT / 'vm/migration_leak_check.py')
+files = [ROOT / n for n in ('bootstrap', 'pyproject.toml', 'uv.lock', 'vm/manifest_fixture.py',
+                            'vm/harness.py')]
 for name in ('catalogue', 'profiles', 'script', 'locks', 'ansible', 'manifest', 'config',
-             'user-files', 'tests'):
+             'tests'):
     files.extend(p for p in (ROOT / name).rglob('*')
                  if p.is_file() and not p.is_symlink() and '__pycache__' not in p.parts
                  and not p.name.endswith(('.pyc', '.local.json')))
@@ -87,81 +91,25 @@ print(f'copied {len(files)} files', flush=True)
 
 fixture = (f'cd {remote} && python3 -B -u vm/manifest_fixture.py '
            f'--expected-vm-id {vm_id} --groups {args.groups}')
+# First apply: the handoff with --cli-profiles and a throwaway identity, so
+# setup-dev-linux-wsl runs --non-interactive. Every later run: no profiles and
+# no SSH flag for either repository, so both use what they recorded, as an
+# operator's re-run.
+first = fixture + ('' if args.skip_handoff else ' --handoff first')
+again = fixture + ('' if args.skip_handoff else ' --handoff again')
 
 if not args.skip_install:
-    stage('apply the manifest')
+    stage('apply the host' + ('' if args.skip_handoff else ' and hand off to setup-dev-linux-wsl'))
     started = time.monotonic()
     try:
-        guest_logged(fixture, timeout=9000)
+        guest_logged(first, timeout=APPLY_TIMEOUT)
     except subprocess.CalledProcessError:
         print(f'FAIL: manifest apply; see {log}')
         raise SystemExit(1)
     print(f'applied in {time.monotonic() - started:.0f}s', flush=True)
 else:
-    stage('verify the manifest without applying')
-    guest_logged(fixture + ' --verify-only', timeout=1800)
-
-if not args.skip_migrate:
-    source = args.migrate_source or str(Path.home())
-    rsh = f'ssh -F {STATE / "ssh_config"}'
-
-    def run_migrate(label, extra, expect_zero=True):
-        command = [str(ROOT / 'bootstrap'), 'migrate',
-                   '--config', str(ROOT / 'config/standard-split.example.json'),
-                   '--to', 'linux-setup-test', '--rsh', rsh,
-                   '--remote-home', GUEST_HOME, '--source-home', source,
-                   '--format', 'json', *extra]
-        result = subprocess.run(command, capture_output=True, text=True)
-        with log.open('a') as output:
-            output.write(f'--- {label} ---\n' + result.stdout + result.stderr)
-        print(f'{label}: {result.stdout.strip()[:400]}', flush=True)
-        if expect_zero and result.returncode != 0:
-            print(f'FAIL: {label}; see {log}')
-            raise SystemExit(1)
-        return result
-
-    stage('preview the full migration plan against the real home')
-    run_migrate('full-home-dry-run', ['--dry-run'])
-
-    stage('rehearse a bounded real migration into the guest')
-    run_migrate('bounded-copy', ['--only-trees', args.migrate_trees])
-
-    stage('prove no credential material travelled with it')
-    # Name the credential files this machine actually has, so the guest can
-    # check for their arrival rather than merely for the absence of a directory.
-    # Send content digests, not names: the guest has its own authorized_keys and
-    # pubring.kbx, so a name match proves nothing and a hash match proves a leak.
-    source_home = Path(source)
-    digests = []
-    for candidate in ('.ssh', '.gnupg', '.aws', '.azure', '.kube', '.docker',
-                      '.config/gh', 'secure'):
-        directory = source_home / candidate
-        if not directory.is_dir():
-            continue
-        for entry in sorted(directory.rglob('*')):
-            if not entry.is_file() or entry.is_symlink():
-                continue
-            try:
-                size = entry.stat().st_size
-                # Every empty file shares one digest, so an empty source file
-                # would match every empty file in the guest and prove nothing.
-                if size == 0 or size > 8 * 1024 * 1024:
-                    continue
-                digest = hashlib.sha256(entry.read_bytes()).hexdigest()
-            except OSError:
-                continue
-            digests.append(f'{digest}  {entry.relative_to(source_home)}')
-    guest_leak = (f'cd {remote} && python3 -B -u vm/migration_leak_check.py '
-                  f'--expected-vm-id {vm_id} --home {GUEST_HOME} --digests-stdin')
-    try:
-        with log.open('a') as output:
-            guest(guest_leak, input='\n'.join(digests), text=True,
-                  stdout=output, stderr=subprocess.STDOUT, timeout=1800)
-        print(f'credential leak check: passed ({len(digests)} source credential '
-              f'files checked by content)', flush=True)
-    except subprocess.CalledProcessError:
-        print(f'FAIL: credential material reached the guest; see {log}')
-        raise SystemExit(1)
+    stage('verify without applying')
+    guest_logged(again + ' --verify-only', timeout=1800)
 
 if not args.skip_reboot:
     stage('reboot and confirm the result survives')
@@ -169,7 +117,7 @@ if not args.skip_reboot:
     started = time.monotonic()
     subprocess.run([str(ROOT / 'script/vm'), 'ssh', 'sudo -n systemctl reboot'], check=False)
     # A guest carrying the full manifest boots slower than a bare image: snapd
-    # seeds four snaps and docker, libvirt and the desktop services all start.
+    # seeds four snaps and libvirt and the desktop services all start.
     deadline = time.monotonic() + 900
     while time.monotonic() < deadline:
         try:
@@ -189,9 +137,11 @@ if not args.skip_reboot:
     else:
         raise SystemExit('FAIL: guest did not come back within 900s of the reboot')
     guest('cloud-init status --wait', timeout=300)
-    guest_logged(fixture + ' --verify-only', timeout=1800)
+    guest_logged(again + ' --verify-only', timeout=1800)
     stage('apply a second time to prove the apply is repeatable')
-    guest_logged(fixture, timeout=9000)
+    guest_logged(again, timeout=APPLY_TIMEOUT)
 
-print('\nPASS: manifest applied, verified, migration rehearsed and repeated after reboot')
+print('\nPASS: applied, verified and repeated after reboot'
+      + ('' if args.skip_handoff else ', setup-dev-linux-wsl included'))
 print('GPU delivery is not covered: the guest has no NVIDIA hardware.')
+print('Manual items remain: docs/TESTING.md, "VM acceptance checklist".')

@@ -393,7 +393,7 @@ Every observed item has a proposal.
 
 ## Not covered by this document
 
-GNOME settings, dotfiles and file migration are reviewed separately:
+GNOME settings and dotfiles are reviewed separately:
 
 - **GNOME**: 93 dconf sections changed from default, 7 shell extensions.
 - **Dotfiles**: 22 configuration entries, 11 credential-bearing, 25 caches and histories to skip.

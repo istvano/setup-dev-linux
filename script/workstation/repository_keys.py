@@ -5,6 +5,11 @@ saved with an .asc name is ignored and its repository is then treated as
 unsigned — a silent downgrade rather than an error. Every key is therefore
 converted to binary form under a .gpg name, and checked against the fingerprint
 the manifest records before it is trusted.
+
+The one exception is a keyring shared with setup-dev-linux-wsl, which names an
+.asc path and installs its committed armoured key there verbatim. Such a key is
+written as the armoured bytes it arrived as, so both repositories leave the
+same file alone, and it must hold exactly the one recorded primary key.
 """
 import re
 import subprocess
@@ -48,9 +53,37 @@ def fingerprint(data):
     raise KeyError_('key-material-has-no-fingerprint')
 
 
+def primary_fingerprints(data):
+    """Fingerprint of every primary key in binary keyring bytes, in order."""
+    result = subprocess.run(
+        ['gpg', '--show-keys', '--with-colons', '--with-fingerprint', '-'],
+        input=data, capture_output=True, check=False)
+    if result.returncode != 0:
+        raise KeyError_('key-material-not-readable')
+    found, primary = [], False
+    for line in result.stdout.decode('utf-8', 'replace').splitlines():
+        if line.startswith('pub:'):
+            primary = True
+        elif line.startswith('fpr:') and primary:
+            found.append(line.split(':')[9])
+            primary = False
+    return found
+
+
 def install_key(source, destination, expected):
-    """Place a verified binary keyring. Returns True when the file changed."""
-    data = to_binary(Path(source).read_bytes())
+    """Place a verified keyring. Returns True when the file changed.
+
+    A .gpg destination receives binary key material; an .asc destination (a
+    keyring shared with setup-dev-linux-wsl) receives the armoured source bytes
+    unchanged.
+    """
+    raw = Path(source).read_bytes()
+    armoured = Path(destination).suffix == '.asc'
+    if armoured and not is_armoured(raw):
+        raise KeyError_('asc-keyring-needs-armoured-key')
+    data = to_binary(raw)
+    if armoured and len(primary_fingerprints(data)) != 1:
+        raise KeyError_('shared-keyring-must-hold-exactly-one-key')
     observed = fingerprint(data)
     if expected:
         if not FINGERPRINT.match(expected):
@@ -60,6 +93,8 @@ def install_key(source, destination, expected):
     destination = Path(destination)
     if destination.is_symlink():
         raise KeyError_('unsafe-keyring-path')
+    if armoured:
+        data = raw
     if destination.is_file() and destination.read_bytes() == data:
         return False
     destination.write_bytes(data)

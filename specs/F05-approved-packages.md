@@ -1,5 +1,9 @@
 # F05 — Source-approved package delivery and independent verification
 
+> **Note 2026-11-26.** The archive command-line packages of the initial slice (Git,
+> curl, jq and the rest) moved to setup-dev-linux-wsl ([MOVED.md](../docs/MOVED.md)).
+> The approval registry remains, empty, for host packages that earn a record.
+
 ## Initial slice
 
 Deliver the Ubuntu-channel Git, curl and jq capabilities first. They exercise a

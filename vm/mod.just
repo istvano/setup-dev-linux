@@ -26,7 +26,7 @@ stop:
 ssh *ARGS:
   python3 -B script/vm ssh {{ARGS}}
 
-[doc("Apply the manifest, rehearse the migration, reboot and repeat")]
+[doc("Apply with the handoff in the guest, reboot and repeat")]
 accept:
   python3 -B script/test-manifest-vm
 
@@ -34,6 +34,6 @@ accept:
 foundation *ARGS:
   python3 -B script/test-vm {{ARGS}}
 
-[doc("Destroy the guest, rebuild it, apply and accept")]
+[doc("Destroy the guest, rebuild it, apply with the handoff and accept")]
 clean-cycle: reset up
   python3 -B script/test-manifest-vm

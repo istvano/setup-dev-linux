@@ -5,10 +5,11 @@ Answering "are we on the latest?" before a deployment needs two things this
 repository did not have: one place that knows where every pinned version comes
 from, and a report that compares the recorded pin with what upstream publishes.
 
-Most pins live in hand-curated locks whose payloads carry per-file digests.
-Those cannot be rewritten by a sweep and are reported as needing review; only
-the entries with an `apply` command can be re-pinned automatically, and only
-`--write` does that.
+The host pins the desktop release binaries, the repository signing keys and
+the controller toolchain. Entries with an `apply` command can be re-pinned
+automatically, and only `--write` does that; the rest are changed deliberately
+and reported as needing review. Command-line tools and runtimes belong to
+setup-dev-linux-wsl.
 """
 import argparse
 import json
@@ -79,13 +80,13 @@ def fetch(url):
 def normalise(value):
     """Compare versions without the prefixes each project happens to use.
 
-    Tags are spelled "v1.2.3", "jdk-25.0.4.1+1", "rust-v0.154.0" and
-    "mandrel-25.0.4.1-Final" for the same kind of thing.
+    Tags are spelled "v1.2.3", "release-1.2.3" and "1.2.3+1" for the same kind
+    of thing.
     """
     if not value:
         return ''
     text = str(value).strip()
-    text = re.sub(r'^(jdk-|mandrel-|rust-|release-|node-)', '', text)
+    text = re.sub(r'^release-', '', text)
     text = text.lstrip('vV')
     return text.replace('+', '-')
 
@@ -95,30 +96,7 @@ def github_latest(source):
     return data['tag_name']
 
 
-def npm_latest(source):
-    return json.loads(fetch(
-        f"https://registry.npmjs.org/{source['package'].replace('/', '%2f')}/latest"))['version']
-
-
-def nodejs_latest(source):
-    releases = json.loads(fetch('https://nodejs.org/dist/index.json'))
-    return releases[0]['version'] if releases else None
-
-
-def sdkman_latest(source):
-    return fetch(f"https://api.sdkman.io/2/candidates/default/{source['candidate']}").strip()
-
-
-def git_ref_latest(source):
-    result = subprocess.run(['git', 'ls-remote', source['repo'], source.get('ref', 'HEAD')],
-                            capture_output=True, text=True, check=False, timeout=TIMEOUT)
-    if result.returncode != 0 or not result.stdout.strip():
-        raise LookupError('git ls-remote failed')
-    return result.stdout.split()[0]
-
-
-PROBES = {'github_release': github_latest, 'npm': npm_latest, 'nodejs': nodejs_latest,
-          'sdkman': sdkman_latest, 'git_ref': git_ref_latest}
+PROBES = {'github_release': github_latest}
 
 
 def recorded(source):
@@ -143,14 +121,7 @@ def recorded(source):
 
 
 def matches(current, latest, source):
-    """Whether the pin is already the published release.
-
-    Most sources compare equal after normalising the tag. python-build-standalone
-    tags a release by date and the recorded version embeds that date alongside
-    the CPython version, so there the tag is contained rather than equal.
-    """
-    if source.get('match') == 'contains':
-        return normalise(latest) in normalise(current)
+    """Whether the pin is already the published release, after normalising."""
     return normalise(current) == normalise(latest)
 
 
@@ -212,7 +183,7 @@ def main():
     if automatic:
         print(f"  re-pinned automatically: {', '.join(s['id'] for s in automatic)}")
     if review:
-        print(f"  needs review (hand-curated lock): {', '.join(s['id'] for s in review)}")
+        print(f"  needs review (changed deliberately): {', '.join(s['id'] for s in review)}")
     if unreachable:
         print(f"  could not be checked: {', '.join(unreachable)}")
     if resolvers:
@@ -231,7 +202,7 @@ def main():
     for source in automatic + resolvers:
         command = source['apply']
         print(f"\n$ {command}")
-        # shlex, not split(): one apply command carries a quoted licence string.
+        # shlex, not split(): an apply command may carry a quoted argument.
         result = subprocess.run([sys.executable, '-B', *shlex.split(command)],
                                 cwd=ROOT, check=False)
         if result.returncode != 0:
@@ -239,8 +210,7 @@ def main():
     if review:
         print(f"\nStill pinned to an older version, by design: "
               f"{', '.join(s['id'] for s in review)}.")
-        print('Their locks carry per-file digests and are re-pinned deliberately, '
-              'not by a sweep.')
+        print('They are re-pinned deliberately, not by a sweep.')
     if failures:
         print(f"\nFailed to re-pin: {', '.join(failures)}", file=sys.stderr)
         return 1

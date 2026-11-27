@@ -1,0 +1,129 @@
+---
+# The host firewall: UFW (default deny incoming, allow outgoing, SSH only when
+# chosen) and OpenSnitch in allow mode. Variables from the controller:
+#   firewall_allow_ssh  the operator's choice (--allow-ssh / --no-allow-ssh,
+#                       or the recorded one); false when absent
+#   host_profiles       the selected host profiles (lab adds the virbr0 rules)
+#   host_desktop        true when the selection includes the desktop set
+#
+# OpenSnitch runs in allow mode on purpose: this setup and the handoff to
+# setup-dev-linux-wsl that follows it need outbound network and there is
+# nobody to answer a prompt. Ubuntu's package already ships "DefaultAction":
+# "allow", so the daemon's system-wide configuration is never written here: a
+# write could only ever undo the operator's later switch to deny. The UI's
+# per-user default is seeded by the controller, as the target user. Docker's
+# published ports bypass UFW; Docker is not installed here, and `verify` says
+# so when it is present.
+- name: Configure the host firewall
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+  tasks:
+    # Ubuntu archive packages (universe for opensnitch), signed by the archive
+    # key. Recommends are off so the Qt UI never reaches a headless host; the
+    # eBPF modules are the one recommended package the daemon's default
+    # configuration (ProcMonitorMethod ebpf) wants.
+    - name: Install UFW and OpenSnitch
+      ansible.builtin.apt:
+        name:
+          - ufw
+          - opensnitch
+          - opensnitch-ebpf-modules
+        state: present
+        install_recommends: false
+        lock_timeout: 300
+      become: true
+
+    - name: Install the OpenSnitch UI with the desktop set
+      ansible.builtin.apt:
+        name: python3-opensnitch-ui
+        state: present
+        install_recommends: false
+        lock_timeout: 300
+      become: true
+      when: host_desktop | default(false) | bool
+
+    - name: Read the UFW defaults
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, status, verbose]
+      register: ufw_status
+      changed_when: false
+      become: true
+
+    - name: Read the UFW rules that are added, enabled or not
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, show, added]
+      register: ufw_added
+      changed_when: false
+      become: true
+
+    - name: Default deny incoming
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, default, deny, incoming]
+      changed_when: true
+      become: true
+      when: "'deny (incoming)' not in ufw_status.stdout"
+
+    - name: Default allow outgoing
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, default, allow, outgoing]
+      changed_when: true
+      become: true
+      when: "'allow (outgoing)' not in ufw_status.stdout"
+
+    # Rules go in before UFW is enabled, so enabling never closes a session
+    # the operator meant to keep.
+    - name: Allow incoming SSH when chosen
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, allow, OpenSSH]
+      changed_when: true
+      become: true
+      when:
+        - firewall_allow_ssh | default(false) | bool
+        - "'allow OpenSSH' not in ufw_added.stdout"
+
+    - name: Remove the SSH rule when it is not chosen
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, delete, allow, OpenSSH]
+      changed_when: true
+      become: true
+      when:
+        - not (firewall_allow_ssh | default(false) | bool)
+        - "'allow OpenSSH' in ufw_added.stdout"
+
+    # libvirt's default network serves its guests DHCP and DNS from dnsmasq on
+    # virbr0 and NATs their traffic through the host. UFW's default deny incoming
+    # and its routed policy would drop both, so lab opens exactly that: DHCP
+    # (67/udp) and DNS (53, udp and tcp) in on virbr0, and forwarding in and out
+    # of it. ufw skips a rule that already exists. Deselecting lab removes
+    # nothing: rules, like packages, are never uninstalled. 'on' is quoted:
+    # YAML 1.1 reads a bare on as true.
+    - name: Let libvirt guests use DHCP, DNS and NAT on virbr0 with lab
+      ansible.builtin.command:
+        argv: "{{ item }}"
+      loop:
+        - [/usr/sbin/ufw, allow, in, 'on', virbr0, to, any, port, '67', proto, udp]
+        - [/usr/sbin/ufw, allow, in, 'on', virbr0, to, any, port, '53']
+        - [/usr/sbin/ufw, route, allow, in, 'on', virbr0]
+        - [/usr/sbin/ufw, route, allow, out, 'on', virbr0]
+      register: ufw_libvirt
+      changed_when: ufw_libvirt.stdout is search('Rules? (added|updated)')
+      become: true
+      when: "'lab' in (host_profiles | default([]))"
+
+    - name: Enable UFW
+      ansible.builtin.command:
+        argv: [/usr/sbin/ufw, --force, enable]
+      changed_when: true
+      become: true
+      when: "'Status: active' not in ufw_status.stdout"
+
+    - name: Enable and start OpenSnitch
+      ansible.builtin.systemd:
+        name: opensnitch
+        enabled: true
+        state: started
+      become: true

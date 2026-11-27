@@ -53,21 +53,6 @@ def repository_sites(root=ROOT):
     return sites
 
 
-def applied_groups(root=ROOT):
-    """Manifest groups the last install applied, or None when nothing has.
-
-    Verification should describe the machine that exists. A machine installed
-    without the gpu group has not failed to install it.
-    """
-    record = Path(root) / '.workstation/applied-groups.json'
-    try:
-        value = json.loads(record.read_text())
-    except (OSError, ValueError):
-        return None
-    groups = value.get('groups')
-    return groups if isinstance(groups, list) and groups else None
-
-
 def expectations(root=ROOT, groups=None):
     """What each selected package must satisfy, keyed by package name."""
     manifest, _ = load_json(Path(root) / 'manifest/packages.json')
@@ -144,27 +129,6 @@ def verify_packages(root=ROOT, groups=None):
                    'reason': f'{len(observations) - len(failed)}-of-{len(observations)}'
                              '-installed-from-their-declared-source'})
     return checks
-
-
-def verify_named_packages(names, root=ROOT):
-    """Check that specific Ubuntu archive packages are installed.
-
-    Used by runtimes that need a system dependency present before they can
-    work — Mandrel's native-image support needs a compiler and the zlib and
-    freetype headers. Those packages are declared in the manifest like any
-    other; this asks only whether they are there.
-    """
-    names = sorted(set(names))
-    if not names:
-        return []
-    suites = archive_suites()
-    records = [{'id': name, 'package': name, 'source': ARCHIVE, 'kind': ARCHIVE,
-                'origin': ARCHIVE_ORIGIN, 'suites': suites, 'site': None} for name in names]
-    return [{'id': o['id'],
-             'status': 'passed' if o['installed_allowed'] else 'failed',
-             'reason': 'installed-from-the-ubuntu-archive' if o['installed_allowed']
-                       else 'missing-or-not-from-the-ubuntu-archive'}
-            for o in inspect_packages(records, root)]
 
 
 def approved_registry(entries, root=ROOT):

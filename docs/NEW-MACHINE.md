@@ -1,176 +1,156 @@
 # Setting up a new workstation
 
-This is the operator runbook for moving to a new machine. It assumes the old
-machine is still running and reachable over the network.
-
-Nothing here partitions disks, formats filesystems or deletes data on either
-machine. The copy never deletes on the destination.
+The operator runbook for a fresh machine: install Ubuntu, run `apply`, which sets up
+the host and then hands off to setup-dev-linux-wsl for the command line, log in
+again, verify. This repository installs software only; it copies nothing from
+another machine, and nothing here partitions disks, formats filesystems or deletes
+data.
 
 ## Before you start
 
-On the **new** machine:
+- Ubuntu 26.04 LTS amd64, freshly installed, with your user account. The repository
+  is for fresh installs only: a machine set up by an earlier version is reinstalled
+  (D023 in [DECISIONS.md](DECISIONS.md)).
+- Network access: `apply` downloads packages, and the handoff clones
+  setup-dev-linux-wsl from GitHub.
+- `git` and `gpg`, which a minimal install may lack. `preflight` and `apply` check
+  for both on the system path and stop, before changing anything, with
+  `prerequisite:git` or `prerequisite:gpg` naming the package to install:
 
-- Ubuntu 26.04 LTS amd64 installed, with a user account and an SSH server
-  (`sudo apt install openssh-server`).
-- Your SSH public key from the old machine in `~/.ssh/authorized_keys`.
+  ```bash
+  sudo apt install git gnupg
+  ```
 
-On the **old** machine:
+- This repository cloned, for example into `~/workspace/setup-dev-linux`. Run the
+  commands below from its root.
 
-- An independently verified backup. The migration reads, never moves, but a
-  workstation move is the wrong moment to discover a backup gap.
-- This repository checked out, and `just verify-static` passing.
+## 1. Describe the machine
 
-## 1. Check what will be installed
+Copy the example for your disk layout, `config/standard-single.example.json` or
+`config/standard-split.example.json`, to `config/your-machine.local.json` (Git
+ignores `*.local.json`). Set `example_only` to `false`, `target.user` to your user,
+and replace every `REPLACE_` value with the real stable disk identity
+(`/dev/disk/by-id/...`), minimum size and filesystem UUID
+(`findmnt -o TARGET,UUID`). Keep the file private: it holds this machine's disk
+identities.
 
-```bash
-just plan config/your-machine.json
-```
-
-`plan` writes nothing, downloads nothing and uses no privilege. It lists each
-selection with its delivery route and names anything blocked.
-
-The set of software comes from `manifest/`, which records decisions made in
-[the inventory review](INVENTORY-REVIEW.md). To change what a new machine gets,
-change the manifest — not the machine, and then the manifest.
-
-## 2. Check the target machine
-
-```bash
-just preflight config/your-machine.json
-```
-
-This runs on the new machine and fails before any write if the declared disks
-and mounts do not match what is actually there.
-
-## 3. Install
+## 2. Check what will run
 
 ```bash
-just install config/your-machine.json
+./bootstrap plan --config config/your-machine.local.json
 ```
+
+`plan` writes nothing, downloads nothing and uses no privilege. It prints the
+`Profiles:` line and its source, each selected capability with its delivery route,
+and the stages `apply` would run, ending with `stage:handoff`. On a machine where
+setup-dev-linux-wsl has recorded no profile choice yet, it also prints the `hint:`
+line described in step 4.
+
+To change the host profiles, pass `--profiles`. A server leaves out the desktop set
+(`desktop,media,productivity,ai,network,dev-gui`); `firewall` can be selected on its
+own. A server reached over SSH needs `--allow-ssh` (or, deliberately, `--no-allow-ssh`)
+with the firewall: `plan` shows the decision as `firewall:ssh`, and `apply` over SSH
+refuses without one:
+
+```bash
+./bootstrap plan --config config/your-machine.local.json --profiles gpu,firewall --allow-ssh
+```
+
+## 3. Check the target machine
+
+```bash
+./bootstrap preflight --config config/your-machine.local.json
+```
+
+This fails before any write if the declared disks and mounts do not match what is
+actually there, or if `git` or `gpg` is missing.
+
+## 4. Apply: the host, then the handoff
 
 Run this **as your own user**, not as root, and not with `sudo`. The installer
-raises privilege for the system tasks that need it and refuses to run the whole
-bootstrap as root.
+raises privilege for the system tasks that need it and refuses to run as root.
 
-It configures the signed third-party APT sources, installs the manifest's
-packages and snaps, installs each pinned release binary after verifying its
-SHA-256, then sets up the user runtimes. Re-running it is safe: the second run
-changes nothing that is already correct.
-
-To install part of the manifest, name the groups:
+setup-dev-linux-wsl records its command-line profile choice on its first run and
+refuses a different list afterwards, so choose it now. For the command-line set this
+repository used to install, give that list:
 
 ```bash
-just install config/your-machine.json core,dev,kubernetes
+./bootstrap apply --config config/your-machine.local.json \
+  --cli-profiles core,dev,security,kubernetes,backup,runtime-docker,ai-agents,cloud,cloud-aws,cloud-azure,cloud-gcp
 ```
 
-## 4. Verify
+Add `,gpu-nvidia` when you selected the `gpu` host profile. Add `--allow-ssh` if you
+reach this machine over SSH: the firewall closes incoming SSH otherwise. Over SSH,
+`apply` refuses before any change until you pass `--allow-ssh` or `--no-allow-ssh`
+(which warns that new logins will be refused). `--allow-ssh` opens port 22 only (UFW's
+`OpenSSH` profile) and needs `openssh-server` installed. Both choices, the host
+profiles and `--allow-ssh`, are recorded in
+`${XDG_STATE_HOME:-$HOME/.local/state}/setup-dev-linux/state.json` and kept by later
+runs.
+
+What happens, in order:
+
+1. The host stages: the distribution checks, the signed third-party APT sources,
+   the manifest's packages and snaps, each pinned release binary after its SHA-256 is
+   verified, the VS Code extensions (with `dev-gui`), the GNOME settings (with
+   `desktop`), then the firewall: UFW enabled with incoming denied, and OpenSnitch
+   running in allow mode, which you switch to deny later.
+2. The handoff: `~/workspace/setup-dev-linux-wsl` is cloned (or updated) and its
+   `./bootstrap apply --target linux` runs as you, interactively. It asks for your
+   git name and email, then installs the command line: CLI tools, runtimes, the
+   shell, dotfiles and, with `runtime-docker`, Docker and the `docker` group.
+
+Without `--cli-profiles`, setup-dev-linux-wsl installs its own default without
+asking. `apply` prints a `hint:` line with the list above before the host stages and
+again just before the handoff, so you can interrupt (Ctrl-C; `apply` exits 130) and
+re-run with `--cli-profiles`. Later runs need no `--cli-profiles`; to change a
+recorded choice, edit `[data] profiles` in `~/.config/chezmoi/chezmoi.toml` (as the
+hint says), not the flag.
+
+Other options: `--linux-ref REF` checks out another branch, tag or commit of
+setup-dev-linux-wsl; `--no-handoff` stops after the host. If
+`~/workspace/setup-dev-linux-wsl` already exists but is not a clone of
+setup-dev-linux-wsl, or has local changes, `apply` stops and leaves it untouched.
+
+Re-running `apply` is safe at any point: the second run changes nothing that is
+already correct, and the handoff updates the clone and passes no profile list.
+
+## 5. Log out and back in
+
+Group memberships added during `apply`, such as the `docker` group, take effect only
+in a new login session. Log out and back in (or reboot) before using Docker without
+`sudo`.
+
+## 6. Verify
 
 ```bash
-just verify config/your-machine.json
+./bootstrap verify --config config/your-machine.local.json
 ```
 
-Verification reads the installed system and reports drift. It never repairs.
-An `incomplete` result names what has no verification yet; it is not a pass.
+Verification reads the installed system and reports drift. It never repairs. It
+checks the recorded profiles unless you pass `--profiles`, and ends with
+setup-dev-linux-wsl's own `script/verify --target linux` (`cli:verify`;
+`--no-handoff` skips it). The UFW check needs `sudo -n`: run `sudo -v` first, or it
+is reported as deferred. An `incomplete` result names what has no verification yet;
+it is not a pass.
 
-## 5. Move your files
-
-From the **old** machine, preview first:
-
-```bash
-just migrate-plan config/your-machine.json newbox
-```
-
-Then copy:
-
-```bash
-just migrate config/your-machine.json newbox
-```
-
-This copies the trees declared in `manifest/migrate.json`, excluding build
-output and package caches that regenerate themselves. It is resumable: if it is
-interrupted, run it again and it continues.
-
-When the copy finishes, migrate runs rsync a second time in dry-run mode. A
-byte-complete copy has nothing left to transfer, so anything still outstanding
-is reported as a failure rather than a warning.
-
-Credentials do not travel in that copy. Move them deliberately:
-
-```bash
-just migrate-secrets config/your-machine.json newbox
-```
-
-This covers `~/.ssh`, `~/.gnupg`, `~/secure`, `~/.aws`, `~/.azure`, `~/.kube`,
-`~/.docker`, `~/.config/gh` and the agent CLI session files, with permissions
-preserved.
-
-One file is deliberately never copied: `~/.ssh/authorized_keys`. It is what
-grants you access to the new machine, so replacing it mid-migration revokes the
-key the copy is running over and locks you out with the transfer half done.
-Set up your keys on the new machine before you start — step 0 above — and add
-anything else you need there by hand afterwards.
-
-## 6. Finish by hand
+## 7. Finish by hand
 
 These are deliberately not automated:
 
-- **Authenticate** every tool that needs it: `gh auth login`, cloud CLIs, the
-  agent CLIs, Bitwarden, Slack, Thunderbird.
+- **Authenticate** the desktop applications that need it: Bitwarden, Slack,
+  Thunderbird. Command-line tools (`gh`, cloud CLIs, agent CLIs), the git signing
+  key and SSH keys belong to setup-dev-linux-wsl.
+- **OpenSnitch**: once your rules exist, switch the default action to deny in the
+  OpenSnitch UI. Later `apply` runs keep your choice, and may then prompt.
 - **VPN profiles** and their certificates.
 - **Backup destination and schedule** on the new machine.
-- **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot
-  is on, enrol the module signing key. A reboot is required.
-- **Docker group**: log out and back in before the group membership applies.
-- **IntelliJ IDEA**: install fresh rather than using the copy in `~/Apps`.
-
-## Private Git identities
-
-Optionally add `"user_settings_file": "user-settings.local.json"` to the explicit
-machine configuration. The path resolves relative to that machine file. The settings
-file must be owned by the invoking user, with no group/other access (for example,
-mode 0600). It uses the committed [schema](../config/user-settings.schema.json):
-
-```json
-{
-  "schema_version": 1,
-  "identities": [
-    {
-      "scope": "personal",
-      "directory": "/absolute/path/to/personal/projects",
-      "name": "Your personal Git name",
-      "email": "your-personal-address@example.invalid"
-    },
-    {
-      "scope": "work",
-      "directory": "/absolute/path/to/work/projects",
-      "name": "Your work Git name",
-      "email": "your-work-address@example.invalid"
-    }
-  ]
-}
-```
-
-Supply actual private values locally. Directories must not overlap or use glob
-patterns. Missing identity settings are reported as incomplete; no identity is guessed.
-Verification reports contain a settings digest, never the identity values.
-
-## Private proxy settings
-
-`proxyon` reads `~/.config/linux-os-setup/proxy.local.json`, or an explicit
-`WORKSTATION_PROXY_SETTINGS` path. This runtime JSON file must be owned by the current
-user, have no group/other access and be a regular file rather than a symlink. It
-contains exactly four string keys: `http_proxy`, `https_proxy`, `all_proxy`, `no_proxy`.
-Nonempty proxy URLs use http, https, socks5 or socks5h. Empty strings explicitly clear
-that proxy during activation. Control characters and duplicate/unknown keys fail.
-The helpers export both lowercase and uppercase forms and never evaluate shell code.
-
-The first `proxyon` saves prior values, unset state and export attributes. Repeated
-activation retains that original snapshot. `proxyoff` restores it; repeated deactivation
-is harmless. Missing/invalid settings leave the environment unchanged. Do not put
-proxy credentials in the repository or copy old secret-bearing shell function bodies.
+- **GPU**: confirm the NVIDIA driver loaded (`nvidia-smi`) and, if Secure Boot is on,
+  enrol the module signing key. A reboot is required.
+- **Your data**: restore it yourself from your own backup.
 
 ## What this cannot tell you
 
-The VM acceptance cycle exercises everything except the GPU stack, because the
-guest has no NVIDIA hardware. GPU delivery is proven only on the physical
-machine.
+The VM acceptance cycle exercises the host and the handoff, but not the GPU stack
+(the guest has no NVIDIA hardware) or a rendered desktop session (it runs a server
+image). Those are proven only on the physical machine.

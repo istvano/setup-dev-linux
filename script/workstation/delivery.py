@@ -1,7 +1,7 @@
 """Independent verification of manifest delivery beyond APT packages.
 
 `bootstrap verify` reads the installed system and reports drift. Until now it
-covered packages, user tools, runtimes and desktop settings, so a clean verify
+covered packages and desktop settings, so a clean verify
 did not mean the machine matched the manifest: the pinned binaries, the snaps
 and the repositories they come from were checked only by the VM fixture.
 
@@ -127,8 +127,12 @@ def key_fingerprint(path):
     return None
 
 
-def verify_repositories(root=ROOT):
-    """Each declared repository has its recorded key installed.
+def verify_repositories(root=ROOT, repositories=None):
+    """Each selected repository has its recorded key installed.
+
+    `repositories` names the ones the selected groups install from; None means
+    every declared repository. A repository no selected group uses was never
+    configured, so it is not reported missing.
 
     A source a vendor package manages is not checked for a source file: the
     repository was configured to obtain the package and then handed back, so the
@@ -136,11 +140,16 @@ def verify_repositories(root=ROOT):
     the recorded one.
     """
     manifest = _load('repositories.json', root)
-    repositories = manifest['repositories']
+    wanted = repositories
+    repositories = [r for r in manifest['repositories'] if wanted is None or r['id'] in wanted]
+    if not repositories:
+        return []
     checks, failures = [], 0
     for repository in sorted(repositories, key=lambda r: r['id']):
         identifier = f"repository:{repository['id']}"
-        keyring = KEYRING_DIR / f"{repository['id']}.gpg"
+        # A keyring shared with setup-dev-linux-wsl is named explicitly.
+        keyring = (Path(repository['keyring']) if repository.get('keyring')
+                   else KEYRING_DIR / f"{repository['id']}.gpg")
         if not keyring.is_file():
             checks.append({'id': identifier, 'status': 'failed', 'reason': 'keyring-missing'})
             failures += 1
@@ -161,6 +170,6 @@ def verify_repositories(root=ROOT):
     return checks
 
 
-def verify(root=ROOT, groups=None):
+def verify(root=ROOT, groups=None, repositories=None):
     return (verify_binaries(root, groups) + verify_snaps(root, groups)
-            + verify_repositories(root))
+            + verify_repositories(root, repositories))
