@@ -17,7 +17,7 @@
     },
     {
       "id": "google-chrome",
-      "uri": "https://dl.google.com/linux/chrome/deb/",
+      "uri": "https://dl.google.com/linux/chrome-stable/deb/",
       "suite": "stable",
       "components": [
         "main"
@@ -28,7 +28,7 @@
       ],
       "key_fingerprint": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796",
       "self_registers_source": true,
-      "self_registers_note": "The package's postinst rewrites the source file for this URI and marks it automatically configured, so the repository is configured only to obtain the package and then left to the vendor. It registers only once per machine (repo_add_once in /etc/default/google-chrome); when it writes nothing, ansible/tasks/install-vendor-package.yml keeps ours as the package's source."
+      "self_registers_note": "The package's postinst rewrites the source file for this URI and marks it automatically configured, so the repository is configured only to obtain the package and then left to the vendor. It registers only once per machine (repo_add_once in /etc/default/google-chrome); when it writes nothing, ansible/tasks/install-vendor-package.yml keeps ours as the package's source. The URI is the one the package itself writes (google-chrome.sources, observed 2026-11-27 with 158.0.8127.88): with the older https://dl.google.com/linux/chrome/deb/ the hand-back never recognised the vendor's file and both sources stayed configured."
     },
     {
       "id": "slack",
