@@ -42,7 +42,7 @@ Reasoning and outstanding gates are in [source evidence](SOURCE-EVIDENCE.md).
 
 | Capability | Proposed source | Observed version(s) | Integrity evidence |
 |---|---|---|---|
-| `ansible-core` | uv-lock | 2.21.4 | published-only |
+| `ansible-core` | uv-lock | 2.21.6 | published-only |
 | `ansible-lint` | uv-lock | 26.8.0 | published-only |
 | `bitwarden` | candidate-snap | 2026.8.0 | published-only |
 | `controller-python` | uv-python | 20260901 | published-only |

@@ -541,3 +541,45 @@ sources, and that `bootstrap verify` ends with a passing `cli:verify`.
 `--skip-handoff` keeps a host-only cycle. `script/test-vm --controller` keeps a
 controller-only path: the `firewall` profile alone, `--allow-ssh`, `--no-handoff`.
 What a guest cannot show is listed in [TESTING.md](TESTING.md).
+
+## D031 — apply asks for the sudo password once
+
+Decided 2026-11-27, after `apply` failed on a real Ubuntu 26.04 machine at its first
+privileged task (*Create the keyring and staging directories*,
+`ansible/repositories.yml`) with `Premature end of stream waiting for become success`
+and `sudo: interactive authentication is required`. Ansible was given no become
+password, so it ran `sudo -n`; Ubuntu 26.04's sudo is sudo-rs (that wording is
+sudo-rs's), which then refuses any account without passwordless sudo. The VM cycle
+never saw it because the guest's test user has `NOPASSWD` sudo (D030).
+
+`apply`, and only `apply` (not `plan`, `preflight` or `verify`), now raises privilege
+like this, after the storage and prerequisite checks and before the controller writes
+anything:
+
+1. `sudo -n true` succeeds (passwordless sudo, as on the VM guest): no password,
+   nothing else changes.
+2. Otherwise standard input must be a terminal; without one the run stops with the
+   `sudo` check `sudo-password-needs-terminal`.
+3. getpass asks `[setup-dev-linux] sudo password for <user>:` and sudo validates the
+   answer, read on standard input (`sudo -S -k -p '' true`; sudo-rs supports all
+   three flags). Three attempts, then `sudo-authentication-failed`.
+4. Every `ansible-playbook` run gets `--become-password-file -` with its standard
+   input the read end of a fresh pipe, written and closed before it starts: the
+   equivalent of `--ask-become-pass` with no prompt in the log. A `/dev/fd/N` path
+   cannot be used, because ansible-playbook resolves that option with `realpath`,
+   which turns it into a `/proc/PID/fd/pipe:[…]` name that does not exist.
+
+The password is never echoed, logged, printed or written to disk, and is never put in
+an environment variable or on a command line. It lives only in the controller's
+memory for the run.
+
+ansible-core moves from 2.21.4 to 2.21.6 in the same change. With a become password,
+Ansible's `sudo` plugin passes `-p "[sudo via ansible, key=…] password:"` and waits for
+that prompt; sudo-rs prints it as `[sudo: [sudo via ansible, key=…] password:]
+Password:`, which 2.21.4 does not recognise, so the task times out. 2.21.6 adds
+sudo-rs prompt matching (absent from 2.21.5); `locks/bootstrap.json` binds the new
+`pyproject.toml` and `uv.lock`, which was regenerated with the pinned uv 0.12.13.
+
+The handoff is unchanged: setup-dev-linux-wsl runs attached to the terminal and asks
+for sudo itself. The VM guest keeps passwordless sudo, so the password path is a
+manual check in [TESTING.md](TESTING.md).

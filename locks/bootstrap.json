@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "reviewed_at": "2026-09-13",
-  "project_sha256": "7c3bdaecf607cdadd3b9388b139a50ebf75e23d2410805f55004d9af1f55afa1",
-  "uv_lock_sha256": "22ba87dd158b660b67d75e23d0f81e9ba3c4d2178f32f5c44e900031f4549584",
+  "project_sha256": "e5d553892e98b4114ed9ff2d4306a6cdd4c3009c1ad224561a977f16ec877e0f",
+  "uv_lock_sha256": "24c82c6e0f2c942da1b236bdada6051ba731030dbb245924be9260ac54d3568c",
   "artifacts": {
     "uv": {
       "version": "0.12.13",

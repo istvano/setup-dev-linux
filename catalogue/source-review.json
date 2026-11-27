@@ -10,24 +10,24 @@
       "proposed_channel": "uv-lock",
       "evidence": [
         {
-          "url": "https://pypi.org/pypi/ansible-core/json",
-          "sha256": "8421ac419d0218f3fb534b6e71bfb2f32d612add1a2276c109b1f83d43b68fde",
+          "url": "https://pypi.org/pypi/ansible-core/2.21.6/json",
+          "sha256": "2d99eddc5312a4f75340df0c89a161d76a7a7e69ec63b460d613d8baac4b6f02",
           "description": "ansible-core-pypi.json"
         }
       ],
       "artifacts": [
         {
-          "name": "ansible_core-2.21.4-py3-none-any.whl",
-          "version": "2.21.4",
+          "name": "ansible_core-2.21.6-py3-none-any.whl",
+          "version": "2.21.6",
           "platform": "python",
-          "url": "https://files.pythonhosted.org/packages/a1/05/d4e28474dd027db4d60fef2422cf6bc80df100ab32e5fa5e7aad898ffd55/ansible_core-2.21.4-py3-none-any.whl",
-          "digest": "sha256:ebe74d9c8fadcb41ad2151e031bf1e785e3098aaa015019b4e19a0a96f0dcc4f",
+          "url": "https://files.pythonhosted.org/packages/20/5a/9e6cc7686b40bec066211200b6c393a7a333dfcfa91aa67a07c031df87c8/ansible_core-2.21.6-py3-none-any.whl",
+          "digest": "sha256:c1fc3cbe821176ba4227b1cae8c748e1d28d42dde605e807d23c58f71b6d1a74",
           "verification": "published-only"
         }
       ],
       "licence_observations": [
         {
-          "source": "https://pypi.org/project/ansible-core/2.21.4/",
+          "source": "https://pypi.org/project/ansible-core/2.21.6/",
           "labels": [
             "GPL-3.0-or-later"
           ],

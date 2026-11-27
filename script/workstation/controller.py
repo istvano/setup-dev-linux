@@ -169,6 +169,10 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
                      allow_ssh_explicit=False):
     require(selection is not None and selection['groups'], 'no-profile-selected')
     require(os.geteuid() != 0 and pwd.getpwuid(os.geteuid()).pw_name == config['target']['user'], 'controller-must-run-as-target-user')
+    # Asked once, before the first write: None with passwordless sudo. Raises
+    # become.BecomeError when there is no terminal or no answer is accepted.
+    from . import become
+    password = become.acquire()
     lock = validate_lock(root)  # Check frozen-input binding before the first write.
     state = root / '.workstation'
     require(not state.is_symlink(), 'unsafe-controller-path')
@@ -219,11 +223,13 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
         extra = ['--extra-vars', '@' + str(variables)]
 
         def run_stage(names, timeout):
-            subprocess.run([str(state / 'venv/bin/ansible-playbook'), '-i', 'localhost,',
-                            *[str(root / 'ansible' / n) if not n.startswith('/') else n
-                              for n in names], *extra],
-                           cwd=root, check=True, env=environment,
-                           stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
+            # A fresh pipe per run: ansible-playbook reads it to the end once.
+            with become.password_pipe(password) as (become_args, become_input):
+                subprocess.run([str(state / 'venv/bin/ansible-playbook'), '-i', 'localhost,',
+                                *[str(root / 'ansible' / n) if not n.startswith('/') else n
+                                  for n in names], *extra, *become_args],
+                               cwd=root, check=True, env=environment, **become_input,
+                               stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
 
         run_host_stages(selection, run_stage, lambda: record_selection(
             selection, allow_ssh if allow_ssh_explicit else None), config, root)

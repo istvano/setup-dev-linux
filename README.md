@@ -32,6 +32,13 @@ cd ~/workspace/setup-dev-linux
 ./bootstrap verify --config config/your-machine.local.json   # report drift; never repairs
 ```
 
+`apply` asks for your sudo password once, at the start, before it changes
+anything (`[setup-dev-linux] sudo password for <you>:`), and uses it for every
+privileged step of the host stages; with passwordless sudo it asks nothing. It needs a
+terminal for that: run without one, it stops before any change with
+`sudo: failed — sudo-password-needs-terminal`. setup-dev-linux-wsl, run at the end,
+asks for sudo itself when it needs it.
+
 Read the `hint:` line `apply` prints before choosing the command-line profiles
 (below). `just` and `make` offer the same commands; neither is needed on a new
 machine:
