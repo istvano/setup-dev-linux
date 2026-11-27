@@ -602,6 +602,30 @@ A vendor's own source file is the vendor's: Chrome's already names `amd64`, and 
 that does not keeps its notice. setup-dev-linux-wsl's `script/apt-vendor` does the same
 for the sources it writes (its ADR-016).
 
+## D033 — archive packages may come from Ubuntu Pro ESM
+
+Decided 2026-11-27. An apply on the first Ubuntu 26.04 host stopped at *Install the
+inspected versions* with `E: Packages were downgraded and -y was used without
+--allow-downgrades` for `ffmpeg=7:8.0.1-3ubuntu2`. The machine has Ubuntu Pro attached,
+so `esm.ubuntu.com` serves Expanded Security Maintenance builds of universe packages,
+and unattended-upgrades had installed a newer ffmpeg from it. The public archive's
+only ffmpeg for resolute is `7:8.0.1-3ubuntu2`. The archive policy accepted only origin
+`Ubuntu` in the four release pockets, so the ESM version was not "from the archive",
+the release-pocket version became the candidate, and installing it meant a downgrade.
+`allow_downgrade: false` refused it, correctly.
+
+ESM builds are Canonical's builds of the same archive packages, so an archive-declared
+package now also accepts a version whose origins are all one of these, served from
+`esm.ubuntu.com` (the origin label alone is whatever a Release file claims, so the host
+is checked too):
+
+| Origin | Suite |
+|---|---|
+| `UbuntuESMApps` | `<codename>-apps-security`, `<codename>-apps-updates` |
+| `UbuntuESM` | `<codename>-infra-security`, `<codename>-infra-updates` |
+
+These are the origin:suite pairs Ubuntu's own `50unattended-upgrades` allows. Nothing
+changes for third-party packages, and a machine without Pro sees no ESM versions.
 ## D034 — Solarized Light in Ptyxis and Ghostty
 
 Decided 2026-11-27, at the operator's request: every terminal the desktop installs uses

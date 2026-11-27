@@ -16,11 +16,14 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'script'))
 from workstation.config import InputError  # noqa: E402
 from workstation.packages import (  # noqa: E402
-    allowed_version, approved_registry, archive_suites,
+    allowed_version, approved_registry, archive_suites, esm_origins,
     expectations, repository_sites, verify_packages)
 
 ARCHIVE = {'kind': 'archive', 'origin': 'Ubuntu',
-           'suites': ['resolute', 'resolute-updates', 'resolute-security'], 'site': None}
+           'suites': ['resolute', 'resolute-updates', 'resolute-security'],
+           'esm': [['UbuntuESMApps', 'resolute-apps-security', 'esm.ubuntu.com'],
+                   ['UbuntuESM', 'resolute-infra-security', 'esm.ubuntu.com']],
+           'site': None}
 REPOSITORY = {'kind': 'repository', 'origin': None, 'suites': [],
               'site': 'download.docker.com'}
 
@@ -60,6 +63,41 @@ class ArchivePolicyTests(unittest.TestCase):
         bad['origins'].append({'origin': 'Other', 'trusted': True, 'suite': 'resolute',
                                'site': 'example.invalid'})
         self.assertFalse(allowed_version(bad, ARCHIVE))
+
+
+class EsmPolicyTests(unittest.TestCase):
+    """Ubuntu Pro ESM builds of archive packages are Canonical's, from esm.ubuntu.com."""
+
+    def esm(self, **overrides):
+        origin = {'origin': 'UbuntuESMApps', 'trusted': True,
+                  'suite': 'resolute-apps-security', 'site': 'esm.ubuntu.com'}
+        origin.update(overrides)
+        return version(origins=[origin])
+
+    def test_an_esm_apps_security_build_is_allowed(self):
+        self.assertTrue(allowed_version(self.esm(), ARCHIVE))
+
+    def test_an_esm_infra_build_is_allowed(self):
+        self.assertTrue(allowed_version(
+            self.esm(origin='UbuntuESM', suite='resolute-infra-security'), ARCHIVE))
+
+    def test_an_esm_label_from_another_host_is_rejected(self):
+        self.assertFalse(allowed_version(self.esm(site='esm.example.invalid'), ARCHIVE))
+
+    def test_an_esm_build_for_another_release_or_untrusted_is_rejected(self):
+        self.assertFalse(allowed_version(self.esm(suite='noble-apps-security'), ARCHIVE))
+        self.assertFalse(allowed_version(self.esm(trusted=False), ARCHIVE))
+
+    def test_esm_is_not_accepted_for_a_third_party_package(self):
+        self.assertFalse(allowed_version(self.esm(), REPOSITORY))
+
+    def test_the_esm_pockets_follow_the_release(self):
+        self.assertEqual(esm_origins('resolute'), [
+            ['UbuntuESMApps', 'resolute-apps-security', 'esm.ubuntu.com'],
+            ['UbuntuESMApps', 'resolute-apps-updates', 'esm.ubuntu.com'],
+            ['UbuntuESM', 'resolute-infra-security', 'esm.ubuntu.com'],
+            ['UbuntuESM', 'resolute-infra-updates', 'esm.ubuntu.com']])
+        self.assertEqual(esm_origins(''), [])
 
 
 class RepositoryPolicyTests(unittest.TestCase):
