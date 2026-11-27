@@ -14,49 +14,38 @@
   environment:
     DEBIAN_FRONTEND: noninteractive
 
-- name: "Hand {{ vendor.id }} back to the vendor package"
-  ansible.builtin.file:
-    path: "/etc/apt/sources.list.d/workstation-{{ vendor.id }}.sources"
-    state: absent
-  become: true
-
-# A vendor package may register its source only when no other source names
-# the repository yet. claude-desktop's postinst does exactly that, and ours was
-# still present while it ran, so it stepped aside; removing ours then left the
-# package installed with no source at all, never updated and reported by verify
-# as not from its declared source. With ours gone, run the package's configure
-# step again so it registers its own, and stop if it still has none.
-- name: "Look for the source {{ vendor.id }} registered"
+# Hand the URI back only to a source the vendor actually wrote. Vendors differ:
+# claude-desktop's postinst registers its source only when no other source names
+# the repository, so it steps aside while ours is present; google-chrome's
+# registers once per machine (repo_add_once in /etc/default/google-chrome) and
+# never again. Removing ours unconditionally left either package with no source
+# at all, never updated and reported by verify as not from its declared source.
+# When the vendor wrote nothing, ours stays and is the package's source; neither
+# vendor adds one later while it exists, so the two never name the URI together.
+# APT reads only *.list and *.sources, so a backup file is not a source.
+- name: "Look for a source {{ vendor.id }} registered itself"
   ansible.builtin.command:
     argv: [/usr/bin/grep, -rlF, --, "{{ vendor.uri }}", /etc/apt/sources.list.d/]
   register: vendor_source
   changed_when: false
   failed_when: vendor_source.rc > 1
 
-- name: "Let {{ vendor.id }} register its own source"
-  ansible.builtin.command:
-    argv: >-
-      {{ ['/usr/sbin/dpkg-reconfigure', '--frontend', 'noninteractive']
-         + (selected | selectattr('source', 'equalto', vendor.id)
-            | map(attribute='name') | list) }}
-  when: vendor_source.rc == 1
+- name: "Hand {{ vendor.id }} back to the vendor package"
+  ansible.builtin.file:
+    path: "/etc/apt/sources.list.d/workstation-{{ vendor.id }}.sources"
+    state: absent
+  when: >-
+    vendor_source.stdout_lines
+    | select('search', '\\.(list|sources)$')
+    | reject('search', '/workstation-' ~ vendor.id ~ '\\.sources$')
+    | list | length > 0
   become: true
-  environment:
-    DEBIAN_FRONTEND: noninteractive
-
-- name: "Confirm {{ vendor.id }} now has a source of its own"
-  ansible.builtin.command:
-    argv: [/usr/bin/grep, -rlF, --, "{{ vendor.uri }}", /etc/apt/sources.list.d/]
-  register: vendor_source_after
-  changed_when: false
-  failed_when: vendor_source_after.rc != 0
-  when: vendor_source.rc == 1
 
 # The vendor's package may have registered its own source during that
 # install, which apt has no index for until the next refresh. Without it the
 # package is installed but attributed to no repository, and verification
 # rightly reports it as not coming from its declared source.
-- name: "Refresh metadata after {{ vendor.id }} registered its own source"
+- name: "Refresh metadata after installing {{ vendor.id }}"
   ansible.builtin.apt:
     update_cache: true
   become: true

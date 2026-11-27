@@ -28,7 +28,7 @@
       ],
       "key_fingerprint": "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796",
       "self_registers_source": true,
-      "self_registers_note": "The package's postinst rewrites the source file for this URI and marks it automatically configured, so the repository is configured only to obtain the package and then left to the vendor."
+      "self_registers_note": "The package's postinst rewrites the source file for this URI and marks it automatically configured, so the repository is configured only to obtain the package and then left to the vendor. It registers only once per machine (repo_add_once in /etc/default/google-chrome); when it writes nothing, ansible/tasks/install-vendor-package.yml keeps ours as the package's source."
     },
     {
       "id": "slack",
@@ -71,7 +71,7 @@
       "key_uid": "Anthropic Claude Code Release Signing <security@anthropic.com>",
       "key_note": "This vendor publishes no fetchable key; its installer places the keyring locally. The public key is vendored here with its fingerprint, taken from the vendor installation on 2026-09-16.",
       "self_registers_source": true,
-      "self_registers_note": "The vendor package installs its own source file pointing at the same URI with its own keyring. Two source files for one URI with different Signed-By values make APT refuse to read its source list, so this repository is configured only to obtain the package and removed once the vendor manages it. Its postinst writes that file (claude-desktop.list) only when no other source names the repository, so it skips it while ours is present; ansible/tasks/install-vendor-package.yml runs its configure step again once ours is removed."
+      "self_registers_note": "The vendor package installs its own source file pointing at the same URI with its own keyring. Two source files for one URI with different Signed-By values make APT refuse to read its source list, so this repository is configured only to obtain the package and removed once the vendor manages it. Its postinst writes that file (claude-desktop.list) only when no other source names the repository, so it skips it while ours is present; ansible/tasks/install-vendor-package.yml then keeps ours as the package's source."
     },
     {
       "id": "chatgpt",
