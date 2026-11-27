@@ -285,6 +285,15 @@ class PlaybookFilterTest(unittest.TestCase):
     def test_snaps_are_filtered_by_group(self):
         self.assertIn("selectattr('group', 'in', manifest_groups)", self.read('snaps.yml'))
 
+    def test_preinstalled_snaps_are_switched_to_the_declared_channel(self):
+        # Ubuntu seeds firefox and thunderbird on a release branch; `snap install`
+        # leaves them there, so verify reported them tracking the wrong channel.
+        text = self.read('snaps.yml')
+        switch = text[text.index('Move a preinstalled snap'):]
+        self.assertIn('/usr/bin/snap, switch, --channel', switch)
+        self.assertIn('snap_list.stdout is not search', switch)
+        self.assertIn("selectattr('group', 'in', manifest_groups)", switch)
+
     def test_binaries_are_filtered_by_group(self):
         text = self.read('binaries.yml')
         install = text[text.index('Install each pinned artifact'):]

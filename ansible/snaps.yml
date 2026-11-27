@@ -22,3 +22,27 @@
       loop_control:
         label: "{{ item.name }}"
       become: true
+
+    # Ubuntu seeds firefox and thunderbird on a release branch
+    # (latest/stable/ubuntu-<release>), and `snap install` leaves a snap that is
+    # already installed where it is, so the task above cannot move them.
+    # `snap switch` changes only what the snap tracks: nothing downloads, it works
+    # while the application is running, and the next refresh follows the declared
+    # channel. Only a snap whose tracking differs is switched, so a re-run changes
+    # nothing. `snap list` columns: Name Version Rev Tracking Publisher Notes.
+    - name: Read what each installed snap tracks
+      ansible.builtin.command:
+        argv: [/usr/bin/snap, list]
+      register: snap_list
+      changed_when: false
+
+    - name: Move a preinstalled snap onto its declared channel
+      ansible.builtin.command:
+        argv: [/usr/bin/snap, switch, --channel, "{{ item.channel }}", "{{ item.name }}"]
+      when: >-
+        snap_list.stdout is not search('(?m)^' ~ (item.name | regex_escape)
+        ~ '\\s+\\S+\\s+\\S+\\s+' ~ (item.channel | regex_escape) ~ '\\s')
+      loop: "{{ manifest.snaps | selectattr('group', 'in', manifest_groups) | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      become: true
