@@ -163,6 +163,8 @@ for a session):
   staging directories*) pass; `apply </dev/null` without a terminal stops with
   `sudo-password-needs-terminal` and no `.workstation` directory; and the password
   appears in no file under `.workstation`. With passwordless sudo nothing is asked.
+  When the host stages pass, setup-dev-linux-wsl's bootstrap does not ask for the
+  password again (its `sudo` calls use the credential `apply` refreshed).
 - [ ] **Interactive first run**: on a fresh guest, run `apply` from a terminal without
   `--cli-profiles` or an identity: the `hint:` line appears before the host stages and
   again before the bootstrap, and setup-dev-linux-wsl prompts for the git identity.

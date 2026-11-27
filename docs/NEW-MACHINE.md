@@ -81,8 +81,11 @@ It checks the password with sudo (three attempts, then `sudo-authentication-fail
 and hands it to every privileged step of the host stages; it is not echoed, logged or
 written anywhere. With passwordless sudo nothing is asked. Run `apply` from a
 terminal: without one it stops before any change with `sudo-password-needs-terminal`.
-setup-dev-linux-wsl, which runs after the host stages, asks for sudo itself when it
-needs it, so you may be asked again there.
+The host stages then print nothing to the terminal until they finish; `apply` prints
+one line naming the log, so follow it in a second terminal with
+`tail -f .workstation/foundation.log`. When they finish, `apply` refreshes sudo's
+cached credential for your terminal, so setup-dev-linux-wsl, which runs next,
+normally does not ask for the password again.
 
 setup-dev-linux-wsl records its command-line profile choice on its first run and
 refuses a different list afterwards, so choose it now. For the command-line set this

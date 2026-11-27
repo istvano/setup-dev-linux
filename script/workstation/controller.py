@@ -6,6 +6,7 @@ from pathlib import Path
 import pwd
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.request
@@ -206,6 +207,10 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
     log = state / 'foundation.log'
     from .storage import preflight
     require(preflight(config)[1] == 0, 'storage-changed-before-controller-sync')
+    # Every stage writes only to the log, so the terminal is silent for what can
+    # be an hour on a first run. Say so once, or a quiet screen reads as a hang.
+    print(f'setup-dev-linux: host stages running; nothing prints here until they finish. '
+          f'Follow them with: tail -f {log}', file=sys.stderr, flush=True)
     with log.open('w') as output:
         log.chmod(0o600)
         subprocess.run([str(executables['uv']), 'sync', '--frozen', '--no-config', '--no-build', '--all-groups',
@@ -233,4 +238,6 @@ def apply_foundation(config, root=ROOT, selection=None, allow_ssh=False,
 
         run_host_stages(selection, run_stage, lambda: record_selection(
             selection, allow_ssh if allow_ssh_explicit else None), config, root)
+    # The handoff that follows prompts on this terminal; spare it the question.
+    become.refresh_ticket(password)
     return {'id': 'controller-foundation', 'status': 'passed', 'reason': 'locked-controller-and-distribution-python-assertions-passed'}
