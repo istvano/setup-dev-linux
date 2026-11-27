@@ -316,6 +316,14 @@ class PlaybookFilterTest(unittest.TestCase):
         install = text[text.index('Install each pinned artifact'):]
         self.assertIn("selectattr('group', 'in', manifest_groups)", install)
 
+    def test_sources_name_only_the_native_architecture(self):
+        # Ubuntu Desktop enables i386; without Architectures every apt update
+        # printed a notice for each repository that does not publish it.
+        text = self.read('repositories.yml')
+        self.assertIn('argv: [/usr/bin/dpkg, --print-architecture]', text)
+        declare = text[text.index('Declare each third-party source'):]
+        self.assertIn('architectures: ["{{ dpkg_architecture.stdout }}"]', declare)
+
     def test_only_selected_repositories_are_configured(self):
         text = self.read('repositories.yml')
         self.assertIn("selectattr('id', 'in', selected_repositories)", text)

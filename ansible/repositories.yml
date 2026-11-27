@@ -16,6 +16,17 @@
     keyring_dir: /etc/apt/keyrings
     staging: /var/tmp/workstation-keys
   tasks:
+    # Ubuntu Desktop enables i386 as a foreign architecture and none of these
+    # vendors publish it, so a source without Architectures makes every apt
+    # update print a notice per repository. Each source names dpkg's own
+    # architecture only.
+    - name: Read dpkg's native architecture
+      ansible.builtin.command:
+        argv: [/usr/bin/dpkg, --print-architecture]
+      register: dpkg_architecture
+      changed_when: false
+      failed_when: dpkg_architecture.rc != 0 or dpkg_architecture.stdout is not match('^[a-z0-9]+$')
+
     - name: Require a signing key for every source
       ansible.builtin.assert:
         that: item.key_url is defined or item.key_file is defined
@@ -112,6 +123,7 @@
         uris: "{{ item.uri }}"
         suites: "{{ [item.suite | replace('{codename}', codename)] }}"
         components: "{{ item.components }}"
+        architectures: ["{{ dpkg_architecture.stdout }}"]
         signed_by: "{{ item.keyring | default(keyring_dir ~ '/' ~ item.id ~ '.gpg') }}"
         enabled: true
         state: present
