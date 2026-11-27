@@ -20,6 +20,38 @@
     state: absent
   become: true
 
+# A vendor package may register its source only when no other source names
+# the repository yet. claude-desktop's postinst does exactly that, and ours was
+# still present while it ran, so it stepped aside; removing ours then left the
+# package installed with no source at all, never updated and reported by verify
+# as not from its declared source. With ours gone, run the package's configure
+# step again so it registers its own, and stop if it still has none.
+- name: "Look for the source {{ vendor.id }} registered"
+  ansible.builtin.command:
+    argv: [/usr/bin/grep, -rlF, --, "{{ vendor.uri }}", /etc/apt/sources.list.d/]
+  register: vendor_source
+  changed_when: false
+  failed_when: vendor_source.rc > 1
+
+- name: "Let {{ vendor.id }} register its own source"
+  ansible.builtin.command:
+    argv: >-
+      {{ ['/usr/sbin/dpkg-reconfigure', '--frontend', 'noninteractive']
+         + (selected | selectattr('source', 'equalto', vendor.id)
+            | map(attribute='name') | list) }}
+  when: vendor_source.rc == 1
+  become: true
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+- name: "Confirm {{ vendor.id }} now has a source of its own"
+  ansible.builtin.command:
+    argv: [/usr/bin/grep, -rlF, --, "{{ vendor.uri }}", /etc/apt/sources.list.d/]
+  register: vendor_source_after
+  changed_when: false
+  failed_when: vendor_source_after.rc != 0
+  when: vendor_source.rc == 1
+
 # The vendor's package may have registered its own source during that
 # install, which apt has no index for until the next refresh. Without it the
 # package is installed but attributed to no repository, and verification
