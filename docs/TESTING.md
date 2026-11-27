@@ -152,6 +152,17 @@ for a session):
   (`ssh -t`), run `apply` and press Ctrl-C while setup-dev-linux-wsl's bootstrap is
   running. `apply` prints one `apply: interrupted; re-running is safe` line, no
   traceback, and exits 130 (`echo $?`); a following `apply` completes.
+- [ ] **sudo password**: the guest's test user has passwordless sudo, so the cycle
+  never exercises the password path (that is how D031's defect went unseen). Check it
+  on a machine, guest or `ubuntu:26.04` container whose user needs a password for
+  sudo (`sudo -n true` fails with `interactive authentication is required`):
+  `apply` from a terminal prints `[setup-dev-linux] sudo password for <user>:` once,
+  before anything is written; a wrong answer prints `Sorry, try again.`, three end
+  the run with the `sudo` check `sudo-authentication-failed`; the right one lets the
+  first `become: true` task (`ansible/repositories.yml`, *Create the keyring and
+  staging directories*) pass; `apply </dev/null` without a terminal stops with
+  `sudo-password-needs-terminal` and no `.workstation` directory; and the password
+  appears in no file under `.workstation`. With passwordless sudo nothing is asked.
 - [ ] **Interactive first run**: on a fresh guest, run `apply` from a terminal without
   `--cli-profiles` or an identity: the `hint:` line appears before the host stages and
   again before the bootstrap, and setup-dev-linux-wsl prompts for the git identity.

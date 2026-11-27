@@ -200,11 +200,16 @@ def main(argv=None):
         host_stages_passed = False
         if not code and command == 'apply':
             from .controller import apply_foundation
+            from .become import BecomeError
             try:
                 checks.append(apply_foundation(
                     context['config'], selection=selection, allow_ssh=allow_ssh,
                     allow_ssh_explicit=args.allow_ssh is not None))
                 host_stages_passed = True
+            except BecomeError as refusal:
+                # Raised before the controller writes anything.
+                checks.append({'id': 'sudo', 'status': 'failed', 'reason': str(refusal)})
+                code = 1
             except (OSError, subprocess.SubprocessError, tarfile.TarError):
                 checks.append({'id': 'controller-foundation', 'status': 'failed', 'reason': 'controller-operation-failed-see-private-log'})
                 code = 1

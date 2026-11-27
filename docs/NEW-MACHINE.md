@@ -70,6 +70,20 @@ actually there, or if `git` or `gpg` is missing.
 Run this **as your own user**, not as root, and not with `sudo`. The installer
 raises privilege for the system tasks that need it and refuses to run as root.
 
+After the preflight checks pass and before anything is written, `apply` asks for
+your sudo password once:
+
+```
+[setup-dev-linux] sudo password for <you>:
+```
+
+It checks the password with sudo (three attempts, then `sudo-authentication-failed`)
+and hands it to every privileged step of the host stages; it is not echoed, logged or
+written anywhere. With passwordless sudo nothing is asked. Run `apply` from a
+terminal: without one it stops before any change with `sudo-password-needs-terminal`.
+setup-dev-linux-wsl, which runs after the host stages, asks for sudo itself when it
+needs it, so you may be asked again there.
+
 setup-dev-linux-wsl records its command-line profile choice on its first run and
 refuses a different list afterwards, so choose it now. For the command-line set this
 repository used to install, give that list:
