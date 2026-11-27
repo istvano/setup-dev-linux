@@ -163,3 +163,24 @@ def verify(root=None, manifest=None):
                            'reason': f'{len(expected)}-extensions-enabled-'
                                      f'{len(manifest.get("extensions_disabled", []))}-left-off'})
     return checks
+
+
+GHOSTTY_CONFIG = 'manifest/files/ghostty/config'
+
+
+def verify_ghostty(home, root=None):
+    """~/.config/ghostty/config is the file the repository declares, byte for byte.
+
+    Nothing to check when Ghostty is not installed. A file edited by hand is
+    reported, not repaired: apply replaces it and keeps the previous one.
+    """
+    if shutil.which('ghostty') is None:
+        return []
+    root = Path(root) if root else Path(__file__).resolve().parents[2]
+    expected = (root / GHOSTTY_CONFIG).read_bytes()
+    placed = Path(home) / '.config' / 'ghostty' / 'config'
+    if not placed.is_file():
+        return [{'id': 'ghostty-config', 'status': 'failed', 'reason': 'ghostty-config-missing'}]
+    if placed.read_bytes() != expected:
+        return [{'id': 'ghostty-config', 'status': 'failed', 'reason': 'ghostty-config-differs'}]
+    return [{'id': 'ghostty-config', 'status': 'passed', 'reason': 'solarized-light-config-in-place'}]

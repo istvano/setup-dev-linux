@@ -158,6 +158,15 @@
     "org/gnome/terminal/legacy/profiles:": {
       "list": "['b1dcc9dd-5262-4d8d-a863-c897e6d979b9']",
       "default": "'b1dcc9dd-5262-4d8d-a863-c897e6d979b9'"
+    },
+    "org/gnome/Ptyxis": {
+      "default-profile-uuid": "'f89fdfa3329848628023356a320db99e'",
+      "interface-style": "'light'",
+      "profile-uuids": "['f89fdfa3329848628023356a320db99e']"
+    },
+    "org/gnome/Ptyxis/Profiles/f89fdfa3329848628023356a320db99e": {
+      "label": "'light'",
+      "palette": "'solarized'"
     }
   },
   "excluded": [

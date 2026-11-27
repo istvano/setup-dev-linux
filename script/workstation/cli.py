@@ -231,8 +231,10 @@ def main(argv=None):
                     Path(pwd.getpwnam(context['config']['target']['user']).pw_dir),
                     groups=groups))
             if 'desktop' in chosen:
-                from .desktop import verify as verify_desktop
+                from .desktop import verify as verify_desktop, verify_ghostty
                 package_checks.extend(verify_desktop())
+                package_checks.extend(verify_ghostty(
+                    Path(pwd.getpwnam(context['config']['target']['user']).pw_dir)))
             if firewall_selected:
                 # What was decided and where it came from: a record, not a check.
                 package_checks.append({'id': 'firewall:ssh-choice', 'status': 'notice',
